@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { PatientHeader } from '../../components/layout/PatientHeader';
-import { ECGCanvas } from '../../components/canvas/ECGCanvas';
+import { EcgViewer } from '../../components/dashboard/EcgViewer';
 import { TimelineBar } from '../../components/shared/TimelineBar';
 import { VitalCard } from '../../components/dashboard/VitalCard';
 import { AiCard } from '../../components/dashboard/AiCard';
@@ -9,12 +9,14 @@ import { DeviceCard } from '../../components/dashboard/DeviceCard';
 import type { ECGPaths, TimelineEvent } from '../../../core/types/ecgTypes';
 import { calculateEinthovenPoint } from '../../../core/algorithms/einthoven';
 import { PanTompkins } from '../../../core/algorithms/panTompkins';
+import { DCBlocker } from '../../../core/algorithms/dcBlocker';
 import { evaluateIrregularity } from '../../../core/clinical/ruleBasedEngine';
 import type { ClinicalExplanation } from '../../../core/clinical/ruleBasedEngine';
 import { useTranslation } from '../../../application/hooks/useTranslation';
 import { useECGScale } from '../../../application/hooks/useECGScale';
-import { ECGCalibrationModal } from '../../components/shared/ECGCalibrationModal';
 import { API_URL } from '../../../config/env';
+import { fetchWithAuth } from '../../../config/api';
+import { supabase } from '../../../config/supabaseClient';
 
 interface PatientProfile {
     patient: {
@@ -36,29 +38,27 @@ export const PatientHistoryDetailPage: React.FC = () => {
     const [isLoading, setIsLoading] = useState<boolean>(true);
     const [events, setEvents] = useState<TimelineEvent[]>([]);
     const [segments, setSegments] = useState<Record<number, any>>({});
-
-    // Scale state
-    const { scale, saveScale, resetScale } = useECGScale();
-    const [isCalibrationModalOpen, setIsCalibrationModalOpen] = useState(false);
-
+    
+    const { scale } = useECGScale();
     const getInitials = (firstName: string, lastName: string) => {
         if (!firstName && !lastName) return '';
         return `${(firstName || '').charAt(0)}${(lastName || '').charAt(0)}`.toUpperCase();
     };
 
     useEffect(() => {
-        const role = localStorage.getItem('user_role');
-        if (role !== 'pasien') return;
         const userId = localStorage.getItem('user_id') || '1';
-        fetch(`${API_URL}/api/patients/${userId}`)
+        fetchWithAuth(`/api/patients/${userId}`)
             .then(res => res.json())
             .then(data => setProfile(data))
             .catch(console.error);
 
         setIsLoading(true);
-        fetch(`${API_URL}/api/records/${sessionId}`)
-            .then(res => res.json())
-            .then(rawData => {
+        setIsLoading(true);
+        Promise.all([
+            fetchWithAuth(`/api/records/${sessionId}`).then(res => res.json()),
+            supabase.from('frame_records').select('start_time, label, hidden').eq('session_id', sessionId)
+        ])
+            .then(([rawData, { data: frameRecords }]) => {
                 let data = rawData;
                 if (data && data.length > 0) {
                     // Filter payloads to only show one recording session (handles merged mockup files)
@@ -71,14 +71,43 @@ export const PatientHistoryDetailPage: React.FC = () => {
                 const loadedEvents: TimelineEvent[] = [];
                 const loadedSegments: Record<number, any> = {};
 
-                data.forEach((payload: any, i: number) => {
-                    const isAnomaly = (payload.anomaly_indices && payload.anomaly_indices.length > 0) ||
+                const pt = new PanTompkins(250);
+                const globalDcBlocker = new DCBlocker(); // Jalur Matematis: Kontinu
+                let lastPeakIndex = -1;
+                let absoluteIndexOffset = 0;
+
+                const labelMap = new Map();
+                const hiddenMap = new Map();
+                if (frameRecords) {
+                    frameRecords.forEach(fr => {
+                        labelMap.set(fr.start_time, fr.label);
+                        hiddenMap.set(fr.start_time, fr.hidden);
+                    });
+                }
+
+                // Filter data to exclude hidden frames
+                const validData = data.filter((payload: any, originalIndex: number) => {
+                    const startTime = originalIndex * 10;
+                    return !hiddenMap.get(startTime);
+                });
+
+                validData.forEach((payload: any, i: number) => {
+                    const originalIndex = data.indexOf(payload);
+                    const startTime = originalIndex * 10;
+                    const dbLabel = labelMap.get(startTime);
+                    
+                    const isDbLabelAnomaly = dbLabel && dbLabel !== "Normal" && dbLabel !== "NORM" && dbLabel !== "NSR";
+                    const isPayloadAnomaly = (payload.anomaly_indices && payload.anomaly_indices.length > 0) ||
                         (payload.prediction?.label && payload.prediction.label !== "Normal" && payload.prediction.label !== "NORM") || false;
+                    
+                    const isAnomaly = dbLabel ? isDbLabelAnomaly : isPayloadAnomaly;
+                    const classResult = dbLabel || payload.prediction?.label || payload.classification_result || "NORM";
+
                     loadedEvents.push({
                         index: i,
                         timeStr: `${Math.floor(i / 6).toString().padStart(2, '0')}:${((i % 6) * 10).toString().padStart(2, '0')}`,
                         isAnomaly,
-                        classResult: payload.prediction?.label || payload.classification_result || "NORM"
+                        classResult
                     });
 
                     let xIndex = 0;
@@ -88,12 +117,7 @@ export const PatientHistoryDetailPage: React.FC = () => {
                     const ch2 = payload.raw?.ch2 || [];
                     const ch3 = payload.raw?.ch3 || [];
 
-                    const paths: ECGPaths = { I: [], II: [], III: [], aVR: [], aVL: [], aVF: [], V1: [] };
-
-                    const pt = new PanTompkins(250);
                     const rrIntervals: number[] = [];
-                    let lastPeakIndex = -1;
-
                     for (let j = 0; j < samples.length; j++) {
                         let finalI, finalII, finalIII;
                         if (Array.isArray(samples[j])) {
@@ -105,35 +129,28 @@ export const PatientHistoryDetailPage: React.FC = () => {
                             finalII = ch2[j] || 0;
                             finalIII = ch3[j] || 0;
                         }
-                        const calculated = calculateEinthovenPoint(finalI, finalII);
-                        const currentX = Number((xIndex * X_STEP).toFixed(2));
 
-                        paths.I.push(`${currentX},${(240 - finalI * 80).toFixed(2)}`);
-                        paths.II.push(`${currentX},${(240 - finalII * 80).toFixed(2)}`);
-                        paths.III.push(`${currentX},${(240 - finalIII * 80).toFixed(2)}`);
-                        paths.aVR.push(`${currentX},${(240 - calculated.aVR * 80).toFixed(2)}`);
-                        paths.aVL.push(`${currentX},${(240 - calculated.aVL * 80).toFixed(2)}`);
-                        paths.aVF.push(`${currentX},${(240 - calculated.aVF * 80).toFixed(2)}`);
-                        paths.V1.push(`${currentX},240.00`);
-
-                        if (pt.detectRealTime(finalII, j)) {
+                        // JALUR MATEMATIS (KONTINU): Hitung DC Blocker kontinu lalu umpankan ke PanTompkins
+                        const mathCleaned = globalDcBlocker.process(finalI, finalII);
+                        let absoluteJ = absoluteIndexOffset + j;
+                        if (pt.detectRealTime(mathCleaned.cleanII, absoluteJ)) {
                             if (lastPeakIndex !== -1) {
-                                rrIntervals.push((j - lastPeakIndex) / 250);
+                                rrIntervals.push((absoluteJ - lastPeakIndex) / 250);
                             }
-                            lastPeakIndex = j;
+                            lastPeakIndex = absoluteJ;
                         }
-
-                        xIndex++;
                     }
+                    absoluteIndexOffset += samples.length;
 
                     const evalResult = evaluateIrregularity(rrIntervals);
-                    const calculatedHR = evalResult.hr > 0 ? evalResult.hr : (payload.validation?.hr || payload.heart_rate || "--");
-                    loadedSegments[i] = {
-                        paths,
-                        rPeaks: [],
-                        isAnomaly,
-                        diagnosis: isAnomaly ? "Anomali Terdeteksi pada rekaman." : "Normal Sinus Rhythm. Variasi stabil.",
-                        heartRate: calculatedHR,
+                    const calculatedHR = evalResult.hr > 0 ? evalResult.hr : (payload.validation?.hr || payload.heart_rate || (i > 0 ? loadedSegments[i-1].heartRate : "--"));
+
+                        loadedSegments[i] = {
+                            payload, // Store the raw payload so EcgViewer can parse it lazily
+                            rPeaks: [],
+                            isAnomaly,
+                            diagnosis: isAnomaly ? "Anomali Terdeteksi pada rekaman." : "Normal Sinus Rhythm. Variasi stabil.",
+                            heartRate: calculatedHR,
                         frameId: payload.message_id || payload.frame_id || "---",
                         deviceId: payload.device_id || "---",
                         createdAt: payload.created_at || "---",
@@ -158,7 +175,7 @@ export const PatientHistoryDetailPage: React.FC = () => {
             });
     }, [sessionId]);
 
-    const patientName = profile?.patient ? `${profile.patient.first_name} ${profile.patient.last_name}` : t('profile.loading');
+    const patientName = profile ? `${profile.patient.first_name} ${profile.patient.last_name}` : t('profile.loading');
 
     const currentSegment = segments[selectedIdx];
     const currentEvent = events.find(e => e.index === selectedIdx);
@@ -187,10 +204,10 @@ export const PatientHistoryDetailPage: React.FC = () => {
 
                 {/* Main Canvas Content */}
                 <main className="flex-1 w-full max-w-container-max mx-auto px-margin-mobile md:px-margin-desktop py-8">
-                    <div className="flex flex-col lg:flex-row gap-8 lg:min-h-[calc(100vh-180px)]">
+                    <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
 
                         {/* KOLOM KIRI: GRAFIK & TIMELINE */}
-                        <section className="w-full lg:w-9/12 flex flex-col gap-6">
+                        <section className="lg:col-span-3 flex flex-col gap-6">
 
                             {/* Control Bar */}
                             <div className="bg-white border border-clinical-charcoal/5 rounded-[2rem] px-6 py-3 flex flex-wrap justify-between items-center shadow-[0px_20px_40px_rgba(0,0,0,0.04)] gap-4 transition-all duration-700 hover:shadow-[0px_30px_60px_rgba(0,0,0,0.08)] hover:-translate-y-1">
@@ -205,39 +222,25 @@ export const PatientHistoryDetailPage: React.FC = () => {
                                         </p>
                                     </div>
                                 </div>
-
-                                {/* TOMBOL KALIBRASI */}
-                                <button
-                                    onClick={() => setIsCalibrationModalOpen(true)}
-                                    className={`border px-5 py-2.5 rounded-full font-bold uppercase tracking-wider text-[10px] transition-all duration-300 flex items-center gap-2 outline-none hover:-translate-y-0.5 hover:shadow-sm ${scale !== 1.0 ? 'bg-indigo-50 text-indigo-600 border-indigo-100' : 'bg-clinical-surface text-clinical-charcoal/60 border-clinical-charcoal/5'}`}
-                                    title="Mode Layar Fisik Khusus Asus TUF (1mm layar = 1mm nyata)"
-                                >
-                                    <span className="material-symbols-outlined text-[16px]">
-                                        laptop_mac
-                                    </span>
-                                    <span className="hidden sm:inline">{scale !== 1.0 ? 'Mode Fisik: ON' : 'Mode Fisik'}</span>
-                                </button>
+                                
                             </div>
 
                             {/* Pembungkus Kanvas 7-Lead */}
-                            <div className="relative flex-1 bg-white border border-clinical-charcoal/5 rounded-[2rem] shadow-[0px_20px_40px_rgba(0,0,0,0.04)] overflow-hidden flex flex-col transition-all duration-700 hover:shadow-[0px_30px_60px_rgba(0,0,0,0.08)] hover:-translate-y-1 group">
-                                <div className="flex-1 overflow-y-auto overflow-x-hidden relative custom-scrollbar">
-                                    <ECGCanvas
-                                        paths={currentSegment?.paths || { I: [], II: [], III: [], aVR: [], aVL: [], aVF: [], V1: [] }}
-                                        rPeaks={currentSegment?.rPeaks || []}
-                                        speed={speed}
-                                        isAnomaly={currentSegment?.isAnomaly || false}
-                                        classResult={currentEvent?.classResult}
+                            <div className="relative flex-1 min-h-[400px]">
+                                <div className="absolute inset-0 z-0 bg-white border border-clinical-blue/20 rounded-[2rem] overflow-y-auto overflow-x-hidden shadow-[0px_20px_40px_rgba(0,0,0,0.04)] flex flex-col">
+                                    <EcgViewer 
+                                        segment={currentSegment}
+                                        speed={speed} 
+                                        classResult={currentEvent?.classResult} 
                                         timeOffset={selectedIdx * 10}
-                                        scale={scale}
                                     />
-                                </div>
-                                {isLoading && (
+                                    {isLoading && (
                                     <div className="absolute inset-0 flex flex-col items-center justify-center bg-white/60 backdrop-blur-md z-50 transition-all duration-300">
                                         <span className="material-symbols-outlined text-clinical-blue text-4xl animate-spin">sync</span>
                                         <p className="mt-3 text-sm font-bold text-clinical-charcoal">{t('history.loadingSegment')}</p>
                                     </div>
-                                )}
+                                    )}
+                                </div>
                             </div>
 
                             {/* Timeline Multi-Aritmia */}
@@ -260,7 +263,7 @@ export const PatientHistoryDetailPage: React.FC = () => {
                         </section>
 
                         {/* KOLOM KANAN: DETAIL ANALISIS HISTORIS */}
-                        <aside className="w-full lg:w-3/12 flex flex-col gap-5">
+                        <aside className="lg:col-span-1 flex flex-col gap-5 h-fit">
                             <VitalCard heartRate={heartRate} clinicalStatus={clinicalStatus} stressTest={stressTest} createdAt={createdAt} hideTechnicalDetails={true} />
 
                             {/* Kesimpulan Analisis (Patient Friendly) */}
@@ -309,13 +312,6 @@ export const PatientHistoryDetailPage: React.FC = () => {
                 <nav className="hidden fixed bottom-0 left-0 w-full flex justify-around items-center h-20 bg-white border-t border-clinical-charcoal/10 z-50">
                 </nav>
             </div>
-            <ECGCalibrationModal
-                isOpen={isCalibrationModalOpen}
-                onClose={() => setIsCalibrationModalOpen(false)}
-                currentScale={scale}
-                onSaveScale={saveScale}
-                onResetScale={resetScale}
-            />
         </div>
     );
 };

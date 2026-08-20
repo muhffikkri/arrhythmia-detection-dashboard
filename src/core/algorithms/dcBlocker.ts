@@ -8,39 +8,46 @@
  */
 
 export class DCBlocker {
-    private baselineI: number | null = null;
-    private baselineII: number | null = null;
+    private emaI: number | null = null;
+    private emaII: number | null = null;
+    private alpha: number;
 
     /**
-     * Parameter kernelSize tetap ada demi backward compatibility, namun tidak lagi digunakan.
+     * Alpha determines how fast the filter tracks the baseline.
+     * A smaller alpha (e.g. 0.005) means it tracks slow baseline wanders smoothly.
      */
-    /*
-    constructor(kernelSize: number = 51) {
-        // Filtering dihilangkan.
+    constructor(alpha: number = 0.005) {
+        this.alpha = alpha;
     }
 
     /**
      * Mengembalikan memori baseline ke kondisi kosong.
+     * Ini akan membuat sinyal secara paksa kembali ke titik persis 0 pada frame baru.
      */
     public reset(): void {
-        this.baselineI = null;
-        this.baselineII = null;
+        this.emaI = null;
+        this.emaII = null;
     }
 
     /**
-     * Memproses tegangan mentah. Tanpa filtering, hanya menormalisasi terhadap nilai titik pertama
-     * sehingga posisi vertikal (DC offset statis) berada di sekitar 0 agar gelombang tetap terlihat.
+     * Memproses tegangan mentah menggunakan Exponential Moving Average (EMA).
+     * Secara konstan akan melacak Baseline Wander dan menguranginya (High-Pass).
      */
     public process(rawI: number, rawII: number) {
-        // Tangkap baseline statis pada titik pertama
-        if (this.baselineI === null || this.baselineII === null) {
-            this.baselineI = rawI;
-            this.baselineII = rawII;
+        // Pada titik pertama frame, EMA diinisialisasi dengan nilai mentah itu sendiri,
+        // sehingga raw - ema = 0 secara absolut.
+        if (this.emaI === null || this.emaII === null) {
+            this.emaI = rawI;
+            this.emaII = rawII;
         }
 
-        // Normalisasi dasar: sinyal saat ini dikurangi nilai awalnya
-        const cleanI = rawI - this.baselineI;
-        const cleanII = rawII - this.baselineII;
+        // Hitung rata-rata berjalan (EMA) dari sinyal
+        this.emaI = this.alpha * rawI + (1 - this.alpha) * this.emaI;
+        this.emaII = this.alpha * rawII + (1 - this.alpha) * this.emaII;
+
+        // Kurangi sinyal asli dengan rata-rata berjalan (menghasilkan sinyal yang terpusat di 0)
+        const cleanI = rawI - this.emaI;
+        const cleanII = rawII - this.emaII;
 
         // Hukum Einthoven murni untuk Lead III: III = II - I
         const cleanIII = cleanII - cleanI;

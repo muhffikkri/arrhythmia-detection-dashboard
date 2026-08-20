@@ -1,24 +1,5 @@
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600&family=Nunito+Sans:wght@700;800&family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=block');
 
-:root {
-  --color-primary: #176BCE;
-  /* Clinical Blue */
-  --color-primary-rgb: 23, 107, 206;
-  --color-primary-hover: #1255A3;
-  --color-brand-navy: #001F54;
-  --color-charcoal: #2D3436;
-
-  --font-sans: 'Inter', sans-serif;
-  --font-display: 'Outfit', sans-serif;
-
-  --radius-card: 2rem;
-  /* 32px */
-  --radius-widget: 1.5rem;
-  /* 24px */
-  --radius-button: 0.75rem;
-  /* 12px */
-}
-
 @tailwind base;
 @tailwind components;
 @tailwind utilities;

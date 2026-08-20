@@ -17,6 +17,8 @@ import { VitalCard } from '../../components/dashboard/VitalCard';
 import { AiCard } from '../../components/dashboard/AiCard';
 import { DeviceCard } from '../../components/dashboard/DeviceCard';
 import { API_URL, WS_URL } from '../../../config/env';
+import { fetchWithAuth } from '../../../config/api';
+import { ActionModal } from '../../components/shared/ActionModal';
 
 interface DeviceRecord {
     id: string;
@@ -28,7 +30,7 @@ export const PatientMonitorPage: React.FC = () => {
     const {
         isRecording, paths, rPeaks, heartRate, clinicalStatus, timeline,
         startStream, stopStream, fetchSegment, isFilterOn, toggleFilter,
-        prediction, deviceId, sessionId, stressTest, createdAt, rawClassification, network, system
+        prediction, deviceId, sessionId, stressTest, createdAt, rawClassification
     } = useECGStream(WS_URL);
 
     const [currentSegmentIndex, setCurrentSegmentIndex] = useState<number | undefined>(undefined);
@@ -57,7 +59,7 @@ export const PatientMonitorPage: React.FC = () => {
 
     useEffect(() => {
         const fetchDevices = () => {
-            fetch(`${API_URL}/api/devices`)
+            fetchWithAuth(`/api/devices`)
                 .then(res => res.json())
                 .then(data => {
                     const devicesArray = Array.isArray(data.devices) ? data.devices : (Array.isArray(data) ? data : []);
@@ -73,10 +75,11 @@ export const PatientMonitorPage: React.FC = () => {
         fetchDevices();
 
         // Auto-resume if there is an active session
-        fetch(`${API_URL}/api/sessions`)
+        fetchWithAuth(`/api/sessions`)
             .then(res => res.json())
             .then(data => {
-                const activeSessions = data.sessions ? data.sessions.filter((s: any) => !s.ended_at) : [];
+                const sessionsArray = data.data || data.sessions || (Array.isArray(data) ? data : []);
+                const activeSessions = sessionsArray.filter((s: any) => !s.ended_at);
                 if (activeSessions.length > 0) {
                     startStream(); // Only reconnect WebSocket, do not send START command
                 }
@@ -98,12 +101,43 @@ export const PatientMonitorPage: React.FC = () => {
 
     const [isCommandLoading, setIsCommandLoading] = useState(false);
 
-    const handleToggleRecord = async () => {
+    const [actionModal, setActionModal] = useState<{
+        isOpen: boolean;
+        type: 'confirm' | 'success' | 'error' | 'warning';
+        title: string;
+        message: React.ReactNode;
+        onConfirm?: () => void;
+    }>({
+        isOpen: false,
+        type: 'confirm',
+        title: '',
+        message: ''
+    });
+
+    const closeActionModal = () => {
+        if (!isCommandLoading) setActionModal(prev => ({ ...prev, isOpen: false }));
+    };
+
+    const handleToggleRecord = () => {
         if (!isRecording && !selectedPatientId) {
             alert("Harap pilih pasien terlebih dahulu sebelum memulai perekaman.");
             return;
         }
 
+        if (isRecording) {
+            setActionModal({
+                isOpen: true,
+                type: 'warning',
+                title: 'Akhiri Rekaman?',
+                message: 'Apakah Anda yakin ingin mengakhiri sesi pemantauan ini? Sistem akan mulai memproses data.',
+                onConfirm: executeToggleRecord
+            });
+        } else {
+            executeToggleRecord();
+        }
+    };
+
+    const executeToggleRecord = async () => {
         const command = isRecording ? "STOP" : "START";
 
         // Optimistic UI update: Langsung ubah state saat diklik
@@ -120,10 +154,11 @@ export const PatientMonitorPage: React.FC = () => {
             // Jika sedang stop (akhiri rekaman) tapi status perangkat "MENUNGGU PERANGKAT...",
             // kita harus mencari tahu device_id dari sesi aktif di DB agar bisa memberitahu backend untuk mengisi ended_at.
             if (command === "STOP" && targetDeviceId === "MENUNGGU PERANGKAT...") {
-                const sessRes = await fetch(`${API_URL}/api/sessions`);
+                const sessRes = await fetchWithAuth(`/api/sessions`);
                 if (sessRes.ok) {
                     const sessData = await sessRes.json();
-                    const activeSession = sessData.sessions?.find((s: any) => !s.ended_at && s.patient_id === selectedPatientId);
+                    const sessionsArray = sessData.data || sessData.sessions || (Array.isArray(sessData) ? sessData : []);
+                    const activeSession = sessionsArray.find((s: any) => !s.ended_at && s.patient_id === selectedPatientId);
                     if (activeSession) {
                         targetDeviceId = activeSession.device_id;
                     }
@@ -131,14 +166,35 @@ export const PatientMonitorPage: React.FC = () => {
             }
 
             if (targetDeviceId && targetDeviceId !== "MENUNGGU PERANGKAT...") {
-                await fetch(`${API_URL}/api/devices/${targetDeviceId}/command`, {
+                await fetchWithAuth(`/api/devices/${targetDeviceId}/command`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ command, patient_id: selectedPatientId })
                 });
             }
-        } catch (e) {
-            console.error("Error toggle record:", e);
+
+            if (command === 'STOP') {
+                setActionModal({
+                    isOpen: true,
+                    type: 'success',
+                    title: 'Sesi Diakhiri',
+                    message: 'Berhasil mengakhiri rekaman.',
+                    onConfirm: closeActionModal
+                });
+            }
+        } catch (error: any) {
+            console.error("Gagal mengirim command", error);
+            if (command === 'STOP') {
+                setActionModal({
+                    isOpen: true,
+                    type: 'error',
+                    title: 'Gagal Mengakhiri Sesi',
+                    message: error.message || 'Koneksi ke server gagal.',
+                    onConfirm: closeActionModal
+                });
+            } else {
+                alert("Gagal memulai perekaman: " + (error.message || 'Server error'));
+            }
         } finally {
             setIsCommandLoading(false);
         }
@@ -252,10 +308,20 @@ export const PatientMonitorPage: React.FC = () => {
                     <aside className="w-full grid grid-cols-1 md:grid-cols-3 gap-6">
                         <VitalCard heartRate={heartRate} clinicalStatus={clinicalStatus} stressTest={stressTest} createdAt={createdAt} />
                         <AiCard sessionId={sessionId} rawClassification={rawClassification} />
-                        <DeviceCard deviceId={displayDeviceId} aiMetrics={aiMetrics} network={network} system={system} />
+                        <DeviceCard deviceId={displayDeviceId} aiMetrics={aiMetrics} />
                     </aside>
                 </main>
             </div>
+            
+            <ActionModal 
+                isOpen={actionModal.isOpen}
+                type={actionModal.type}
+                title={actionModal.title}
+                message={actionModal.message}
+                onConfirm={actionModal.onConfirm}
+                onClose={closeActionModal}
+                isLoading={isCommandLoading}
+            />
         </div>
     );
 };

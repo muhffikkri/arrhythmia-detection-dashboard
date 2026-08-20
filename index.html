@@ -4,7 +4,8 @@
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: https://lh3.googleusercontent.com; connect-src 'self' https://api.ecgrhythmia.cloud wss://api.ecgrhythmia.cloud http://127.0.0.1:8081 ws://127.0.0.1:8080 ">
+    <meta http-equiv="Content-Security-Policy"
+        content="default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: blob: https://lh3.googleusercontent.com http://127.0.0.1:8081 http://localhost:8081 https://api.ecgrhythmia.cloud; connect-src 'self' https://api.ecgrhythmia.cloud wss://api.ecgrhythmia.cloud http://127.0.0.1:8081 ws://127.0.0.1:8080 ">
 
     <title>Live ECG Monitor | ecgrhythmia</title>
     <meta name="theme-color" content="#ffffff" />
@@ -14,16 +15,20 @@
 
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@300;400;500;600;700&family=Playfair+Display:wght@400;500;600;700&family=Montserrat:wght@400;500;600;700&family=Lato:wght@300;400;700&display=swap" rel="stylesheet" />
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@300;400;500;600;700&family=Playfair+Display:wght@400;500;600;700&family=Montserrat:wght@400;500;600;700&family=Lato:wght@300;400;700&display=swap"
+        rel="stylesheet" />
 
-    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet" />
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap"
+        rel="stylesheet" />
 
 </head>
 
 <body class="bg-background text-on-surface antialiased overflow-x-hidden">
     <noscript>
-        <div style="display: flex; justify-content: center; align-items: center; height: 100vh; width: 100vw; background-color: #000000; color: #ff0000; position: fixed; top: 0; left: 0; z-index: 999999; font-family: 'Courier New', Courier, monospace; font-size: 3rem; font-weight: 900; text-align: center; padding: 2rem; box-sizing: border-box; text-transform: uppercase; text-shadow: 2px 2px 10px rgba(255, 0, 0, 0.7); letter-spacing: 2px;">
-            Aktifkan javascript pada browser anda.<br/>Browser yang digunakan harus mendukung javascript.
+        <div
+            style="display: flex; justify-content: center; align-items: center; height: 100vh; width: 100vw; background-color: #000000; color: #ff0000; position: fixed; top: 0; left: 0; z-index: 999999; font-family: 'Courier New', Courier, monospace; font-size: 3rem; font-weight: 900; text-align: center; padding: 2rem; box-sizing: border-box; text-transform: uppercase; text-shadow: 2px 2px 10px rgba(255, 0, 0, 0.7); letter-spacing: 2px;">
+            Aktifkan javascript pada browser anda.<br />Browser yang digunakan harus mendukung javascript.
         </div>
     </noscript>
 

@@ -1,5 +1,22 @@
 import React from 'react';
 import { useSidebar } from '../../../application/context/SidebarContext';
+import { useNavigate } from 'react-router-dom';
+
+const handleReturnToOriginalProfile = (navigate: any) => {
+    const adminToken = localStorage.getItem('admin_auth_token');
+    const originalRole = localStorage.getItem('original_role');
+
+    if (adminToken && originalRole === 'admin') {
+        localStorage.setItem('auth_token', adminToken);
+        localStorage.setItem('user_id', localStorage.getItem('admin_user_id') || '');
+        localStorage.setItem('user_role', 'admin');
+        localStorage.removeItem('admin_auth_token');
+        localStorage.removeItem('admin_user_id');
+        localStorage.removeItem('original_role');
+        sessionStorage.removeItem('is_impersonating');
+        navigate('/admin/dashboard');
+    }
+};
 
 interface HeaderProps {
     deviceId?: string;
@@ -8,6 +25,7 @@ interface HeaderProps {
 
 export const Header: React.FC<HeaderProps> = ({ deviceId = "UNDIP-ECG-01", sessionId = "Sesi Aktif" }) => {
     const { isOpen, toggleSidebar } = useSidebar();
+    const navigate = useNavigate();
     
     return (
         <header className={`fixed top-0 bg-background/90 backdrop-blur-md border-b border-outline-variant/30 z-40 px-4 md:px-6 py-4 flex justify-between items-center transition-all duration-300 ${isOpen ? 'md:left-[260px] md:w-[calc(100%-260px)] left-0 w-full' : 'left-0 w-full'}`}>
@@ -35,6 +53,15 @@ export const Header: React.FC<HeaderProps> = ({ deviceId = "UNDIP-ECG-01", sessi
                 </div>
             </div>
             <div className="flex items-center gap-3 md:gap-4 flex-1 justify-end">
+                {localStorage.getItem('admin_auth_token') && (
+                    <div className="hidden md:flex items-center gap-2 px-3 py-1 bg-red-100 border border-red-200 rounded-full">
+                        <span className="material-symbols-outlined text-red-600 text-sm">admin_panel_settings</span>
+                        <span className="text-xs font-bold text-red-700">Admin Login</span>
+                        <button onClick={() => handleReturnToOriginalProfile(navigate)} className="ml-2 text-[10px] bg-red-600 text-white px-2 py-0.5 rounded hover:bg-red-700 transition-colors">
+                            KEMBALI
+                        </button>
+                    </div>
+                )}
             </div>
         </header>
     );

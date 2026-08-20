@@ -4,7 +4,8 @@ import { DoctorSidebar } from '../../components/layout/DoctorSidebar';
 import { useSidebar } from '../../../application/context/SidebarContext';
 import { useConnection } from '../../../application/context/ConnectionContext';
 import { API_URL } from '../../../config/env';
-import { ListSkeleton } from '../../components/shared/Skeleton';
+import { fetchWithAuth } from '../../../config/api';
+import { useCachedFetch } from '../../../application/hooks/useCachedFetch';
 
 export interface SessionRecord {
     id: string;
@@ -23,25 +24,13 @@ export interface DeviceRecord {
 
 export const DashboardPage: React.FC = () => {
     const navigate = useNavigate();
-    const [sessions, setSessions] = useState<SessionRecord[]>([]);
-    const [devices, setDevices] = useState<DeviceRecord[]>([]);
     const { isOpen, toggleSidebar } = useSidebar();
     const { connectedPatients, removeConnectedPatient, disconnectAll } = useConnection();
     const [showDisconnectModal, setShowDisconnectModal] = useState(false);
     const [showSuccessModal, setShowSuccessModal] = useState(false);
     const [patientToDisconnect, setPatientToDisconnect] = useState<string | null>(null);
     const [currentTime, setCurrentTime] = useState(new Date());
-    const [isLoading, setIsLoading] = useState(true);
-    const [connectedPatient, setConnectedPatient] = useState<any>(null);
-    const [standbyPatientProfile, setStandbyPatientProfile] = useState<any>(null);
 
-    useEffect(() => {
-        if (connectedPatients && connectedPatients.length > 0) {
-            setConnectedPatient(connectedPatients[0]);
-        } else {
-            setConnectedPatient(null);
-        }
-    }, [connectedPatients]);
     useEffect(() => {
         const timer = setInterval(() => {
             setCurrentTime(new Date());
@@ -49,220 +38,138 @@ export const DashboardPage: React.FC = () => {
         return () => clearInterval(timer);
     }, []);
 
-    useEffect(() => {
-        const fetchPatientProfile = () => {
-            if (connectedPatient && connectedPatient.id) {
-                // Convert PAT-0001-XYZ to pat000000000001
-                const numStr = connectedPatient.id.replace(/[^0-9]/g, '');
-                const dbPatientId = `pat${numStr.padStart(12, '0')}`;
-
-                if (dbPatientId) {
-                    fetch(`${API_URL}/api/patients/${dbPatientId}`)
-                        .then(res => {
-                            if (!res.ok) throw new Error('API offline');
-                            return res.json();
-                        })
-                        .then(data => {
-                            if (data && data.patient) {
-                                setStandbyPatientProfile(data.patient);
-                                // Opsional: tetap perbarui context jika diperlukan
-                                const newName = `${data.patient.first_name} ${data.patient.last_name}`;
-                                const newPhoto = data.patient.profile_photo || undefined;
-                                if (newName !== connectedPatient.name || newPhoto !== connectedPatient.profile_photo) {
-                                    setConnectedPatient({
-                                        ...connectedPatient,
-                                        name: newName,
-                                        profile_photo: newPhoto
-                                    });
-                                }
-                            }
-                        })
-                        .catch(e => {
-                            console.error("Gagal me-refresh data pasien dari database:", e);
-                            const savedMock = localStorage.getItem('mock_patient_profile');
-                            if (savedMock) {
-                                const mockData = JSON.parse(savedMock);
-                                setStandbyPatientProfile(mockData.patient);
-                            }
-                        });
-                }
-            } else {
-                setStandbyPatientProfile(null);
-            }
-        };
-
-        fetchPatientProfile();
-
-        window.addEventListener('patient_profile_updated', fetchPatientProfile);
-        return () => window.removeEventListener('patient_profile_updated', fetchPatientProfile);
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [connectedPatient?.id]);
+    // (Patient profile syncing removed for multi-patient support to simplify state)
 
     useEffect(() => {
-        fetch(`${API_URL}/api/sessions`)
-            .then(res => res.json())
-            .then(data => {
-                if (data && Array.isArray(data.sessions)) {
-                    setSessions(data.sessions);
-                } else if (Array.isArray(data)) {
-                    setSessions(data);
-                } else {
-                    setSessions([]);
-                }
-            })
-            .catch(err => console.error("Error fetching sessions:", err));
-
-        fetch(`${API_URL}/api/devices`)
-            .then(res => res.json())
-            .then(data => {
-                if (data && Array.isArray(data.devices)) {
-                    setDevices(data.devices);
-                } else if (Array.isArray(data)) {
-                    setDevices(data);
-                } else {
-                    setDevices([]);
-                }
-            })
-            .catch(err => console.error("Error fetching devices:", err));
+        // Jika kembali (Back) dari impersonasi, pulihkan sesi dokter
+        const docToken = localStorage.getItem('doctor_auth_token');
+        if (docToken && localStorage.getItem('user_role') !== 'dokter') {
+            localStorage.setItem('auth_token', docToken);
+            localStorage.setItem('user_role', 'dokter');
+            const docId = localStorage.getItem('doctor_user_id');
+            if (docId) localStorage.setItem('user_id', docId);
+        }
     }, []);
 
+    const role = localStorage.getItem('user_role');
+    const userId = localStorage.getItem('user_id');
+    const sessionsUrl = role === 'dokter' ? `/api/sessions?doctor_id=${userId}` : `/api/sessions`;
+
+    const { data: sessionsResponse } = useCachedFetch(sessionsUrl);
+    const { data: devicesResponse } = useCachedFetch(`/api/devices`);
+
+    const sessions: SessionRecord[] = sessionsResponse?.data || sessionsResponse?.sessions || (Array.isArray(sessionsResponse) ? sessionsResponse : []);
+    const devices: DeviceRecord[] = devicesResponse?.devices || (Array.isArray(devicesResponse) ? devicesResponse : []);
 
     const activeSessions = sessions.filter(session => !session.ended_at);
 
-    const displayPatient = standbyPatientProfile ? {
-        name: `${standbyPatientProfile.first_name} ${standbyPatientProfile.last_name}`,
-        id: standbyPatientProfile.id,
-        photo: standbyPatientProfile.profile_photo || null
-    } : connectedPatient ? {
-        name: connectedPatient.name,
-        id: connectedPatient.id,
-        photo: connectedPatient.profile_photo || null
-    } : null;
+    const filteredHistorySessions = sessions; // Removed specific patient filter for now, or could filter if needed
 
-    const filteredHistorySessions = displayPatient
-        ? sessions.filter(s => s.patient_id === displayPatient.id || (s.patient_name && s.patient_name.includes(displayPatient.name)))
-        : sessions;
+    const handleImpersonate = async (patientId: string) => {
+        try {
+            const token = localStorage.getItem('auth_token');
+            const res = await fetchWithAuth(`/api/doctors/impersonate/${patientId}`, {
+                method: 'POST',
+                headers: { 
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                }
+            });
+            const data = await res.json();
+            
+            if (data.success && data.user_id) {
+                // Backup doctor credentials sebelum impersonate
+                const currentRole = localStorage.getItem('user_role');
+                if (currentRole === 'dokter') {
+                    localStorage.setItem('doctor_auth_token', token || '');
+                    localStorage.setItem('doctor_user_id', localStorage.getItem('user_id') || '');
+                    localStorage.setItem('original_role', 'dokter');
+                }
+                sessionStorage.setItem('is_impersonating', 'true');
+
+                // Clear old connected state
+                localStorage.removeItem('connectedPatients');
+                localStorage.removeItem('connectedDoctor');
+                localStorage.removeItem('mock_patient_profile');
+                
+                // Set new credentials
+                localStorage.setItem('user_id', data.user_id.toString());
+                localStorage.setItem('user_role', data.role);
+                if (data.token) {
+                    localStorage.setItem('auth_token', data.token);
+                }
+                
+                // Navigate
+                if (data.role === 'pasien') {
+                    navigate('/patient/dashboard');
+                }
+            } else {
+                alert(data.message || 'Gagal melakukan impersonate.');
+            }
+        } catch (err) {
+            console.error("Gagal impersonate", err);
+            alert("Koneksi ke server gagal.");
+        }
+    };
 
     return (
-        <div className="bg-clinical-surface text-clinical-charcoal antialiased overflow-x-hidden w-full">
+        <div className="bg-clinical-surface text-clinical-charcoal antialiased overflow-x-hidden w-full relative min-h-screen">
+            <div className="fixed inset-0 ecg-grid opacity-10 pointer-events-none z-0"></div>
             <DoctorSidebar />
-            <main id="main-content" className={`min-h-screen pb-24 md:pb-12 transition-all duration-300 w-full ${isOpen ? 'md:ml-[260px] md:w-[calc(100%-260px)]' : 'ml-0'}`}>
+            <main id="main-content" className={`min-h-screen pb-24 md:pb-12 transition-all duration-300 w-full relative z-10 ${isOpen ? 'md:ml-[260px] md:w-[calc(100%-260px)]' : 'ml-0'}`}>
 
-                <header className="sticky top-0 bg-clinical-surface/90 backdrop-blur-md border-b border-clinical-blue/20/30 z-40 px-6 py-4 flex justify-between items-center max-w-container-max mx-auto">
+                <header className="sticky top-0 bg-clinical-surface/80 backdrop-blur-xl border-b border-clinical-charcoal/5 z-40 px-4 md:px-6 py-4 flex justify-between items-center max-w-container-max mx-auto w-full">
                     <div className="flex items-center gap-3">
                         <button onClick={toggleSidebar} id="toggle-sidebar-btn" className="flex items-center justify-center p-2 -ml-2 rounded-full hover:bg-white-container text-clinical-charcoal/70 transition-colors outline-none" title="Sembunyikan / Tampilkan Menu Utama">
                             <span className="material-symbols-outlined">menu</span>
                         </button>
                         <div>
-                            <h1 className="text-xl md:text-2xl font-headline-md tracking-tight text-clinical-charcoal">Dashboard Utama Klinis</h1>
-                            <p className="text-xs font-body-sm text-clinical-charcoal/70 mt-0.5">
+                            <h1 className="text-xl md:text-2xl font-bold tracking-tight text-clinical-charcoal">Dashboard Utama Klinis</h1>
+                            <p className="text-xs md:text-sm font-medium text-clinical-charcoal/60 mt-0.5">
                                 {new Intl.DateTimeFormat('id-ID', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }).format(currentTime)} • {new Intl.DateTimeFormat('id-ID', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false }).format(currentTime).replace(/\./g, ':')}
                             </p>
                         </div>
                     </div>
                     <div className="flex items-center gap-4">
-                        <button onClick={() => navigate('/doctor/qr-scanner')} className="bg-clinical-blue hover:brightness-110 text-white px-4 py-2 rounded-lg flex items-center gap-2 transition-all active:scale-[0.98] shadow-sm text-sm font-body-sm">
+                        <button onClick={() => navigate('/doctor/qr-scanner')} className="bg-clinical-blue hover:brightness-110 text-white px-6 py-2.5 rounded-[2rem] flex items-center gap-2 transition-all duration-700 active:scale-95 shadow-md hover:shadow-lg text-sm font-bold">
                             <span className="material-symbols-outlined text-[20px]">add</span>
                             <span className="hidden sm:inline">Pasien Baru</span>
                         </button>
                     </div>
                 </header>
 
-                <div className="px-6 max-w-container-max mx-auto mt-6">
+                <div className="px-4 md:px-6 max-w-container-max mx-auto mt-6 animate-in fade-in slide-in-from-bottom-4 duration-700 ease-out">
                     {activeSessions.length > 0 && (
                         <section className="mb-6">
-                            <div className="bg-medical-teal/5 border border-medical-teal/20 rounded-[2rem] p-5 flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4 shadow-sm relative overflow-hidden">
-                                <div className="flex gap-4 relative z-10">
-                                    <div className="bg-clinical-blue text-white p-3 rounded-lg h-fit flex items-center justify-center">
-                                        <span className="material-symbols-outlined text-[28px] animate-pulse">monitor_heart</span>
+                            <div className="bg-white border border-clinical-charcoal/5 rounded-[2rem] p-8 flex flex-col lg:flex-row items-start lg:items-center justify-between gap-6 shadow-[0px_20px_40px_rgba(0,0,0,0.04)] transition-all duration-700 hover:shadow-[0px_30px_60px_rgba(0,0,0,0.08)] hover:-translate-y-1 relative overflow-hidden group">
+                                <div className="flex gap-5 relative z-10 items-center">
+                                    <div className="bg-clinical-surface text-clinical-blue p-4 rounded-[1.5rem] h-fit flex items-center justify-center group-hover:bg-clinical-blue group-hover:text-white transition-colors duration-700">
+                                        <span className="material-symbols-outlined text-[32px] animate-pulse shadow-[0_0_15px_rgba(23,107,206,0.5)] rounded-full">monitor_heart</span>
                                     </div>
                                     <div>
-                                        <p className="text-xs font-body-sm uppercase tracking-widest text-clinical-blue font-headline-md mb-1">SESI PEREKAMAN AKTIF</p>
-                                        <h2 className="text-xl font-headline-md text-clinical-charcoal">{activeSessions[0].patient_name || 'Tidak Diketahui'}</h2>
-                                        <p className="text-sm font-body-sm text-clinical-charcoal/70 flex items-center gap-1.5 mt-1">
-                                            <span className="material-symbols-outlined text-[14px]">router</span> Alat: {activeSessions[0].device_id}
+                                        <p className="text-[10px] font-bold uppercase tracking-widest text-clinical-blue mb-1">Sesi Perekaman Aktif</p>
+                                        <h2 className="text-2xl font-bold text-clinical-charcoal">{activeSessions[0].patient_name || 'Tidak Diketahui'}</h2>
+                                        <p className="text-sm font-medium text-clinical-charcoal/60 flex items-center gap-1.5 mt-1">
+                                            <span className="material-symbols-outlined text-[16px]">router</span> Alat: {activeSessions[0].device_id}
                                         </p>
                                     </div>
                                 </div>
-                                <div className="flex items-center gap-3 w-full lg:w-auto relative z-10">
-                                    <button onClick={() => navigate('/doctor/monitor')} className="w-full lg:w-auto bg-clinical-blue text-white px-6 py-3 rounded-lg font-headline-md hover:brightness-110 shadow-md transition-all active:scale-95 flex items-center justify-center gap-2">
+                                <div className="flex items-center gap-3 w-full lg:w-auto relative z-10 mt-4 lg:mt-0">
+                                    <button onClick={() => navigate('/doctor/monitor')} className="w-full lg:w-auto bg-clinical-charcoal text-white px-8 py-3.5 rounded-[2rem] font-bold hover:brightness-110 shadow-md transition-all duration-700 active:scale-95 flex items-center justify-center gap-2">
                                         <span>Buka Live Monitor</span>
-                                        <span className="material-symbols-outlined text-sm font-body-sm">arrow_forward</span>
+                                        <span className="material-symbols-outlined text-[18px]">arrow_forward</span>
                                     </button>
                                 </div>
-                                <div className="absolute -right-4 -bottom-4 opacity-5 pointer-events-none z-0">
-                                    <span className="material-symbols-outlined text-[150px]">monitor_heart</span>
+                                <div className="absolute right-0 top-1/2 -translate-y-1/2 opacity-5 pointer-events-none z-0 group-hover:scale-110 transition-transform duration-700 text-clinical-blue">
+                                    <span className="material-symbols-outlined text-[160px] translate-x-1/4">monitor_heart</span>
                                 </div>
                             </div>
                         </section>
                     )}
 
-                    <section className="mb-8">
-                        <h2 className="text-base font-bold text-charcoal mb-4 flex items-center gap-2">
-                            <span className={`w-2 h-2 rounded-full ${activeSessions.length > 0 ? 'bg-alert-red animate-ping' : 'bg-outline-variant'}`}></span>
-                            <span>Sesi Perekaman Aktif</span>
-                        </h2>
-                        {isLoading ? (
-                            <ListSkeleton rows={1} />
-                        ) : activeSessions.length > 0 ? (
-                            <div className="space-y-3">
-                                {activeSessions.map(session => (
-                                    <div key={session.id} className="bg-surface border border-outline-variant/60 p-4 rounded-2xl flex flex-col sm:flex-row items-center justify-between gap-4 shadow-sm">
-                                        <div className="flex items-center gap-4 w-full sm:w-auto">
-                                            <div className="w-10 h-10 rounded-full bg-medical-teal/10 flex items-center justify-center font-bold text-medical-teal text-base">
-                                                {session.patient_name ? session.patient_name.substring(0, 2).toUpperCase() : 'UK'}
-                                            </div>
-                                            <div>
-                                                <h3 className="text-sm font-bold text-charcoal">{session.patient_name || 'Pasien Anonim'}</h3>
-                                                <p className="text-xs text-on-surface-variant font-mono-data mt-0.5">SN Perangkat: {session.device_id}</p>
-                                            </div>
-                                        </div>
-                                        <div className="flex items-center gap-4 w-full sm:w-auto justify-between sm:justify-end">
-                                            <button onClick={() => navigate('/doctor/monitor')} className="bg-medical-teal hover:brightness-110 text-white px-4 py-2 rounded-lg font-bold text-xs transition-all shadow-sm active:scale-95">
-                                                Buka Monitor
-                                            </button>
-                                        </div>
-                                    </div>
-                                ))}
-                            </div>
-                        ) : (
-                            <div className="bg-surface border border-outline-variant/60 p-5 rounded-2xl flex items-center justify-center shadow-sm">
-                                <p className="text-sm text-on-surface-variant">Tidak ada perekaman saat ini.</p>
-                            </div>
-                        )}
-                    </section>
 
-                    <section className="mb-8">
-                        <h2 className="text-base font-body-md font-headline-md text-clinical-charcoal mb-4 flex items-center gap-2">
-                            <span className={`w-2 h-2 rounded-full ${devices.length > 0 ? 'bg-clinical-blue animate-ping' : 'bg-clinical-blue/20'}`}></span>
-                            <span>Perangkat Online</span>
-                        </h2>
-                        {
-                            isLoading ? (
-                                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                                    <div className="bg-surface border border-outline-variant/60 p-4 rounded-2xl h-16 animate-pulse bg-slate-200"></div>
-                                    <div className="bg-surface border border-outline-variant/60 p-4 rounded-2xl h-16 animate-pulse bg-slate-200"></div>
-                                </div>
-                            ) : devices.length > 0 ? (
-                                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                                    {devices.map(device => (
-                                        <div key={device.id} className="bg-surface border border-outline-variant/60 p-4 rounded-2xl flex items-center gap-3 shadow-sm">
-                                            <div className="w-10 h-10 rounded-full bg-medical-teal/10 flex items-center justify-center text-medical-teal">
-                                                <span className="material-symbols-outlined text-xl">router</span>
-                                            </div>
-                                            <div>
-                                                <h3 className="font-headline-md text-clinical-charcoal text-sm font-body-sm">{device.name}</h3>
-                                                <p className="text-xs font-body-sm text-clinical-charcoal/70 font-mono-data mt-0.5">ID: {device.id}</p>
-                                            </div>
-                                        </div>
-                                    ))}
-                                </div>
-                            ) : (
-                                <div className="bg-surface border border-outline-variant/60 p-5 rounded-2xl flex items-center justify-center shadow-sm">
-                                    <p className="text-sm text-on-surface-variant">Belum ada perangkat yang terhubung ke dashboard.</p>
-                                </div>
-                            )}
-                    </section>
+
+
 
                     <section className="mb-8">
                         <div className="flex justify-between items-center mb-4">
@@ -272,38 +179,47 @@ export const DashboardPage: React.FC = () => {
                             </h2>
                         </div>
                         <div className="space-y-3">
-                            {
-                                displayPatient && activeSessions.length === 0 ? (
-                                    <div className="bg-gradient-to-r from-surface to-medical-teal/5 border border-medical-teal/20 p-4 rounded-2xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 shadow-sm">
-                                        <div className="flex items-center gap-4">
-                                            <div className="w-10 h-10 rounded-full bg-medical-teal/10 flex items-center justify-center text-base font-bold text-medical-teal uppercase border border-medical-teal/20 overflow-hidden">
-                                                {displayPatient.photo ? (
-                                                    <img src={displayPatient.photo} alt={displayPatient.name} className="w-full h-full object-cover" />
+                            {connectedPatients.length > 0 ? (
+                                connectedPatients.map(patient => (
+                                    <div key={patient.id} className="bg-white border border-clinical-charcoal/5 p-6 rounded-[2rem] flex flex-col sm:flex-row items-start sm:items-center justify-between gap-5 shadow-[0px_20px_40px_rgba(0,0,0,0.04)] transition-all duration-700 hover:shadow-[0px_30px_60px_rgba(0,0,0,0.08)] hover:-translate-y-1 group">
+                                        <div className="flex items-center gap-5">
+                                            <div className="w-14 h-14 rounded-full bg-clinical-surface group-hover:bg-clinical-blue/10 transition-colors duration-700 flex items-center justify-center text-lg font-bold text-clinical-blue uppercase border border-clinical-charcoal/5 overflow-hidden">
+                                                {patient.profile_photo ? (
+                                                    <img src={patient.profile_photo} alt={patient.name} className="w-full h-full object-cover" />
                                                 ) : (
-                                                    displayPatient.name.substring(0, 2).toUpperCase()
+                                                    patient.name.substring(0, 2).toUpperCase()
                                                 )}
                                             </div>
                                             <div>
-                                                <h3 className="text-sm font-bold text-charcoal">{displayPatient.name}</h3>
-                                                <p className="text-xs text-on-surface-variant font-mono-data mt-0.5">ID: {displayPatient.id}</p>
+                                                <h4 className="font-bold text-lg text-clinical-charcoal group-hover:text-clinical-blue transition-colors duration-700">{patient.name}</h4>
+                                                <p className="text-xs font-medium text-clinical-charcoal/60 mt-0.5 mb-2">ID: {patient.id}</p>
+                                                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-clinical-surface text-clinical-blue text-[10px] font-bold uppercase tracking-widest border border-clinical-charcoal/5">
+                                                    <div className="w-1.5 h-1.5 rounded-full bg-clinical-blue animate-pulse"></div>
+                                                    Terkoneksi & Siap
+                                                </span>
                                             </div>
                                         </div>
-                                        <div className="flex items-center gap-3 w-full sm:w-auto mt-2 sm:mt-0">
+                                        <div className="flex items-center gap-3 w-full sm:w-auto mt-4 sm:mt-0">
+                                            <button onClick={() => navigate('/doctor/analytics')} className="flex-1 sm:flex-none border border-clinical-charcoal/10 text-clinical-charcoal hover:bg-clinical-surface px-6 py-2.5 rounded-[2rem] text-sm font-bold bg-white transition-all duration-700 flex items-center justify-center gap-2 active:scale-95">
+                                                <span className="material-symbols-outlined text-[18px]">history</span>
+                                                Riwayat
+                                            </button>
                                             <button onClick={() => {
-                                                setPatientToDisconnect(displayPatient.id);
+                                                setPatientToDisconnect(patient.id);
                                                 setShowDisconnectModal(true);
-                                            }} className="flex-1 sm:flex-none bg-error text-white hover:bg-red-600 px-4 py-2 rounded-lg text-xs font-body-sm font-headline-md transition-all flex items-center justify-center gap-1.5 active:scale-95 shadow-sm">
-                                                <span className="material-symbols-outlined text-[16px]">person_remove</span>
-                                                Putuskan Pasien
+                                            }} className="flex-1 sm:flex-none bg-white border border-clinical-red/20 text-clinical-red hover:bg-red-50 hover:border-clinical-red/40 px-6 py-2.5 rounded-[2rem] text-sm font-bold transition-all duration-700 flex items-center justify-center gap-2 active:scale-95 shadow-sm hover:shadow-md">
+                                                <span className="material-symbols-outlined text-[18px]">person_remove</span>
+                                                Putuskan
                                             </button>
                                         </div>
                                     </div>
-                                ) : (
-                                    <div className="bg-surface border border-outline-variant/60 p-5 rounded-2xl flex items-center justify-center shadow-sm">
-                                        <p className="text-sm text-on-surface-variant">Tidak ada pasien yang menunggu saat ini.</p>
-                                    </div>
-                                )
-                            }
+                                ))
+                            ) : (
+                                <div className="bg-white border border-clinical-charcoal/5 p-8 rounded-[2rem] flex flex-col items-center justify-center shadow-[0px_20px_40px_rgba(0,0,0,0.04)] text-center">
+                                    <span className="material-symbols-outlined text-4xl text-clinical-charcoal/20 mb-3">group_off</span>
+                                    <p className="text-sm font-medium text-clinical-charcoal/60">Tidak ada pasien yang menunggu saat ini.</p>
+                                </div>
+                            )}
                         </div>
                     </section>
 
@@ -321,35 +237,40 @@ export const DashboardPage: React.FC = () => {
 
                         <div className="space-y-3">
                             {connectedPatients.length === 0 ? (
-                                <div className="bg-white border border-clinical-blue/20/60 p-5 rounded-xl flex items-center justify-center shadow-sm">
-                                    <p className="text-sm font-body-sm text-clinical-charcoal/70">Sambungkan ke pasien untuk melihat riwayat rekaman.</p>
+                                <div className="bg-white border border-clinical-charcoal/5 p-8 rounded-[2rem] flex flex-col items-center justify-center shadow-[0px_20px_40px_rgba(0,0,0,0.04)] text-center">
+                                    <span className="material-symbols-outlined text-4xl text-clinical-charcoal/20 mb-3">link_off</span>
+                                    <p className="text-sm font-medium text-clinical-charcoal/60">Sambungkan ke pasien untuk melihat riwayat rekaman.</p>
                                 </div>
                             ) : filteredHistorySessions.length === 0 ? (
-                                <div className="bg-white border border-clinical-blue/20/60 p-5 rounded-xl flex items-center justify-center shadow-sm">
-                                    <p className="text-sm font-body-sm text-clinical-charcoal/70">Belum ada riwayat sesi yang tersimpan.</p>
+                                <div className="bg-white border border-clinical-charcoal/5 p-8 rounded-[2rem] flex flex-col items-center justify-center shadow-[0px_20px_40px_rgba(0,0,0,0.04)] text-center">
+                                    <span className="material-symbols-outlined text-4xl text-clinical-charcoal/20 mb-3">folder_off</span>
+                                    <p className="text-sm font-medium text-clinical-charcoal/60">Belum ada riwayat sesi yang tersimpan.</p>
                                 </div>
                             ) : (
                                 <>
                                     {filteredHistorySessions.slice(0, 3).map(session => (
-                                        <div key={session.id} className="bg-white border border-clinical-blue/20/60 p-4 rounded-xl flex items-center justify-between gap-4 opacity-80 interactive-card">
-                                            <div className="flex items-center gap-4">
-                                                <div className="w-10 h-10 rounded-full bg-white-container-low flex items-center justify-center font-headline-md text-outline uppercase overflow-hidden">
+                                        <div key={session.id} className="bg-white border border-clinical-charcoal/5 p-6 rounded-[2rem] flex flex-col sm:flex-row items-start sm:items-center justify-between gap-5 shadow-[0px_20px_40px_rgba(0,0,0,0.04)] transition-all duration-700 hover:shadow-[0px_30px_60px_rgba(0,0,0,0.08)] hover:-translate-y-1 group relative overflow-hidden">
+                                            <div className="flex items-center gap-5 relative z-10">
+                                                <div className="w-12 h-12 rounded-full bg-clinical-surface group-hover:bg-clinical-blue/10 transition-colors duration-700 flex items-center justify-center text-base font-bold text-clinical-charcoal/40 uppercase overflow-hidden">
                                                     {session.patient_name ? session.patient_name.substring(0, 2).toUpperCase() : 'UK'}
                                                 </div>
                                                 <div>
-                                                    <h4 className="font-headline-md text-sm font-body-sm text-clinical-charcoal truncate max-w-[150px] sm:max-w-[200px]">{session.patient_name || 'Pasien Anonim'}</h4>
-                                                    <p className="text-xs font-body-sm text-clinical-charcoal/70 font-mono-data mt-0.5">Sesi: {session.id.substring(0, 8)}... • SN: {session.device_id}</p>
-                                                    <div className="flex items-center gap-1 mt-1 text-[10px] text-clinical-charcoal/70 font-headline-md uppercase tracking-wide">
-                                                        <div className="w-1.5 h-1.5 rounded-full bg-clinical-blue/20"></div>
-                                                        Status: Putus (Tersimpan)
+                                                    <h4 className="font-bold text-base text-clinical-charcoal truncate max-w-[150px] sm:max-w-[200px] group-hover:text-clinical-blue transition-colors duration-700">{session.patient_name || 'Pasien Anonim'}</h4>
+                                                    <p className="text-xs font-medium text-clinical-charcoal/60 mt-0.5">Sesi: {session.id.substring(0, 8)}... • SN: {session.device_id}</p>
+                                                    <div className="flex items-center gap-1.5 mt-2 text-[10px] text-clinical-charcoal/60 font-bold uppercase tracking-widest">
+                                                        <div className="w-1.5 h-1.5 rounded-full bg-clinical-charcoal/20"></div>
+                                                        Tersimpan
                                                     </div>
                                                 </div>
                                             </div>
-                                            <div className="flex items-center gap-3">
-                                                <button onClick={() => navigate(`/doctor/analytics?sessionId=${session.id}`)} className="border border-clinical-blue/20 text-clinical-charcoal/70 hover:text-clinical-blue hover:border-clinical-blue px-3 py-1.5 rounded-lg text-xs font-body-sm font-label-md bg-white transition-all flex items-center gap-1">
-                                                    <span className="material-symbols-outlined text-[14px]">history</span>
+                                            <div className="flex items-center gap-3 w-full sm:w-auto mt-4 sm:mt-0 relative z-10">
+                                                <button onClick={() => navigate(`/doctor/analytics?sessionId=${session.id}`)} className="border border-clinical-charcoal/10 text-clinical-charcoal hover:bg-clinical-surface px-6 py-2.5 rounded-[2rem] text-sm font-bold bg-white transition-all duration-700 flex items-center gap-2 active:scale-95 w-full justify-center sm:w-auto">
+                                                    <span className="material-symbols-outlined text-[18px]">history</span>
                                                     Lihat Arsip
                                                 </button>
+                                            </div>
+                                            <div className="absolute right-0 top-1/2 -translate-y-1/2 opacity-5 pointer-events-none z-0 group-hover:scale-110 transition-transform duration-700 text-clinical-charcoal">
+                                                <span className="material-symbols-outlined text-[120px] translate-x-1/4">folder</span>
                                             </div>
                                         </div>
                                     ))}
@@ -370,43 +291,48 @@ export const DashboardPage: React.FC = () => {
 
 
             {/* Disconnect Modals */}
-            {
-                showDisconnectModal && (
-                    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-charcoal/40 backdrop-blur-sm p-4 animate-in fade-in duration-200">
-                        <div className="bg-surface-container-lowest rounded-2xl p-6 w-full max-w-sm border border-outline-variant shadow-xl animate-in zoom-in-50 fade-in duration-500 ease-spring">
-                            <div className="w-12 h-12 rounded-full bg-error/10 flex items-center justify-center mb-4 text-error">
-                                <span className="material-symbols-outlined text-2xl">warning</span>
-                            </div>
-                            <h3 className="font-headline-md text-headline-md text-charcoal mb-2">Putuskan Hubungan?</h3>
-                            <p className="font-body-md text-body-md text-on-surface-variant mb-6">Apakah Anda yakin ingin memutuskan hubungan dengan pasien ini? Pemantauan live akan terhenti dan Anda harus melakukan scan QR ulang untuk memantau lagi.</p>
-                            <div className="flex gap-3">
-                                <button onClick={() => setShowDisconnectModal(false)} className="flex-1 py-2 rounded-lg font-label-bold text-label-bold border border-outline-variant hover:bg-surface-container text-on-surface-variant transition-colors">Batal</button>
-                                <button onClick={() => {
-                                    disconnectAll();
-                                    setShowDisconnectModal(false);
-                                    setShowSuccessModal(true);
-                                }} className="flex-1 py-2 rounded-lg font-label-bold text-label-bold bg-error text-white hover:bg-red-600 transition-colors shadow-sm">Ya, Putuskan</button>
-                            </div>
+            {showDisconnectModal && (
+                <div className="fixed inset-0 z-[100] flex items-center justify-center bg-charcoal/40 backdrop-blur-sm p-4 animate-in fade-in duration-200">
+                    <div className="bg-white-container-lowest rounded-2xl p-6 w-full max-w-sm border border-clinical-blue/20 shadow-xl animate-in zoom-in-50 fade-in duration-500 ease-spring">
+                        <div className="w-12 h-12 rounded-full bg-error/10 flex items-center justify-center mb-4 text-error">
+                            <span className="material-symbols-outlined text-2xl">warning</span>
                         </div>
-                    </div >
-                )
-            }
-
-            {
-                showSuccessModal && (
-                    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-charcoal/40 backdrop-blur-sm p-4 animate-in fade-in duration-200">
-                        <div className="bg-surface-container-lowest rounded-2xl p-6 w-full max-w-sm border border-outline-variant shadow-xl text-center animate-in zoom-in-50 fade-in duration-500 ease-spring">
-                            <div className="w-16 h-16 rounded-full bg-status-green/10 flex items-center justify-center mb-4 text-status-green mx-auto">
-                                <span className="material-symbols-outlined text-3xl">check_circle</span>
-                            </div>
-                            <h3 className="font-headline-md text-headline-md text-charcoal mb-2">Berhasil Terputus</h3>
-                            <p className="font-body-md text-body-md text-on-surface-variant mb-6">Koneksi dengan pasien telah berhasil dibatalkan.</p>
-                            <button onClick={() => setShowSuccessModal(false)} className="w-full py-3 rounded-lg font-label-bold text-label-bold bg-primary text-white hover:bg-primary/90 transition-colors shadow-sm">Tutup</button>
+                        <h3 className="font-headline-md text-headline-md text-clinical-charcoal mb-2">Putuskan Hubungan?</h3>
+                        <p className="font-body-md text-body-md text-clinical-charcoal/70 mb-6">Apakah Anda yakin ingin memutuskan hubungan dengan pasien ini? Pemantauan live akan terhenti dan Anda harus melakukan scan QR ulang untuk memantau lagi.</p>
+                        <div className="flex gap-3">
+                            <button onClick={() => {
+                                setShowDisconnectModal(false);
+                                setPatientToDisconnect(null);
+                            }} className="flex-1 py-2 rounded-lg font-label-bold text-label-bold border border-clinical-blue/20 hover:bg-white-container text-clinical-charcoal/70 transition-colors">Batal</button>
+                            <button onClick={async () => {
+                                if (patientToDisconnect) {
+                                    await removeConnectedPatient(patientToDisconnect);
+                                    setPatientToDisconnect(null);
+                                } else {
+                                    // Fallback if no specific patient selected (should not happen)
+                                    disconnectAll();
+                                }
+                                setShowDisconnectModal(false);
+                                setShowSuccessModal(true);
+                            }} className="flex-1 py-2 rounded-lg font-label-bold text-label-bold bg-error text-white hover:bg-red-600 transition-colors shadow-sm">Ya, Putuskan</button>
                         </div>
                     </div>
-                )
-            }
+                </div>
+            )}
 
-        </div >
+            {showSuccessModal && (
+                <div className="fixed inset-0 z-[100] flex items-center justify-center bg-charcoal/40 backdrop-blur-sm p-4 animate-in fade-in duration-200">
+                    <div className="bg-white-container-lowest rounded-2xl p-6 w-full max-w-sm border border-clinical-blue/20 shadow-xl text-center animate-in zoom-in-50 fade-in duration-500 ease-spring">
+                        <div className="w-16 h-16 rounded-full bg-status-green/10 flex items-center justify-center mb-4 text-status-green mx-auto">
+                            <span className="material-symbols-outlined text-3xl">check_circle</span>
+                        </div>
+                        <h3 className="font-headline-md text-headline-md text-clinical-charcoal mb-2">Berhasil Terputus</h3>
+                        <p className="font-body-md text-body-md text-clinical-charcoal/70 mb-6">Koneksi dengan pasien telah berhasil dibatalkan.</p>
+                        <button onClick={() => setShowSuccessModal(false)} className="w-full py-3 rounded-lg font-label-bold text-label-bold bg-primary text-white hover:bg-primary/90 transition-colors shadow-sm">Tutup</button>
+                    </div>
+                </div>
+            )}
+
+        </div>
     );
 };

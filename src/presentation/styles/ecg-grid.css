@@ -98,7 +98,7 @@
 }
 
 .custom-scrollbar::-webkit-scrollbar-thumb {
-    background: var(--color-primary);
+    background: #1A939E;
     border-radius: 4px;
 }
 

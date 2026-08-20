@@ -18,6 +18,7 @@ export interface RawECGData {
 export interface DeviceValidation {
     status: string;
     warnings: string[];
+    hr?: number;
 }
 
 export interface DevicePrediction {
@@ -59,6 +60,17 @@ export interface ECGDataPayload {
     system?: DeviceSystem;
     network?: DeviceNetwork;
     stress_test?: DeviceStressTest;
+    heart_rate?: number;
+    ecg?: any; // To allow for older JSON structures
+    prediction?: any;
+    created_at?: string;
+    message_id?: string;
+    frame_id?: string;
+    measurement_id?: string;
+    device_id?: string;
+    session_id?: string;
+    timestamp?: string;
+    sha256_checksum?: string;
 }
 
 export interface ServerMessage {

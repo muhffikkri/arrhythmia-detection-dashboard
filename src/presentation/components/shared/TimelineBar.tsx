@@ -50,7 +50,7 @@ export const TimelineBar: React.FC<TimelineBarProps> = ({
             {/* WADAH TOMBOL TIMELINE DENGAN SCROLL HORIZONTAL */}
             <div
                 ref={scrollContainerRef}
-                className="flex gap-2 overflow-x-auto pb-2 custom-scrollbar snap-x scroll-smooth w-full"
+                className="flex gap-2 overflow-x-auto py-4 pl-1 pr-6 custom-scrollbar snap-x scroll-smooth w-full"
             >
                 {events.length === 0 ? (
                     <div className="text-xs text-outline italic py-2">
@@ -60,28 +60,19 @@ export const TimelineBar: React.FC<TimelineBarProps> = ({
                     events.map((event) => {
                         const isSelected = currentIdx === event.index;
 
-                        // Menentukan awalan teks berdasarkan klasifikasi multi-aritmia TFLite
-                        let prefix = "";
-                        if (event.isAnomaly) {
-                            if (event.classResult.includes("AFIB")) prefix = "AFIB ";
-                            else if (event.classResult.includes("PVC")) prefix = "PVC ";
-                            else if (event.classResult.includes("SVT")) prefix = "SVT ";
-                            else prefix = "ANOM ";
-                        }
-
                         return (
                             <button
                                 key={event.index}
                                 onClick={() => onSegmentSelect && onSegmentSelect(event.index)}
-                                className={`flex-shrink-0 h-10 px-5 rounded-full text-white font-bold text-[11px] uppercase tracking-widest shadow-sm transition-all duration-300 snap-center outline-none border-2 ${event.isAnomaly
+                                className={`flex-shrink-0 h-10 px-5 rounded-full text-white font-bold text-[11px] uppercase tracking-widest shadow-sm transition-all duration-500 ease-[cubic-bezier(0.68,-0.55,0.265,1.55)] snap-center outline-none border-2 ${event.isAnomaly
                                         ? 'bg-clinical-red hover:shadow-[0px_10px_20px_rgba(220,38,38,0.2)] hover:brightness-110'
                                         : 'bg-clinical-blue hover:shadow-[0px_10px_20px_rgba(23,107,206,0.2)] hover:brightness-110'
                                     } ${isSelected
-                                        ? 'border-clinical-charcoal scale-105 ring-4 ring-clinical-charcoal/10'
+                                        ? 'border-transparent ring-2 ring-offset-[2px] ring-clinical-charcoal scale-105 z-10 relative'
                                         : 'border-transparent'
                                     }`}
                             >
-                                {prefix}{event.timeStr}
+                                {event.timeStr}
                             </button>
                         );
                     })

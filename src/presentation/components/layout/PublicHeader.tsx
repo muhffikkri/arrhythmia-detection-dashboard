@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { API_URL } from '../../../config/env';
+import { fetchWithAuth } from '../../../config/api';
 
 export const PublicHeader: React.FC = () => {
   const navigate = useNavigate();
@@ -16,7 +17,7 @@ export const PublicHeader: React.FC = () => {
   useEffect(() => {
     if (userId) {
       if (userRole === 'pasien') {
-        fetch(`${API_URL}/api/patients/${userId}`)
+        fetchWithAuth(`/api/patients/${userId}`)
           .then(res => res.ok ? res.json() : null)
           .then(data => {
             if (data?.patient) {
@@ -26,7 +27,7 @@ export const PublicHeader: React.FC = () => {
           })
           .catch(console.error);
       } else if (userRole === 'dokter') {
-        fetch(`${API_URL}/api/doctors/${userId}`)
+        fetchWithAuth(`/api/doctors/${userId}`)
           .then(res => res.ok ? res.json() : null)
           .then(data => {
             if (data) {

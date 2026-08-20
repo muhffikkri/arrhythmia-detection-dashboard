@@ -1,5 +1,5 @@
-import React, { useEffect, useState } from 'react';
-import { BrowserRouter, Routes, Route, useLocation, Navigate, useNavigate } from 'react-router-dom';
+import React, { useEffect } from 'react';
+import { BrowserRouter, Routes, Route, useLocation } from 'react-router-dom';
 
 // Landing Pages
 import { HomePage } from './presentation/pages/landing/HomePage';
@@ -18,14 +18,16 @@ import { SecurityProvider } from './application/context/SecurityContext';
 import { DevToolsBlocker } from './presentation/components/DevToolsBlocker';
 
 // Admin Pages
+import { ErrorBoundary } from './presentation/components/ErrorBoundary';
 import { AdminDashboardPage } from './presentation/pages/admin/AdminDashboardPage';
-import { AdminMonitorPage } from './presentation/pages/admin/AdminMonitorPage';
 import { AdminUsersPage } from './presentation/pages/admin/AdminUsersPage';
 import { AdminDevicesPage } from './presentation/pages/admin/AdminDevicesPage';
+import { AdminSessionsPage } from './presentation/pages/admin/AdminSessionsPage';
+import { AdminAnalyticsPage } from './presentation/pages/admin/AdminAnalyticsPage';
 
 // Doctor Pages
 import { DashboardPage } from './presentation/pages/doctor/DashboardPage';
-import { MonitorPage } from './presentation/pages/doctor/MonitorPage';
+// import { MonitorPage } from './presentation/pages/doctor/MonitorPage';
 import { AnalyticsPage } from './presentation/pages/doctor/AnalyticsPage';
 import { QrScannerPage } from './presentation/pages/doctor/QrScannerPage';
 import { ProfilePage } from './presentation/pages/doctor/ProfilePage';
@@ -55,6 +57,8 @@ const TitleSetter: React.FC = () => {
       '/admin/monitor': 'Live Stream Monitor',
       '/admin/users': 'User Management',
       '/admin/devices': 'Device Fleet',
+      '/admin/sessions': 'Session Management',
+      '/admin/analytics': 'Admin Analytics',
       '/doctor/dashboard': 'Doctor Dashboard',
       '/doctor/analytics': 'Analytics',
       '/doctor/qr-scanner': 'QR Scanner',
@@ -75,151 +79,84 @@ const TitleSetter: React.FC = () => {
   return null;
 };
 
-interface ProtectedRouteProps {
-  children: React.ReactNode;
-  allowedRoles: ('pasien' | 'dokter' | 'admin')[];
-}
-
-const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children, allowedRoles }) => {
-  let userId = localStorage.getItem('user_id');
-  let userRole = localStorage.getItem('user_role') as 'pasien' | 'dokter' | 'admin' | null;
-
-  // Automatically restore admin session if accessing an admin route and an admin token backup exists
-  const adminToken = localStorage.getItem('admin_auth_token');
-  if (adminToken && allowedRoles.includes('admin') && userRole !== 'admin') {
-    localStorage.setItem('auth_token', adminToken);
-    localStorage.setItem('user_role', 'admin');
-    const adminId = localStorage.getItem('admin_user_id') || '';
-    localStorage.setItem('user_id', adminId);
-    userId = adminId;
-    userRole = 'admin';
-  }
-
-  if (!userId || !userRole) {
-    return <Navigate to="/auth/login" replace />;
-  }
-
-  if (!allowedRoles.includes(userRole)) {
-    // Allow anyone to access admin pages if they are logged in (for easy monitoring/maintenance)
-    if (allowedRoles.includes('admin')) {
-      return <>{children}</>;
-    }
-    if (userRole === 'pasien') return <Navigate to="/patient/dashboard" replace />;
-    if (userRole === 'dokter') return <Navigate to="/doctor/dashboard" replace />;
-    if (userRole === 'admin') return <Navigate to="/admin/monitor" replace />;
-    return <Navigate to="/" replace />;
-  }
-
-  return <>{children}</>;
-};
-
-const ImpersonationBanner: React.FC = () => {
-  const navigate = useNavigate();
-  const location = useLocation();
-  const [isAdminMode, setIsAdminMode] = useState(false);
-  const [targetUser, setTargetUser] = useState<string | null>(null);
-  const [targetRole, setTargetRole] = useState<string | null>(null);
-
+const SessionRestorer: React.FC = () => {
   useEffect(() => {
-    const adminToken = localStorage.getItem('admin_auth_token');
-    const userRole = localStorage.getItem('user_role');
-    const userId = localStorage.getItem('user_id');
-    if (adminToken && userRole !== 'admin') {
-      setIsAdminMode(true);
-      setTargetUser(userId);
-      setTargetRole(userRole);
-    } else {
-      setIsAdminMode(false);
+    const isImpersonating = sessionStorage.getItem('is_impersonating');
+    if (!isImpersonating) {
+      const adminToken = localStorage.getItem('admin_auth_token');
+      const adminId = localStorage.getItem('admin_user_id');
+      const docToken = localStorage.getItem('doctor_auth_token');
+      const docId = localStorage.getItem('doctor_user_id');
+      const originalRole = localStorage.getItem('original_role');
+
+      if (adminToken && adminId && originalRole === 'admin') {
+        localStorage.setItem('auth_token', adminToken);
+        localStorage.setItem('user_id', adminId);
+        localStorage.setItem('user_role', 'admin');
+        localStorage.removeItem('admin_auth_token');
+        localStorage.removeItem('admin_user_id');
+        localStorage.removeItem('original_role');
+      } else if (docToken && docId && originalRole === 'dokter') {
+        localStorage.setItem('auth_token', docToken);
+        localStorage.setItem('user_id', docId);
+        localStorage.setItem('user_role', 'dokter');
+        localStorage.removeItem('doctor_auth_token');
+        localStorage.removeItem('doctor_user_id');
+        localStorage.removeItem('original_role');
+      }
     }
-  }, [location]);
-
-  const handleReturnToAdmin = () => {
-    const adminToken = localStorage.getItem('admin_auth_token');
-    const adminId = localStorage.getItem('admin_user_id');
-    if (adminToken) {
-      localStorage.setItem('auth_token', adminToken);
-      localStorage.setItem('user_role', 'admin');
-      if (adminId) localStorage.setItem('user_id', adminId);
-      
-      localStorage.removeItem('admin_auth_token');
-      localStorage.removeItem('admin_user_id');
-      localStorage.removeItem('connectedPatients');
-      localStorage.removeItem('connectedDoctor');
-      localStorage.removeItem('mock_patient_profile');
-      
-      navigate('/admin/users');
-    }
-  };
-
-  if (!isAdminMode) return null;
-
-  return (
-    <div className="w-full bg-gradient-to-r from-medical-teal to-clinical-blue text-white py-3 px-6 shadow-md flex items-center justify-between z-[9999] relative border-b border-white/10 font-sans backdrop-blur-md">
-      <div className="flex items-center gap-2">
-        <span className="material-symbols-outlined text-[20px] animate-pulse">admin_panel_settings</span>
-        <span className="text-sm font-semibold tracking-wide">
-          Impersonation Active: Currently viewing as <span className="underline font-bold capitalize">{targetRole}</span> ({targetUser})
-        </span>
-      </div>
-      <button 
-        onClick={handleReturnToAdmin}
-        className="bg-white/20 hover:bg-white text-white hover:text-medical-teal font-bold text-xs py-1.5 px-4 rounded-lg border border-white/20 hover:border-white transition-all duration-300 shadow-sm flex items-center gap-1.5"
-      >
-        <span className="material-symbols-outlined text-[16px]">exit_to_app</span>
-        Return to Admin Portal
-      </button>
-    </div>
-  );
+  }, []);
+  return null;
 };
 
 export const App: React.FC = () => {
-  const [showBanner, setShowBanner] = React.useState(false); // keep react state hook standard
   return (
     <BrowserRouter>
       <SecurityProvider>
-        <PreferencesProvider>
-          <ConnectionProvider>
-            <SidebarProvider>
-              <TitleSetter />
-              <DevToolsBlocker />
-              <ImpersonationBanner />
-              <Routes>
-                {/* Public Routes */}
-                <Route path="/" element={<HomePage />} />
-                <Route path="/how-it-works" element={<HowItWorksPage />} />
-                <Route path="/faq" element={<FaqPage />} />
+      <PreferencesProvider>
+      <ConnectionProvider>
+      <SidebarProvider>
+      <TitleSetter />
+      <SessionRestorer />
+      <DevToolsBlocker />
+      <ErrorBoundary>
+      <Routes>
+        {/* Public Routes */}
+        <Route path="/" element={<HomePage />} />
+        <Route path="/how-it-works" element={<HowItWorksPage />} />
+        <Route path="/faq" element={<FaqPage />} />
 
-                {/* Auth Routes */}
-                <Route path="/auth" element={<SplashPage />} />
-                <Route path="/auth/login" element={<LoginPage />} />
-                <Route path="/auth/register" element={<RegisterPage />} />
+        {/* Auth Routes */}
+        <Route path="/auth" element={<SplashPage />} />
+        <Route path="/auth/login" element={<LoginPage />} />
+        <Route path="/auth/register" element={<RegisterPage />} />
 
-                {/* Admin Routes */}
-                <Route path="/admin/dashboard" element={<ProtectedRoute allowedRoles={['admin']}><AdminDashboardPage /></ProtectedRoute>} />
-                <Route path="/admin/users" element={<ProtectedRoute allowedRoles={['admin']}><AdminUsersPage /></ProtectedRoute>} />
-                <Route path="/admin/devices" element={<ProtectedRoute allowedRoles={['admin']}><AdminDevicesPage /></ProtectedRoute>} />
-                <Route path="/admin/monitor" element={<ProtectedRoute allowedRoles={['admin']}><AdminMonitorPage /></ProtectedRoute>} />
+        {/* Admin Routes */}
+        <Route path="/admin/dashboard" element={<AdminDashboardPage />} />
+        <Route path="/admin/users" element={<AdminUsersPage />} />
+        <Route path="/admin/devices" element={<AdminDevicesPage />} />
+        <Route path="/admin/sessions" element={<AdminSessionsPage />} />
+        <Route path="/admin/analytics" element={<AdminAnalyticsPage />} />
 
-                {/* Doctor Routes */}
-                <Route path="/doctor/dashboard" element={<ProtectedRoute allowedRoles={['dokter']}><DashboardPage /></ProtectedRoute>} />
-                <Route path="/doctor/monitor" element={<ProtectedRoute allowedRoles={['dokter']}><MonitorPage /></ProtectedRoute>} />
-                <Route path="/doctor/analytics" element={<ProtectedRoute allowedRoles={['dokter']}><AnalyticsPage /></ProtectedRoute>} />
-                <Route path="/doctor/qr-scanner" element={<ProtectedRoute allowedRoles={['dokter']}><QrScannerPage /></ProtectedRoute>} />
-                <Route path="/doctor/profile" element={<ProtectedRoute allowedRoles={['dokter']}><ProfilePage /></ProtectedRoute>} />
+        {/* Doctor Routes */}
+        <Route path="/doctor/dashboard" element={<DashboardPage />} />
+        <Route path="/doctor/analytics" element={<AnalyticsPage />} />
+        <Route path="/doctor/qr-scanner" element={<QrScannerPage />} />
+        <Route path="/doctor/profile" element={<ProfilePage />} />
 
-                {/* Patient Routes */}
-                <Route path="/patient/dashboard" element={<ProtectedRoute allowedRoles={['pasien']}><PatientDashboardPage /></ProtectedRoute>} />
-                <Route path="/patient/qr-sync" element={<ProtectedRoute allowedRoles={['pasien']}><PatientQrSyncPage /></ProtectedRoute>} />
-                <Route path="/patient/device-scanner" element={<ProtectedRoute allowedRoles={['pasien']}><PatientDeviceScannerPage /></ProtectedRoute>} />
-                <Route path="/patient/history" element={<ProtectedRoute allowedRoles={['pasien']}><PatientHistoryPage /></ProtectedRoute>} />
-                <Route path="/patient/history/:sessionId" element={<ProtectedRoute allowedRoles={['pasien']}><PatientHistoryDetailPage /></ProtectedRoute>} />
-                <Route path="/patient/profile" element={<ProtectedRoute allowedRoles={['pasien']}><PatientProfilePage /></ProtectedRoute>} />
-                <Route path="/patient/settings" element={<ProtectedRoute allowedRoles={['pasien']}><PatientSettingsPage /></ProtectedRoute>} />
-                <Route path="/patient/monitor" element={<ProtectedRoute allowedRoles={['pasien']}><PatientMonitorPage /></ProtectedRoute>} />
-              </Routes>
-            </SidebarProvider>
-          </ConnectionProvider>
-        </PreferencesProvider>
+        <Route path="/patient/dashboard" element={<PatientDashboardPage />} />
+        <Route path="/patient/qr-sync" element={<PatientQrSyncPage />} />
+        <Route path="/patient/device-scanner" element={<PatientDeviceScannerPage />} />
+        <Route path="/patient/history" element={<PatientHistoryPage />} />
+        <Route path="/patient/history/:sessionId" element={<PatientHistoryDetailPage />} />
+        <Route path="/patient/profile" element={<PatientProfilePage />} />
+        <Route path="/patient/settings" element={<PatientSettingsPage />} />
+        <Route path="/patient/monitor" element={<PatientMonitorPage />} />
+      </Routes>
+      </ErrorBoundary>
+      </SidebarProvider>
+      </ConnectionProvider>
+      </PreferencesProvider>
       </SecurityProvider>
     </BrowserRouter>
   );
