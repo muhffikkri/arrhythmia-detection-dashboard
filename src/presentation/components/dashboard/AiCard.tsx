@@ -244,7 +244,7 @@ export const AiCard: React.FC<AiCardProps> = ({
                 <div className="text-center w-full px-2">
                     {rawClassification ? (
                         <>
-                            <h2 className="text-3xl md:text-4xl font-headline-lg tracking-tight text-clinical-charcoal mb-6 break-words leading-tight">
+                            <h2 className="text-2xl md:text-3xl font-headline-lg tracking-tight text-clinical-charcoal mb-4 break-words leading-tight">
                                 {rawClassification}
                             </h2>
                             

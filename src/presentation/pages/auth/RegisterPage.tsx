@@ -1,4 +1,4 @@
-﻿import React, { useState } from 'react';
+import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { API_URL } from '../../../config/env';
 
@@ -119,8 +119,8 @@ export const RegisterPage: React.FC = () => {
                         </div>
                     </div>
 
-                    {/* Pasien-only fields: always rendered, hidden for dokter to prevent layout shift */}
-                    <div className={`flex flex-col md:flex-row gap-4 w-full transition-all duration-200 ${role === 'pasien' ? 'opacity-100 max-h-40' : 'opacity-0 max-h-0 overflow-hidden pointer-events-none'}`}>
+                    {/* Age and Gender fields: always rendered for both to prevent layout shift */}
+                    <div className="flex flex-col md:flex-row gap-4 w-full">
                         <div className="space-y-2 flex-1">
                             <label className="font-medium text-label-bold text-on-surface-variant" htmlFor="age">Umur (Tahun)</label>
                             <input
@@ -132,7 +132,7 @@ export const RegisterPage: React.FC = () => {
                                 placeholder="25"
                                 value={age}
                                 onChange={(e) => setAge(e.target.value === '' ? '' : parseInt(e.target.value))}
-                                required={role === 'pasien'}
+                                required
                             />
                         </div>
                         <div className="space-y-2 flex-1">

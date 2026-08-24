@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @fileoverview Halaman UI: Analytics & History Page
  * Berfungsi untuk meninjau ulang rekaman EKG pasien dari masa lalu (Historical Review).
  * Dokter dapat menavigasi segmen 10-detik spesifik menggunakan Timeline Bar.
@@ -640,7 +640,7 @@ export const AdminAnalyticsPage: React.FC = () => {
                             </div>
                             <div className="bg-white/10 p-3 rounded-lg border border-white/5">
                                 <p className="text-[9px] text-white/60 uppercase">Confidence</p>
-                                <p className={`text-sm font-bold ${aiMetrics?.confidence_percent != null ? (aiMetrics.confidence_percent >= 90 ? "text-green-400" : aiMetrics.confidence_percent >= 70 ? "text-yellow-400" : "text-alert-red") : "text-white/50"}`}>{aiMetrics?.confidence_percent != null ? `${aiMetrics.confidence_percent.toFixed(2)}%` : "--"}</p>
+                                <p className={`text-sm font-bold ${aiMetrics?.confidence_percent != null ? (aiMetrics.confidence_percent >= 95 ? "text-green-400" : "text-white/80") : "text-white/50"}`}>{aiMetrics?.confidence_percent != null ? `${aiMetrics.confidence_percent.toFixed(2)}%` : "--"}</p>
                             </div>
                             <div className="col-span-2 bg-white/10 p-3 rounded-lg border border-white/5 flex justify-between items-center">
                                 <div>

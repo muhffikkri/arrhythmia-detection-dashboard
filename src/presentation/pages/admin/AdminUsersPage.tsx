@@ -53,7 +53,11 @@ export const AdminUsersPage: React.FC = () => {
     const { data: devicesResponse, mutate: mutateDevices } = useCachedFetch(tokenRestored ? `/api/admin/devices` : null);
     const { data: doctorsResponse } = useCachedFetch(tokenRestored ? `/api/admin/users?role=dokter&limit=1000` : null);
 
-    const users = usersResponse?.data || (Array.isArray(usersResponse) ? usersResponse : []);
+    const users = (usersResponse?.data || (Array.isArray(usersResponse) ? usersResponse : [])).filter((u: any) => 
+        u.role === activeTab || 
+        (activeTab === 'pasien' && u.role?.toLowerCase() === 'patient') || 
+        (activeTab === 'dokter' && u.role?.toLowerCase() === 'doctor')
+    );
     const totalUsers = usersResponse?.pagination?.total || users.length;
     const totalPages = usersResponse?.pagination?.total_pages || Math.ceil(totalUsers / itemsPerPage);
     const devices = Array.isArray(devicesResponse) ? devicesResponse : (devicesResponse?.data || []);
@@ -302,7 +306,8 @@ export const AdminUsersPage: React.FC = () => {
         setActionLoading(true);
         try {
             const token = localStorage.getItem('auth_token');
-            const res = await fetchWithAuth(`/api/admin/impersonate/${user.account_id}`, {
+            const targetId = user.account_id || user.id;
+            const res = await fetchWithAuth(`/api/admin/impersonate/${targetId}`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
