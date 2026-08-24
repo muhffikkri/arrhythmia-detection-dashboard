@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { AdminSidebar } from '../../components/layout/AdminSidebar';
 import { useSidebar } from '../../../application/context/SidebarContext';
@@ -115,6 +115,47 @@ export const AdminSessionsPage: React.FC = () => {
     const removeFrameSlot = (id: number) => {
         if (framesToUpload.length <= 1) return;
         setFramesToUpload(prev => prev.filter(f => f.id !== id));
+    };
+
+    const folderInputRef = useRef<HTMLInputElement>(null);
+
+    const handleFolderSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+        if (!e.target.files || e.target.files.length === 0) return;
+        
+        const files = Array.from(e.target.files);
+        // Group by base name
+        const pairs = new Map<string, { jsonFile: File | null, csvFile: File | null }>();
+        
+        files.forEach(file => {
+            const pathSegments = file.webkitRelativePath.split('/');
+            const filename = pathSegments[pathSegments.length - 1];
+            
+            if (filename.endsWith('.json') || filename.endsWith('.csv')) {
+                const baseName = filename.substring(0, filename.lastIndexOf('.'));
+                if (!pairs.has(baseName)) {
+                    pairs.set(baseName, { jsonFile: null, csvFile: null });
+                }
+                const pair = pairs.get(baseName)!;
+                if (filename.endsWith('.json')) pair.jsonFile = file;
+                if (filename.endsWith('.csv')) pair.csvFile = file;
+            }
+        });
+
+        // Filter valid pairs
+        const validFrames = Array.from(pairs.values())
+            .filter(p => p.jsonFile !== null && p.csvFile !== null)
+            .map((p, index) => ({
+                id: Date.now() + index,
+                jsonFile: p.jsonFile,
+                csvFile: p.csvFile
+            }));
+
+        if (validFrames.length > 0) {
+            setFramesToUpload(validFrames);
+            alert(`Berhasil mendeteksi ${validFrames.length} frame pasangan (.json & .csv) dari folder!`);
+        } else {
+            alert("Tidak ditemukan pasangan file .json dan .csv yang valid dalam folder tersebut.");
+        }
     };
 
     const handleFrameFileChange = (id: number, type: 'json' | 'csv', file: File | null) => {
@@ -1225,14 +1266,33 @@ export const AdminSessionsPage: React.FC = () => {
                                 <h4 className="text-xs font-bold text-clinical-charcoal/60 uppercase tracking-wider">
                                     Frame / Segmen EKG ({framesToUpload.length})
                                 </h4>
-                                <button
-                                    type="button"
-                                    onClick={addFrameSlot}
-                                    className="text-[10px] font-bold text-clinical-blue border border-clinical-blue/20 hover:bg-clinical-blue/5 px-3 py-1.5 rounded-lg flex items-center gap-1 transition-all outline-none"
-                                >
-                                    <span className="material-symbols-outlined text-[14px]">add</span>
-                                    Tambah Frame
-                                </button>
+                                <div className="flex gap-2">
+                                    <input
+                                        type="file"
+                                        {...{ webkitdirectory: "", directory: "" }}
+                                        multiple
+                                        ref={folderInputRef}
+                                        onChange={handleFolderSelect}
+                                        className="hidden"
+                                    />
+                                    <button
+                                        type="button"
+                                        onClick={() => folderInputRef.current?.click()}
+                                        className="text-[10px] font-bold text-clinical-blue border border-clinical-blue/20 hover:bg-clinical-blue/5 px-3 py-1.5 rounded-lg flex items-center gap-1 transition-all outline-none"
+                                        title="Otomatis mendeteksi file .json dan .csv pasangan dalam folder"
+                                    >
+                                        <span className="material-symbols-outlined text-[14px]">folder_open</span>
+                                        Upload via Folder
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={addFrameSlot}
+                                        className="text-[10px] font-bold text-clinical-charcoal/60 border border-clinical-charcoal/20 hover:bg-clinical-charcoal/5 px-3 py-1.5 rounded-lg flex items-center gap-1 transition-all outline-none"
+                                    >
+                                        <span className="material-symbols-outlined text-[14px]">add</span>
+                                        Tambah Manual
+                                    </button>
+                                </div>
                             </div>
 
                             <div className="flex flex-col gap-3">
