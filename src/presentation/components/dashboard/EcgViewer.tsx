@@ -20,7 +20,7 @@ export const EcgViewer: React.FC<EcgViewerProps> = ({ segment, speed = 25, timeO
 
     // Filter Configurations
     const [isFilterOn, setIsFilterOn] = useState<boolean>(true);
-    const [activeFilters, setActiveFilters] = useState<FilterStates>(DEFAULT_FILTERS);
+    const [activeFilters, setActiveFilters] = useState<FilterStates>({ ...DEFAULT_FILTERS, bandpass: true });
     const [showFilterMenu, setShowFilterMenu] = useState<boolean>(false);
     const filterMenuRef = useRef<HTMLDivElement>(null);
 
@@ -305,7 +305,7 @@ export const EcgViewer: React.FC<EcgViewerProps> = ({ segment, speed = 25, timeO
 
                             {/* Dropdown Menu for Sub-Filters */}
                             {isFilterOn && showFilterMenu && (
-                                <div className="absolute top-full right-0 mt-2 bg-white border border-clinical-charcoal/10 rounded-[1.5rem] p-4 shadow-xl z-[200] min-w-[220px] flex flex-col gap-2.5 animate-in fade-in slide-in-from-top-2 duration-200">
+                                <div className="absolute bottom-full right-0 mb-2 bg-white border border-clinical-charcoal/10 rounded-[1.5rem] p-4 shadow-xl z-[200] min-w-[220px] flex flex-col gap-2.5 animate-in fade-in slide-in-from-bottom-2 duration-200">
                                     <h4 className="text-[10px] font-bold text-clinical-charcoal/40 uppercase tracking-widest px-1">
                                         Pilih Filter Aktif
                                     </h4>
@@ -423,6 +423,9 @@ export const EcgViewer: React.FC<EcgViewerProps> = ({ segment, speed = 25, timeO
 
                         {/* Playback Speed Multiplier */}
                         <div className="flex items-center gap-1 bg-clinical-surface p-1 rounded-full border border-clinical-charcoal/5">
+                            <span className="text-[9px] font-bold text-clinical-charcoal/40 uppercase tracking-wider px-2 select-none">
+                                Playback
+                            </span>
                             <button
                                 onClick={() => changeSpeed(1)}
                                 className={`px-3 py-1 rounded-full text-xs font-bold transition-all ${playbackSpeed === 1 ? 'bg-white text-clinical-blue shadow-xs' : 'text-clinical-charcoal/60 hover:text-clinical-charcoal'}`}

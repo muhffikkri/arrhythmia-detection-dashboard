@@ -56,7 +56,9 @@ export const PatientHeader: React.FC = () => {
     };
 
     return (
-        <nav className="sticky top-0 z-50 bg-white/90 backdrop-blur-md border-b border-clinical-charcoal/5 h-16 w-full shadow-sm transition-colors duration-700">
+        <>
+        <div className="h-16 w-full shrink-0"></div>
+        <nav className="fixed top-0 left-0 right-0 z-[100] bg-white/90 backdrop-blur-md border-b border-clinical-charcoal/5 h-16 shadow-sm transition-colors duration-700">
             <div className="max-w-container-max mx-auto px-margin-mobile md:px-margin-desktop h-full flex justify-between items-center">
                 <div className="flex items-center gap-3">
                     {location.pathname !== '/patient/dashboard' && (
@@ -102,5 +104,6 @@ export const PatientHeader: React.FC = () => {
                 </div>
             </div>
         </nav>
+        </>
     );
 };

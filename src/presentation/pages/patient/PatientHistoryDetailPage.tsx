@@ -302,7 +302,7 @@ export const PatientHistoryDetailPage: React.FC = () => {
                                 </div>
                                 
                                 {/* Download Action Menu */}
-                                <div className="flex items-center gap-2 relative" ref={downloadMenuRef}>
+                                <div className="flex items-center gap-2 relative z-[999]" ref={downloadMenuRef}>
                                     <button
                                         onClick={() => setShowDownloadMenu(!showDownloadMenu)}
                                         className="bg-clinical-surface hover:bg-clinical-charcoal/5 border border-clinical-charcoal/10 px-4 py-2 rounded-full font-bold text-xs flex items-center gap-2 transition-all duration-300 outline-none hover:-translate-y-0.5"
@@ -316,7 +316,7 @@ export const PatientHistoryDetailPage: React.FC = () => {
                                     </button>
 
                                     {showDownloadMenu && (
-                                        <div className="absolute right-0 top-11 bg-white border border-clinical-charcoal/10 rounded-[1.5rem] p-3 shadow-xl z-50 min-w-[240px] flex flex-col gap-2 animate-in fade-in slide-in-from-top-2 duration-200">
+                                        <div className="absolute right-0 top-11 bg-white border border-clinical-charcoal/10 rounded-[1.5rem] p-3 shadow-xl z-[999] min-w-[240px] flex flex-col gap-2 animate-in fade-in slide-in-from-top-2 duration-200">
                                             <h4 className="text-[10px] font-bold text-clinical-charcoal/40 uppercase tracking-widest px-2 pt-1">
                                                 Unduh Frame Aktif (10s)
                                             </h4>

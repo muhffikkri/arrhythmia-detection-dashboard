@@ -41,6 +41,7 @@ import { PatientProfilePage } from './presentation/pages/patient/PatientProfileP
 import { PatientSettingsPage } from './presentation/pages/patient/PatientSettingsPage';
 import { PatientMonitorPage } from './presentation/pages/patient/PatientMonitorPage';
 import { PatientDeviceScannerPage } from './presentation/pages/patient/PatientDeviceScannerPage';
+import { ErrorPage } from './presentation/pages/shared/ErrorPage';
 
 const TitleSetter: React.FC = () => {
   const location = useLocation();
@@ -152,6 +153,9 @@ export const App: React.FC = () => {
         <Route path="/patient/profile" element={<PatientProfilePage />} />
         <Route path="/patient/settings" element={<PatientSettingsPage />} />
         <Route path="/patient/monitor" element={<PatientMonitorPage />} />
+        
+        {/* Fallback 404 Route */}
+        <Route path="*" element={<ErrorPage type="404" />} />
       </Routes>
       </ErrorBoundary>
       </SidebarProvider>
