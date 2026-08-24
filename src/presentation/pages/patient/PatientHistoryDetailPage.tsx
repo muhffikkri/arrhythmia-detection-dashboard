@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { PatientHeader } from '../../components/layout/PatientHeader';
 import { EcgViewer } from '../../components/dashboard/EcgViewer';
@@ -38,6 +38,80 @@ export const PatientHistoryDetailPage: React.FC = () => {
     const [isLoading, setIsLoading] = useState<boolean>(true);
     const [events, setEvents] = useState<TimelineEvent[]>([]);
     const [segments, setSegments] = useState<Record<number, any>>({});
+    
+    // Download menu states
+    const [showDownloadMenu, setShowDownloadMenu] = useState<boolean>(false);
+    const downloadMenuRef = useRef<HTMLDivElement>(null);
+
+    const downloadSegmentJSON = () => {
+        if (!currentSegment) return;
+        const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(currentSegment.payload, null, 2));
+        const downloadAnchorNode = document.createElement('a');
+        downloadAnchorNode.setAttribute("href", dataStr);
+        downloadAnchorNode.setAttribute("download", `ecg_segment_${sessionId}_frame_${selectedIdx}.json`);
+        document.body.appendChild(downloadAnchorNode);
+        downloadAnchorNode.click();
+        downloadAnchorNode.remove();
+    };
+
+    const downloadSegmentCSV = () => {
+        if (!currentSegment) return;
+        const payload = currentSegment.payload;
+        const samples = payload.ecg?.samples || payload.raw?.ch1 || [];
+        const ch2 = payload.raw?.ch2 || [];
+
+        let csvContent = "Timestamp (s),Lead I (mV),Lead II (mV),Lead III (mV)\n";
+        for (let j = 0; j < samples.length; j++) {
+            const time = (selectedIdx * 10 + j * 0.004).toFixed(3);
+            let valI = 0, valII = 0;
+            if (Array.isArray(samples[j])) {
+                valI = samples[j][0] || 0;
+                valII = samples[j][1] || 0;
+            } else {
+                valI = samples[j] || 0;
+                valII = ch2[j] || 0;
+            }
+            const valIII = valII - valI;
+            csvContent += `${time},${valI.toFixed(4)},${valII.toFixed(4)},${valIII.toFixed(4)}\n`;
+        }
+
+        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement("a");
+        link.setAttribute("href", url);
+        link.setAttribute("download", `ecg_segment_${sessionId}_frame_${selectedIdx}.csv`);
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+    };
+
+    const downloadSessionJSON = () => {
+        if (!segments || Object.keys(segments).length === 0) return;
+        const orderedPayloads = Object.keys(segments)
+            .map(Number)
+            .sort((a, b) => a - b)
+            .map(idx => segments[idx].payload);
+
+        const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(orderedPayloads, null, 2));
+        const downloadAnchorNode = document.createElement('a');
+        downloadAnchorNode.setAttribute("href", dataStr);
+        downloadAnchorNode.setAttribute("download", `ecg_session_${sessionId}_full.json`);
+        document.body.appendChild(downloadAnchorNode);
+        downloadAnchorNode.click();
+        downloadAnchorNode.remove();
+    };
+
+    useEffect(() => {
+        const handleClickOutside = (event: MouseEvent) => {
+            if (downloadMenuRef.current && !downloadMenuRef.current.contains(event.target as Node)) {
+                setShowDownloadMenu(false);
+            }
+        };
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => {
+            document.removeEventListener('mousedown', handleClickOutside);
+        };
+    }, []);
     
     const { scale } = useECGScale();
     const getInitials = (firstName: string, lastName: string) => {
@@ -221,6 +295,56 @@ export const PatientHistoryDetailPage: React.FC = () => {
                                             {currentEvent ? `${currentEvent.timeStr} - ${events[selectedIdx + 1]?.timeStr || t('history.end')}` : '--'}
                                         </p>
                                     </div>
+                                </div>
+                                
+                                {/* Download Action Menu */}
+                                <div className="flex items-center gap-2 relative" ref={downloadMenuRef}>
+                                    <button
+                                        onClick={() => setShowDownloadMenu(!showDownloadMenu)}
+                                        className="bg-clinical-surface hover:bg-clinical-charcoal/5 border border-clinical-charcoal/10 px-4 py-2 rounded-full font-bold text-xs flex items-center gap-2 transition-all duration-300 outline-none hover:-translate-y-0.5"
+                                        title="Unduh data EKG untuk analisis offline"
+                                    >
+                                        <span className="material-symbols-outlined text-[16px]">download</span>
+                                        Download EKG Data
+                                        <span className="material-symbols-outlined text-[14px]">
+                                            {showDownloadMenu ? 'expand_less' : 'expand_more'}
+                                        </span>
+                                    </button>
+
+                                    {showDownloadMenu && (
+                                        <div className="absolute right-0 top-11 bg-white border border-clinical-charcoal/10 rounded-[1.5rem] p-3 shadow-xl z-50 min-w-[240px] flex flex-col gap-2 animate-in fade-in slide-in-from-top-2 duration-200">
+                                            <h4 className="text-[10px] font-bold text-clinical-charcoal/40 uppercase tracking-widest px-2 pt-1">
+                                                Unduh Frame Aktif (10s)
+                                            </h4>
+                                            <button
+                                                onClick={() => { downloadSegmentCSV(); setShowDownloadMenu(false); }}
+                                                className="flex items-center gap-2.5 px-3 py-2 text-left text-xs font-bold text-clinical-charcoal hover:bg-clinical-surface/70 rounded-xl transition-all"
+                                            >
+                                                <span className="material-symbols-outlined text-[16px] text-emerald-600">table_rows</span>
+                                                Unduh CSV (Excel)
+                                            </button>
+                                            <button
+                                                onClick={() => { downloadSegmentJSON(); setShowDownloadMenu(false); }}
+                                                className="flex items-center gap-2.5 px-3 py-2 text-left text-xs font-bold text-clinical-charcoal hover:bg-clinical-surface/70 rounded-xl transition-all"
+                                            >
+                                                <span className="material-symbols-outlined text-[16px] text-blue-600">code</span>
+                                                Unduh Raw JSON
+                                            </button>
+
+                                            <div className="border-t border-clinical-charcoal/5 my-1"></div>
+
+                                            <h4 className="text-[10px] font-bold text-clinical-charcoal/40 uppercase tracking-widest px-2">
+                                                Unduh Seluruh Sesi
+                                            </h4>
+                                            <button
+                                                onClick={() => { downloadSessionJSON(); setShowDownloadMenu(false); }}
+                                                className="flex items-center gap-2.5 px-3 py-2 text-left text-xs font-bold text-clinical-charcoal hover:bg-clinical-surface/70 rounded-xl transition-all"
+                                            >
+                                                <span className="material-symbols-outlined text-[16px] text-purple-600">folder_zip</span>
+                                                Unduh Sesi Lengkap (JSON)
+                                            </button>
+                                        </div>
+                                    )}
                                 </div>
                                 
                             </div>

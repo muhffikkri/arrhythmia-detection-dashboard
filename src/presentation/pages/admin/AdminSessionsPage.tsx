@@ -27,7 +27,7 @@ export const AdminSessionsPage: React.FC = () => {
     const [currentPagePatients, setCurrentPagePatients] = useStickyState(1, 'adminSessionsPagePatients');
     const itemsPerPage = 10;
 
-    const { data: allSessionsResponse, isLoading: loadingSessions } = useCachedFetch(viewMode === 'all' ? `/api/sessions?page=${currentPageSessions}&limit=${itemsPerPage}` : null);
+    const { data: allSessionsResponse, isLoading: loadingSessions, mutate: mutateSessions } = useCachedFetch(viewMode === 'all' ? `/api/sessions?page=${currentPageSessions}&limit=${itemsPerPage}` : null);
     const { data: patientsViewResponse, isLoading: loadingPatients } = useCachedFetch(viewMode === 'users' ? `/api/admin/users?role=pasien&page=${currentPagePatients}&limit=${itemsPerPage}` : null);
     const { data: usersData } = useCachedFetch('/api/admin/users?limit=1000');
 
@@ -42,6 +42,293 @@ export const AdminSessionsPage: React.FC = () => {
     const [editingNoteId, setEditingNoteId] = useState<string | null>(null);
     const [editNoteValue, setEditNoteValue] = useState<string>('');
     const [isSubmittingNote, setIsSubmittingNote] = useState(false);
+
+    // Add/Create Session States
+    const [showAddModal, setShowAddModal] = useState<boolean>(false);
+    const [selectedPatientId, setSelectedPatientId] = useState<string>('');
+    const [selectedDoctorId, setSelectedDoctorId] = useState<string>('');
+    const [newSessionId, setNewSessionId] = useState<string>('');
+    const [startedAt, setStartedAt] = useState<string>('');
+    const [newDevNote, setNewDevNote] = useState<string>('');
+    const [framesToUpload, setFramesToUpload] = useState<Array<{ id: number, jsonFile: File | null, csvFile: File | null }>>([
+        { id: 1, jsonFile: null, csvFile: null }
+    ]);
+    const [isUploading, setIsUploading] = useState<boolean>(false);
+    const [uploadProgress, setUploadProgress] = useState<string>('');
+
+    // Edit Session States
+    const [showEditModal, setShowEditModal] = useState<boolean>(false);
+    const [editingSession, setEditingSession] = useState<any | null>(null);
+    const [editPatientId, setEditPatientId] = useState<string>('');
+    const [editDoctorId, setEditDoctorId] = useState<string>('');
+    const [editStartedAt, setEditStartedAt] = useState<string>('');
+    const [editDevNote, setEditDevNote] = useState<string>('');
+    const [sessionFrames, setSessionFrames] = useState<any[]>([]);
+    const [loadingFrames, setLoadingFrames] = useState<boolean>(false);
+
+    const addFrameSlot = () => {
+        setFramesToUpload(prev => [...prev, { id: Date.now(), jsonFile: null, csvFile: null }]);
+    };
+
+    const removeFrameSlot = (id: number) => {
+        if (framesToUpload.length <= 1) return;
+        setFramesToUpload(prev => prev.filter(f => f.id !== id));
+    };
+
+    const handleFrameFileChange = (id: number, type: 'json' | 'csv', file: File | null) => {
+        setFramesToUpload(prev => prev.map(f => {
+            if (f.id === id) {
+                return {
+                    ...f,
+                    [type === 'json' ? 'jsonFile' : 'csvFile']: file
+                };
+            }
+            return f;
+        }));
+    };
+
+    const openAddSessionModal = () => {
+        const patients = Object.keys(patientNames);
+        const doctors = Object.keys(doctorNames);
+        setSelectedPatientId(patients[0] || '');
+        setSelectedDoctorId(doctors[0] || '');
+        
+        const now = new Date();
+        const yy = now.getFullYear();
+        const mm = String(now.getMonth() + 1).padStart(2, '0');
+        const dd = String(now.getDate()).padStart(2, '0');
+        const hh = String(now.getHours()).padStart(2, '0');
+        const min = String(now.getMinutes()).padStart(2, '0');
+        const ss = String(now.getSeconds()).padStart(2, '0');
+        const defaultSessionId = `session_${dd}${mm}${yy}_${hh}${min}${ss}`;
+        setNewSessionId(defaultSessionId);
+        
+        const timezoneOffset = now.getTimezoneOffset() * 60000;
+        const localISOTime = (new Date(now.getTime() - timezoneOffset)).toISOString().slice(0, 16);
+        setStartedAt(localISOTime);
+        
+        setNewDevNote('');
+        setFramesToUpload([{ id: Date.now(), jsonFile: null, csvFile: null }]);
+        setShowAddModal(true);
+    };
+
+    const openEditSessionModal = async (session: any) => {
+        setEditingSession(session);
+        setEditPatientId(session.patient_id);
+        setEditDoctorId(session.doctor_id);
+        
+        const d = new Date(session.started_at);
+        const timezoneOffset = d.getTimezoneOffset() * 60000;
+        const localISOTime = (new Date(d.getTime() - timezoneOffset)).toISOString().slice(0, 16);
+        setEditStartedAt(localISOTime);
+        setEditDevNote(session.dev_note || '');
+        
+        setLoadingFrames(true);
+        setSessionFrames([]);
+        setShowEditModal(true);
+        
+        try {
+            const { data, error } = await supabase
+                .from('frame_records')
+                .select('id, start_time, label, hidden')
+                .eq('session_id', session.id)
+                .order('start_time', { ascending: true });
+            if (!error && data) {
+                setSessionFrames(data);
+            }
+        } catch (err) {
+            console.error(err);
+        } finally {
+            setLoadingFrames(false);
+        }
+    };
+
+    const readAsText = (file: File): Promise<string> => {
+        return new Promise((resolve, reject) => {
+            const r = new FileReader();
+            r.onload = () => resolve(r.result as string);
+            r.onerror = () => reject(r.error);
+            r.readAsText(file);
+        });
+    };
+
+    const parseECGCSV = (csvText: string): number[][] => {
+        const lines = csvText.split('\n');
+        const samples: number[][] = [];
+        for (const line of lines) {
+            const trimmed = line.trim();
+            if (!trimmed) continue;
+            if (/[a-zA-Z]/.test(trimmed)) continue;
+            
+            const parts = trimmed.split(',').map(Number);
+            if (parts.length >= 2) {
+                const ch1 = isNaN(parts[0]) ? 0.0 : parts[0];
+                const ch2 = isNaN(parts[1]) ? 0.0 : parts[1];
+                const ch3 = parts.length >= 3 && !isNaN(parts[2]) ? parts[2] : (ch2 - ch1);
+                samples.push([ch1, ch2, ch3]);
+            }
+        }
+        return samples;
+    };
+
+    const handleSaveSession = async () => {
+        if (!selectedPatientId || !selectedDoctorId || !newSessionId.trim() || !startedAt) {
+            alert("Harap lengkapi informasi pasien, dokter, ID sesi, dan waktu mulai!");
+            return;
+        }
+
+        for (const frame of framesToUpload) {
+            if (!frame.jsonFile || !frame.csvFile) {
+                alert("Harap pilih berkas .json (metadata) dan .csv (sinyal EKG) untuk setiap frame!");
+                return;
+            }
+        }
+
+        setIsUploading(true);
+        setUploadProgress("Membuat sesi rekaman...");
+
+        try {
+            const sessionPayload = {
+                id: newSessionId.trim(),
+                patient_id: selectedPatientId,
+                doctor_id: selectedDoctorId,
+                started_at: new Date(startedAt).toISOString(),
+                dev_note: newDevNote.trim() || null,
+                ecg_paper: null
+            };
+
+            const { error: sessionError } = await supabase.from('sessions').upsert(sessionPayload);
+            if (sessionError) {
+                throw new Error("Gagal menyimpan sesi: " + sessionError.message);
+            }
+
+            for (let i = 0; i < framesToUpload.length; i++) {
+                const frame = framesToUpload[i];
+                setUploadProgress(`Memproses frame ${i + 1} dari ${framesToUpload.length}...`);
+
+                const jsonText = await readAsText(frame.jsonFile!);
+                const csvText = await readAsText(frame.csvFile!);
+
+                const metadata = JSON.parse(jsonText);
+                const samples = parseECGCSV(csvText);
+
+                if (samples.length === 0) {
+                    throw new Error(`Berkas CSV untuk frame ${i + 1} kosong atau tidak valid.`);
+                }
+
+                const sourceMeta = metadata.source_metadata || {};
+                const measurementId = sourceMeta.measurement_id || crypto.randomUUID();
+                const deviceId = sourceMeta.device_id || "device01";
+                const frameIndex = sourceMeta.frame_index || (i + 1);
+                const createdAtUtc = metadata.created_at_utc || sourceMeta.created_at_utc || new Date().toISOString();
+
+                const payload = {
+                    ...metadata,
+                    ecg: {
+                        samples: samples
+                    },
+                    raw: {
+                        ch1: samples.map(s => s[0]),
+                        ch2: samples.map(s => s[1]),
+                        ch3: samples.map(s => s[2])
+                    },
+                    prediction: metadata.prediction || {
+                        label: "Normal",
+                        probabilities: { "Normal": 1.0 }
+                    }
+                };
+
+                const frameRecord = {
+                    id: measurementId,
+                    session_id: newSessionId.trim(),
+                    start_time: (frameIndex - 1) * 10,
+                    label: payload.prediction?.label || "Normal",
+                    hidden: false,
+                    payload: payload,
+                    device_id: deviceId,
+                    created_at: createdAtUtc
+                };
+
+                const { error: frameError } = await supabase.from('frame_records').insert(frameRecord);
+                if (frameError) {
+                    throw new Error(`Gagal menyimpan frame ${i + 1}: ${frameError.message}`);
+                }
+            }
+
+            mutateSessions();
+            setShowAddModal(false);
+            alert(`Sesi ${newSessionId} dan ${framesToUpload.length} frame rekaman berhasil dibuat!`);
+        } catch (err: any) {
+            console.error("Upload error:", err);
+            alert("Kesalahan saat mengunggah: " + err.message);
+        } finally {
+            setIsUploading(false);
+            setUploadProgress('');
+        }
+    };
+
+    const handleUpdateSession = async () => {
+        if (!editingSession) return;
+        try {
+            const { error } = await supabase.from('sessions').update({
+                patient_id: editPatientId,
+                doctor_id: editDoctorId,
+                started_at: new Date(editStartedAt).toISOString(),
+                dev_note: editDevNote.trim() || null
+            }).eq('id', editingSession.id);
+
+            if (error) {
+                alert("Gagal memperbarui sesi: " + error.message);
+            } else {
+                mutateSessions();
+                setShowEditModal(false);
+                alert("Sesi rekaman berhasil diperbarui!");
+            }
+        } catch (err) {
+            console.error(err);
+            alert("Terjadi kesalahan saat memperbarui sesi.");
+        }
+    };
+
+    const deleteFrame = async (frameId: string) => {
+        if (!confirm("Apakah Anda yakin ingin menghapus frame data EKG ini?")) return;
+        try {
+            const { error } = await supabase.from('frame_records').delete().eq('id', frameId);
+            if (error) {
+                alert("Gagal menghapus frame: " + error.message);
+            } else {
+                setSessionFrames(prev => prev.filter(f => f.id !== frameId));
+                mutateSessions();
+                alert("Frame EKG berhasil dihapus!");
+            }
+        } catch (err) {
+            console.error(err);
+        }
+    };
+
+    const deleteSession = async (sessionId: string) => {
+        if (!confirm("Apakah Anda yakin ingin menghapus seluruh sesi rekaman ini beserta semua data grafiknya? Tindakan ini tidak dapat dibatalkan.")) return;
+        try {
+            const { error: frameError } = await supabase.from('frame_records').delete().eq('session_id', sessionId);
+            if (frameError) {
+                alert("Gagal menghapus data grafik EKG: " + frameError.message);
+                return;
+            }
+            
+            const { error: sessionError } = await supabase.from('sessions').delete().eq('id', sessionId);
+            if (sessionError) {
+                alert("Gagal menghapus sesi: " + sessionError.message);
+                return;
+            }
+            
+            setSessions(prev => prev.filter(s => s.id !== sessionId));
+            mutateSessions();
+            alert("Sesi rekaman berhasil dihapus!");
+        } catch (err) {
+            console.error(err);
+            alert("Terjadi kesalahan saat menghapus sesi.");
+        }
+    };
     
     // ECG Paper States
     const fileInputRef = React.useRef<HTMLInputElement>(null);
@@ -374,6 +661,20 @@ export const AdminSessionsPage: React.FC = () => {
                                             <span className="material-symbols-outlined text-[16px]">visibility</span>
                                             Detail
                                         </button>
+                                        <button 
+                                            onClick={() => openEditSessionModal(session)}
+                                            className="inline-flex items-center gap-1 px-2.5 py-1.5 bg-emerald-600 text-white hover:bg-emerald-700 rounded-lg text-xs font-bold transition-colors shadow-sm"
+                                            title="Edit Sesi Rekaman"
+                                        >
+                                            <span className="material-symbols-outlined text-[16px]">edit_note</span>
+                                        </button>
+                                        <button 
+                                            onClick={() => deleteSession(session.id)}
+                                            className="inline-flex items-center gap-1 px-2.5 py-1.5 bg-red-600 text-white hover:bg-red-700 rounded-lg text-xs font-bold transition-colors shadow-sm"
+                                            title="Hapus Sesi Rekaman"
+                                        >
+                                            <span className="material-symbols-outlined text-[16px]">delete</span>
+                                        </button>
                                     </div>
                                 </td>
                             </tr>
@@ -651,7 +952,14 @@ export const AdminSessionsPage: React.FC = () => {
                                 </div>
                             </div>
                             
-                            <div className="flex items-center gap-3">
+                             <div className="flex items-center gap-3">
+                                <button
+                                    onClick={() => openAddSessionModal()}
+                                    className="bg-clinical-blue hover:bg-clinical-blue/90 text-white font-bold text-xs px-4 py-2.5 rounded-xl transition-all flex items-center gap-1.5 shadow-sm outline-none hover:-translate-y-0.5 active:scale-95"
+                                >
+                                    <span className="material-symbols-outlined text-[16px] font-bold">add</span>
+                                    Tambah Sesi Baru
+                                </button>
                                 <div className="text-xs font-bold text-clinical-charcoal/70 bg-clinical-surface px-4 py-2 rounded-xl">
                                     Total: <span className="text-clinical-blue">{viewMode === 'users' ? totalPatientsView : sessions.length}</span> {viewMode === 'users' ? 'Pasien' : 'Sesi'}
                                 </div>
@@ -732,6 +1040,267 @@ export const AdminSessionsPage: React.FC = () => {
                                     Submit
                                 </button>
                             )}
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Modal Tambah Sesi Baru */}
+            {showAddModal && (
+                <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-clinical-charcoal/60 backdrop-blur-sm animate-in fade-in duration-200">
+                    <div className="bg-white rounded-3xl p-6 shadow-2xl max-w-2xl w-full max-h-[90vh] flex flex-col relative overflow-hidden">
+                        <h3 className="font-bold font-display text-xl text-clinical-charcoal mb-4 flex items-center gap-2">
+                            <span className="material-symbols-outlined text-clinical-blue">add_circle</span>
+                            Tambah Sesi Baru & Rekaman EKG
+                        </h3>
+                        
+                        <div className="flex-grow overflow-y-auto pr-1 flex flex-col gap-4 mb-6 custom-scrollbar">
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                <div>
+                                    <label className="block text-xs font-bold text-clinical-charcoal/70 uppercase tracking-wider mb-1.5">Pilih Pasien</label>
+                                    <select
+                                        value={selectedPatientId}
+                                        onChange={(e) => setSelectedPatientId(e.target.value)}
+                                        className="w-full bg-clinical-surface border border-clinical-charcoal/10 text-clinical-charcoal text-xs font-bold rounded-xl px-4 py-2.5 focus:outline-none focus:ring-1 focus:ring-clinical-blue"
+                                    >
+                                        {Object.entries(patientNames).map(([id, name]) => (
+                                            <option key={id} value={id}>{name} ({id.substring(0,8)})</option>
+                                        ))}
+                                    </select>
+                                </div>
+                                <div>
+                                    <label className="block text-xs font-bold text-clinical-charcoal/70 uppercase tracking-wider mb-1.5">Pilih Dokter</label>
+                                    <select
+                                        value={selectedDoctorId}
+                                        onChange={(e) => setSelectedDoctorId(e.target.value)}
+                                        className="w-full bg-clinical-surface border border-clinical-charcoal/10 text-clinical-charcoal text-xs font-bold rounded-xl px-4 py-2.5 focus:outline-none focus:ring-1 focus:ring-clinical-blue"
+                                    >
+                                        {Object.entries(doctorNames).map(([id, name]) => (
+                                            <option key={id} value={id}>{name} ({id.substring(0,8)})</option>
+                                        ))}
+                                    </select>
+                                </div>
+                            </div>
+
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                <div>
+                                    <label className="block text-xs font-bold text-clinical-charcoal/70 uppercase tracking-wider mb-1.5">Session ID</label>
+                                    <input
+                                        type="text"
+                                        value={newSessionId}
+                                        onChange={(e) => setNewSessionId(e.target.value)}
+                                        className="w-full bg-clinical-surface border border-clinical-charcoal/10 text-clinical-charcoal text-xs font-mono font-bold rounded-xl px-4 py-2.5 focus:outline-none focus:ring-1 focus:ring-clinical-blue"
+                                        placeholder="session_ddmmyy_hhmmss"
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-xs font-bold text-clinical-charcoal/70 uppercase tracking-wider mb-1.5">Waktu Mulai</label>
+                                    <input
+                                        type="datetime-local"
+                                        value={startedAt}
+                                        onChange={(e) => setStartedAt(e.target.value)}
+                                        className="w-full bg-clinical-surface border border-clinical-charcoal/10 text-clinical-charcoal text-xs font-bold rounded-xl px-4 py-2.5 focus:outline-none focus:ring-1 focus:ring-clinical-blue"
+                                    />
+                                </div>
+                            </div>
+
+                            <div>
+                                <label className="block text-xs font-bold text-clinical-charcoal/70 uppercase tracking-wider mb-1.5">Catatan Sesi (Opsional)</label>
+                                <textarea
+                                    value={newDevNote}
+                                    onChange={(e) => setNewDevNote(e.target.value)}
+                                    className="w-full bg-clinical-surface border border-clinical-charcoal/10 text-clinical-charcoal text-xs p-3 rounded-xl focus:outline-none focus:ring-1 focus:ring-clinical-blue"
+                                    placeholder="Tulis informasi tambahan atau catatan klinis..."
+                                    rows={2}
+                                />
+                            </div>
+
+                            <div className="border-t border-clinical-charcoal/5 my-2"></div>
+
+                            <div className="flex justify-between items-center">
+                                <h4 className="text-xs font-bold text-clinical-charcoal/60 uppercase tracking-wider">
+                                    Frame / Segmen EKG ({framesToUpload.length})
+                                </h4>
+                                <button
+                                    type="button"
+                                    onClick={addFrameSlot}
+                                    className="text-[10px] font-bold text-clinical-blue border border-clinical-blue/20 hover:bg-clinical-blue/5 px-3 py-1.5 rounded-lg flex items-center gap-1 transition-all outline-none"
+                                >
+                                    <span className="material-symbols-outlined text-[14px]">add</span>
+                                    Tambah Frame
+                                </button>
+                            </div>
+
+                            <div className="flex flex-col gap-3">
+                                {framesToUpload.map((frame, index) => (
+                                    <div key={frame.id} className="bg-clinical-surface/40 border border-clinical-charcoal/5 rounded-2xl p-4 flex flex-col gap-3 relative">
+                                        <div className="flex justify-between items-center">
+                                            <span className="text-xs font-bold text-clinical-blue">Frame #{index + 1}</span>
+                                            {framesToUpload.length > 1 && (
+                                                <button
+                                                    type="button"
+                                                    onClick={() => removeFrameSlot(frame.id)}
+                                                    className="text-red-500 hover:text-red-700 p-1 hover:bg-red-50 rounded-full transition-all flex items-center justify-center"
+                                                    title="Hapus Frame"
+                                                >
+                                                    <span className="material-symbols-outlined text-[16px]">delete</span>
+                                                </button>
+                                            )}
+                                        </div>
+                                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                            <div>
+                                                <label className="block text-[10px] font-bold text-clinical-charcoal/50 uppercase tracking-wider mb-1">Upload Metadata (.json)</label>
+                                                <input
+                                                    type="file"
+                                                    accept=".json"
+                                                    onChange={(e) => handleFrameFileChange(frame.id, 'json', e.target.files?.[0] || null)}
+                                                    className="w-full text-xs text-clinical-charcoal/80 file:mr-2 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-[10px] file:font-bold file:bg-clinical-blue/10 file:text-clinical-blue hover:file:bg-clinical-blue/25 file:cursor-pointer"
+                                                />
+                                                {frame.jsonFile && <p className="text-[9px] text-emerald-600 font-bold mt-1">✓ {frame.jsonFile.name}</p>}
+                                            </div>
+                                            <div>
+                                                <label className="block text-[10px] font-bold text-clinical-charcoal/50 uppercase tracking-wider mb-1">Upload Sinyal EKG (.csv)</label>
+                                                <input
+                                                    type="file"
+                                                    accept=".csv"
+                                                    onChange={(e) => handleFrameFileChange(frame.id, 'csv', e.target.files?.[0] || null)}
+                                                    className="w-full text-xs text-clinical-charcoal/80 file:mr-2 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-[10px] file:font-bold file:bg-clinical-blue/10 file:text-clinical-blue hover:file:bg-clinical-blue/25 file:cursor-pointer"
+                                                />
+                                                {frame.csvFile && <p className="text-[9px] text-emerald-600 font-bold mt-1">✓ {frame.csvFile.name}</p>}
+                                            </div>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+
+                        <div className="flex flex-col sm:flex-row gap-3 justify-end border-t border-clinical-charcoal/5 pt-4">
+                            <button 
+                                onClick={() => setShowAddModal(false)} 
+                                className="py-3 px-6 rounded-full bg-clinical-charcoal/5 text-clinical-charcoal font-bold text-[11px] uppercase tracking-widest hover:bg-clinical-charcoal/10 active:scale-95 transition-all outline-none"
+                                disabled={isUploading}
+                            >
+                                Batal
+                            </button>
+                            <button 
+                                onClick={handleSaveSession} 
+                                className="py-3 px-6 rounded-full bg-clinical-blue text-white font-bold text-[11px] uppercase tracking-widest hover:brightness-110 active:scale-95 transition-all outline-none flex items-center justify-center gap-1.5"
+                                disabled={isUploading}
+                            >
+                                {isUploading ? (
+                                    <>
+                                        <span className="material-symbols-outlined text-[14px] animate-spin">sync</span>
+                                        {uploadProgress || "Mengunggah..."}
+                                    </>
+                                ) : "Simpan Sesi & Unggah"}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Modal Edit Sesi */}
+            {showEditModal && editingSession && (
+                <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-clinical-charcoal/60 backdrop-blur-sm animate-in fade-in duration-200">
+                    <div className="bg-white rounded-3xl p-6 shadow-2xl max-w-xl w-full max-h-[90vh] flex flex-col">
+                        <h3 className="font-bold font-display text-xl text-clinical-charcoal mb-4 flex items-center gap-2">
+                            <span className="material-symbols-outlined text-clinical-blue">edit_note</span>
+                            Edit Sesi Rekaman
+                        </h3>
+                        
+                        <div className="flex-grow overflow-y-auto pr-1 flex flex-col gap-4 mb-6 custom-scrollbar">
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                <div>
+                                    <label className="block text-xs font-bold text-clinical-charcoal/70 uppercase tracking-wider mb-1.5">Pasien</label>
+                                    <select
+                                        value={editPatientId}
+                                        onChange={(e) => setEditPatientId(e.target.value)}
+                                        className="w-full bg-clinical-surface border border-clinical-charcoal/10 text-clinical-charcoal text-xs font-bold rounded-xl px-4 py-2.5 focus:outline-none focus:ring-1 focus:ring-clinical-blue"
+                                    >
+                                        {Object.entries(patientNames).map(([id, name]) => (
+                                            <option key={id} value={id}>{name} ({id.substring(0,8)})</option>
+                                        ))}
+                                    </select>
+                                </div>
+                                <div>
+                                    <label className="block text-xs font-bold text-clinical-charcoal/70 uppercase tracking-wider mb-1.5">Dokter Pemeriksa</label>
+                                    <select
+                                        value={editDoctorId}
+                                        onChange={(e) => setEditDoctorId(e.target.value)}
+                                        className="w-full bg-clinical-surface border border-clinical-charcoal/10 text-clinical-charcoal text-xs font-bold rounded-xl px-4 py-2.5 focus:outline-none focus:ring-1 focus:ring-clinical-blue"
+                                    >
+                                        {Object.entries(doctorNames).map(([id, name]) => (
+                                            <option key={id} value={id}>{name} ({id.substring(0,8)})</option>
+                                        ))}
+                                    </select>
+                                </div>
+                            </div>
+
+                            <div>
+                                <label className="block text-xs font-bold text-clinical-charcoal/70 uppercase tracking-wider mb-1.5">Waktu Mulai</label>
+                                <input
+                                    type="datetime-local"
+                                    value={editStartedAt}
+                                    onChange={(e) => setEditStartedAt(e.target.value)}
+                                    className="w-full bg-clinical-surface border border-clinical-charcoal/10 text-clinical-charcoal text-xs font-bold rounded-xl px-4 py-2.5 focus:outline-none focus:ring-1 focus:ring-clinical-blue"
+                                />
+                            </div>
+
+                            <div>
+                                <label className="block text-xs font-bold text-clinical-charcoal/70 uppercase tracking-wider mb-1.5">Catatan Sesi</label>
+                                <textarea
+                                    value={editDevNote}
+                                    onChange={(e) => setEditDevNote(e.target.value)}
+                                    className="w-full bg-clinical-surface border border-clinical-charcoal/10 text-clinical-charcoal text-xs p-3 rounded-xl focus:outline-none focus:ring-1 focus:ring-clinical-blue"
+                                    rows={2}
+                                />
+                            </div>
+
+                            <div className="border-t border-clinical-charcoal/5 my-2"></div>
+
+                            <h4 className="text-xs font-bold text-clinical-charcoal/60 uppercase tracking-wider mb-2">
+                                Daftar Segmen / Frame Grafik EKG
+                            </h4>
+
+                            {loadingFrames ? (
+                                <p className="text-xs text-clinical-charcoal/50 italic py-2">Memuat daftar frame...</p>
+                            ) : sessionFrames.length === 0 ? (
+                                <p className="text-xs text-clinical-charcoal/50 italic py-2">Belum ada frame terunggah pada sesi ini.</p>
+                            ) : (
+                                <div className="flex flex-col gap-2 max-h-[160px] overflow-y-auto pr-1">
+                                    {sessionFrames.map((frame, index) => (
+                                        <div key={frame.id} className="bg-clinical-surface border border-clinical-charcoal/5 rounded-xl px-4 py-2.5 flex justify-between items-center">
+                                            <div className="flex flex-col">
+                                                <span className="text-xs font-bold text-clinical-charcoal">Frame #{index + 1} ({frame.start_time}-{frame.start_time + 10}s)</span>
+                                                <span className="text-[10px] text-clinical-charcoal/50 mt-0.5">Klasifikasi: <span className="font-bold text-clinical-blue">{frame.label}</span></span>
+                                            </div>
+                                            <button
+                                                type="button"
+                                                onClick={() => deleteFrame(frame.id)}
+                                                className="text-red-500 hover:text-red-700 hover:bg-red-50 p-1.5 rounded-full transition-all flex items-center justify-center"
+                                                title="Hapus Frame dari Database"
+                                            >
+                                                <span className="material-symbols-outlined text-[16px]">delete</span>
+                                            </button>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+                        </div>
+
+                        <div className="flex flex-col sm:flex-row gap-3 justify-end border-t border-clinical-charcoal/5 pt-4">
+                            <button 
+                                onClick={() => setShowEditModal(false)} 
+                                className="py-3 px-6 rounded-full bg-clinical-charcoal/5 text-clinical-charcoal font-bold text-[11px] uppercase tracking-widest hover:bg-clinical-charcoal/10 active:scale-95 transition-all outline-none"
+                            >
+                                Batal
+                            </button>
+                            <button 
+                                onClick={handleUpdateSession} 
+                                className="py-3 px-6 rounded-full bg-clinical-blue text-white font-bold text-[11px] uppercase tracking-widest hover:brightness-110 active:scale-95 transition-all outline-none"
+                            >
+                                Simpan Perubahan
+                            </button>
                         </div>
                     </div>
                 </div>
