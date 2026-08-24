@@ -46,9 +46,11 @@ export const FolderUploadModal: React.FC<FolderUploadModalProps> = ({ isOpen, on
 
             const formData = new FormData();
             
-            // Generate session_id otomatis berdasarkan timestamp (hindari regex literal agar tidak terbaca oleh Tailwind)
-            const regex = new RegExp('[-:T.]', 'g');
-            const sessionId = `session_${new Date().toISOString().replace(regex, '').substring(0, 14)}`;
+            // Generate session_id otomatis berdasarkan timestamp
+            // Menghindari penggunaan string regex tunggal agar tidak diparsing sebagai class Tailwind
+            const isoString = new Date().toISOString();
+            const cleanTimestamp = isoString.replace(/-/g, '').replace(/:/g, '').replace(/T/g, '').replace(/\./g, '');
+            const sessionId = `session_${cleanTimestamp.substring(0, 14)}`;
             
             formData.append('patient_id', patientId);
             formData.append('session_id', sessionId);
