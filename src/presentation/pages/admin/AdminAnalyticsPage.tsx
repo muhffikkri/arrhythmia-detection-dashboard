@@ -26,7 +26,7 @@ import { DeviceCard } from '../../components/dashboard/DeviceCard';
 import type { ClinicalExplanation } from '../../../core/clinical/ruleBasedEngine';
 import { API_URL } from '../../../config/env';
 import { fetchWithAuth } from '../../../config/api';
-import { supabase } from '../../../config/supabaseClient';
+import { supabase, isSupabaseConfigured } from '../../../config/supabaseClient';
 
 const useQuery = () => new URLSearchParams(useLocation().search);
 
@@ -128,6 +128,7 @@ export const AdminAnalyticsPage: React.FC = () => {
     const { data: frameRecordsData, isLoading: loadingFrames } = useSWR(
         sessionId ? `supabase_frame_records_${sessionId}` : null, 
         async () => {
+            if (!isSupabaseConfigured) return [];
             const { data } = await supabase.from('frame_records').select('*').eq('session_id', sessionId);
             return data;
         },
@@ -137,6 +138,7 @@ export const AdminAnalyticsPage: React.FC = () => {
     const { data: sessionDataObj } = useSWR(
         sessionId ? `supabase_session_note_${sessionId}` : null,
         async () => {
+            if (!isSupabaseConfigured) return { dev_note: null };
             const { data } = await supabase.from('sessions').select('dev_note').eq('id', sessionId).single();
             return data;
         },

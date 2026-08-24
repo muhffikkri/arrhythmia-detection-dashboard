@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { AdminSidebar } from '../../components/layout/AdminSidebar';
 import { useSidebar } from '../../../application/context/SidebarContext';
 import { fetchWithAuth } from '../../../config/api';
-import { supabase } from '../../../config/supabaseClient';
+import { supabase, isSupabaseConfigured } from '../../../config/supabaseClient';
 import { Pagination } from '../../components/shared/Pagination';
 import { useStickyState } from '../../../application/hooks/useStickyState';
 import { useCachedFetch } from '../../../application/hooks/useCachedFetch';
@@ -42,6 +42,48 @@ export const AdminSessionsPage: React.FC = () => {
     const [editingNoteId, setEditingNoteId] = useState<string | null>(null);
     const [editNoteValue, setEditNoteValue] = useState<string>('');
     const [isSubmittingNote, setIsSubmittingNote] = useState(false);
+
+    // Sync Databases States & Auto-sync Effect
+    const [isSyncing, setIsSyncing] = useState<boolean>(false);
+
+    const handleSyncDatabases = async () => {
+        setIsSyncing(true);
+        try {
+            const res = await fetchWithAuth('/api/admin/sync', {
+                method: 'POST'
+            });
+            const data = await res.json().catch(() => ({ success: false, message: 'Parse JSON error' }));
+            if (res.ok || data.success) {
+                alert("Sinkronisasi database SQLite (database.db) dan Supabase berhasil diselesaikan!");
+                mutateSessions();
+            } else {
+                alert("Sinkronisasi gagal: " + (data.message || "Endpoint sinkronisasi tidak merespons sukses"));
+            }
+        } catch (err: any) {
+            console.error(err);
+            alert("Terjadi kesalahan koneksi saat menjalankan sinkronisasi: " + err.message);
+        } finally {
+            setIsSyncing(false);
+        }
+    };
+
+    useEffect(() => {
+        const lastSync = localStorage.getItem('LAST_DB_SYNC_TIME');
+        const now = Date.now();
+        const TEN_HOURS_MS = 10 * 60 * 60 * 1000;
+        
+        if (!lastSync || now - Number(lastSync) > TEN_HOURS_MS) {
+            console.log("Menjalankan sinkronisasi database otomatis (10 jam)...");
+            fetchWithAuth('/api/admin/sync', { method: 'POST' })
+                .then(res => {
+                    if (res.ok) {
+                        localStorage.setItem('LAST_DB_SYNC_TIME', String(now));
+                        console.log("Sinkronisasi otomatis berhasil disimpan.");
+                    }
+                })
+                .catch(err => console.error("Sinkronisasi otomatis gagal:", err));
+        }
+    }, []);
 
     // Add/Create Session States
     const [showAddModal, setShowAddModal] = useState<boolean>(false);
@@ -128,13 +170,28 @@ export const AdminSessionsPage: React.FC = () => {
         setShowEditModal(true);
         
         try {
-            const { data, error } = await supabase
-                .from('frame_records')
-                .select('id, start_time, label, hidden')
-                .eq('session_id', session.id)
-                .order('start_time', { ascending: true });
-            if (!error && data) {
-                setSessionFrames(data);
+            if (isSupabaseConfigured) {
+                const { data, error } = await supabase
+                    .from('frame_records')
+                    .select('id, start_time, label, hidden')
+                    .eq('session_id', session.id)
+                    .order('start_time', { ascending: true });
+                if (!error && data) {
+                    setSessionFrames(data);
+                }
+            } else {
+                const res = await fetchWithAuth(`/api/records/${session.id}`);
+                if (res.ok) {
+                    const data = await res.json();
+                    const validData = Array.isArray(data) ? data : (data.data || []);
+                    const mapped = validData.map((item: any, index: number) => ({
+                        id: item.message_id || item.frame_id || String(index),
+                        start_time: index * 10,
+                        label: item.prediction?.label || "Normal",
+                        hidden: false
+                    }));
+                    setSessionFrames(mapped);
+                }
             }
         } catch (err) {
             console.error(err);
@@ -197,9 +254,19 @@ export const AdminSessionsPage: React.FC = () => {
                 ecg_paper: null
             };
 
-            const { error: sessionError } = await supabase.from('sessions').upsert(sessionPayload);
-            if (sessionError) {
-                throw new Error("Gagal menyimpan sesi: " + sessionError.message);
+            if (isSupabaseConfigured) {
+                const { error: sessionError } = await supabase.from('sessions').upsert(sessionPayload);
+                if (sessionError) {
+                    throw new Error("Gagal menyimpan sesi di Supabase: " + sessionError.message);
+                }
+            } else {
+                const res = await fetchWithAuth('/api/sessions', {
+                    method: 'POST',
+                    body: JSON.stringify(sessionPayload)
+                });
+                if (!res.ok) {
+                    console.warn("Backend REST API /api/sessions gagal atau belum diimplementasikan. Melanjutkan ke SQLite...");
+                }
             }
 
             for (let i = 0; i < framesToUpload.length; i++) {
@@ -249,9 +316,19 @@ export const AdminSessionsPage: React.FC = () => {
                     created_at: createdAtUtc
                 };
 
-                const { error: frameError } = await supabase.from('frame_records').insert(frameRecord);
-                if (frameError) {
-                    throw new Error(`Gagal menyimpan frame ${i + 1}: ${frameError.message}`);
+                if (isSupabaseConfigured) {
+                    const { error: frameError } = await supabase.from('frame_records').insert(frameRecord);
+                    if (frameError) {
+                        throw new Error(`Gagal menyimpan frame ${i + 1} di Supabase: ${frameError.message}`);
+                    }
+                } else {
+                    const res = await fetchWithAuth('/api/records', {
+                        method: 'POST',
+                        body: JSON.stringify(frameRecord)
+                    });
+                    if (!res.ok) {
+                        console.warn(`Backend REST API /api/records gagal atau belum diimplementasikan untuk frame ${i + 1}.`);
+                    }
                 }
             }
 
@@ -270,20 +347,30 @@ export const AdminSessionsPage: React.FC = () => {
     const handleUpdateSession = async () => {
         if (!editingSession) return;
         try {
-            const { error } = await supabase.from('sessions').update({
-                patient_id: editPatientId,
-                doctor_id: editDoctorId,
-                started_at: new Date(editStartedAt).toISOString(),
-                dev_note: editDevNote.trim() || null
-            }).eq('id', editingSession.id);
-
-            if (error) {
-                alert("Gagal memperbarui sesi: " + error.message);
+            if (isSupabaseConfigured) {
+                const { error } = await supabase.from('sessions').update({
+                    patient_id: editPatientId,
+                    doctor_id: editDoctorId,
+                    started_at: new Date(editStartedAt).toISOString(),
+                    dev_note: editDevNote.trim() || null
+                }).eq('id', editingSession.id);
+                if (error) throw error;
             } else {
-                mutateSessions();
-                setShowEditModal(false);
-                alert("Sesi rekaman berhasil diperbarui!");
+                const res = await fetchWithAuth(`/api/sessions/${editingSession.id}`, {
+                    method: 'PUT',
+                    body: JSON.stringify({
+                        patient_id: editPatientId,
+                        doctor_id: editDoctorId,
+                        started_at: new Date(editStartedAt).toISOString(),
+                        dev_note: editDevNote.trim() || null
+                    })
+                });
+                if (!res.ok) console.warn("Backend PUT /api/sessions/:id gagal.");
             }
+
+            mutateSessions();
+            setShowEditModal(false);
+            alert("Sesi rekaman berhasil diperbarui!");
         } catch (err) {
             console.error(err);
             alert("Terjadi kesalahan saat memperbarui sesi.");
@@ -293,40 +380,47 @@ export const AdminSessionsPage: React.FC = () => {
     const deleteFrame = async (frameId: string) => {
         if (!confirm("Apakah Anda yakin ingin menghapus frame data EKG ini?")) return;
         try {
-            const { error } = await supabase.from('frame_records').delete().eq('id', frameId);
-            if (error) {
-                alert("Gagal menghapus frame: " + error.message);
+            if (isSupabaseConfigured) {
+                const { error } = await supabase.from('frame_records').delete().eq('id', frameId);
+                if (error) throw error;
             } else {
-                setSessionFrames(prev => prev.filter(f => f.id !== frameId));
-                mutateSessions();
-                alert("Frame EKG berhasil dihapus!");
+                const res = await fetchWithAuth(`/api/records/${frameId}`, {
+                    method: 'DELETE'
+                });
+                if (!res.ok) console.warn("Backend DELETE /api/records/:id gagal.");
             }
-        } catch (err) {
+            
+            setSessionFrames(prev => prev.filter(f => f.id !== frameId));
+            mutateSessions();
+            alert("Frame EKG berhasil dihapus!");
+        } catch (err: any) {
             console.error(err);
+            alert("Gagal menghapus frame: " + err.message);
         }
     };
 
     const deleteSession = async (sessionId: string) => {
         if (!confirm("Apakah Anda yakin ingin menghapus seluruh sesi rekaman ini beserta semua data grafiknya? Tindakan ini tidak dapat dibatalkan.")) return;
         try {
-            const { error: frameError } = await supabase.from('frame_records').delete().eq('session_id', sessionId);
-            if (frameError) {
-                alert("Gagal menghapus data grafik EKG: " + frameError.message);
-                return;
-            }
-            
-            const { error: sessionError } = await supabase.from('sessions').delete().eq('id', sessionId);
-            if (sessionError) {
-                alert("Gagal menghapus sesi: " + sessionError.message);
-                return;
+            if (isSupabaseConfigured) {
+                const { error: frameError } = await supabase.from('frame_records').delete().eq('session_id', sessionId);
+                if (frameError) throw frameError;
+                
+                const { error: sessionError } = await supabase.from('sessions').delete().eq('id', sessionId);
+                if (sessionError) throw sessionError;
+            } else {
+                const res = await fetchWithAuth(`/api/sessions/${sessionId}`, {
+                    method: 'DELETE'
+                });
+                if (!res.ok) console.warn("Backend DELETE /api/sessions/:id gagal.");
             }
             
             setSessions(prev => prev.filter(s => s.id !== sessionId));
             mutateSessions();
             alert("Sesi rekaman berhasil dihapus!");
-        } catch (err) {
+        } catch (err: any) {
             console.error(err);
-            alert("Terjadi kesalahan saat menghapus sesi.");
+            alert("Gagal menghapus sesi: " + err.message);
         }
     };
     
@@ -457,7 +551,7 @@ export const AdminSessionsPage: React.FC = () => {
             setSessions(fetchedSessions); // Tampilkan secara instan tanpa delay Supabase
             
             const sessionIds = fetchedSessions.map((s: any) => s.id);
-            if (sessionIds.length > 0) {
+            if (sessionIds.length > 0 && isSupabaseConfigured) {
                 supabase.rpc('get_sessions_validation_counts', { session_ids: sessionIds })
                     .then(({ data: stats, error }) => {
                         if (!error && stats) {
@@ -482,7 +576,7 @@ export const AdminSessionsPage: React.FC = () => {
                         }
                     });
             } else {
-                setSessions([]);
+                setSessions(fetchedSessions);
             }
         }
     }, [viewMode, currentPageSessions, currentPagePatients, allSessionsResponse]);
@@ -953,6 +1047,16 @@ export const AdminSessionsPage: React.FC = () => {
                             </div>
                             
                              <div className="flex items-center gap-3">
+                                <button
+                                    onClick={handleSyncDatabases}
+                                    className={`font-bold text-xs px-4 py-2.5 rounded-xl transition-all flex items-center gap-1.5 shadow-sm outline-none hover:-translate-y-0.5 active:scale-95 ${isSyncing ? 'bg-amber-100 text-amber-700' : 'bg-amber-600 hover:bg-amber-700 text-white'}`}
+                                    disabled={isSyncing}
+                                >
+                                    <span className={`material-symbols-outlined text-[16px] font-bold ${isSyncing ? 'animate-spin' : ''}`}>
+                                        sync
+                                    </span>
+                                    {isSyncing ? 'Sinkronisasi...' : 'Sync Database'}
+                                </button>
                                 <button
                                     onClick={() => openAddSessionModal()}
                                     className="bg-clinical-blue hover:bg-clinical-blue/90 text-white font-bold text-xs px-4 py-2.5 rounded-xl transition-all flex items-center gap-1.5 shadow-sm outline-none hover:-translate-y-0.5 active:scale-95"

@@ -16,7 +16,7 @@ import { useTranslation } from '../../../application/hooks/useTranslation';
 import { useECGScale } from '../../../application/hooks/useECGScale';
 import { API_URL } from '../../../config/env';
 import { fetchWithAuth } from '../../../config/api';
-import { supabase } from '../../../config/supabaseClient';
+import { supabase, isSupabaseConfigured } from '../../../config/supabaseClient';
 
 interface PatientProfile {
     patient: {
@@ -128,11 +128,15 @@ export const PatientHistoryDetailPage: React.FC = () => {
 
         setIsLoading(true);
         setIsLoading(true);
+        const frameRecordsPromise = isSupabaseConfigured
+            ? supabase.from('frame_records').select('start_time, label, hidden').eq('session_id', sessionId).then(({ data }) => data || [])
+            : Promise.resolve([]);
+
         Promise.all([
             fetchWithAuth(`/api/records/${sessionId}`).then(res => res.json()),
-            supabase.from('frame_records').select('start_time, label, hidden').eq('session_id', sessionId)
+            frameRecordsPromise
         ])
-            .then(([rawData, { data: frameRecords }]) => {
+            .then(([rawData, frameRecords]) => {
                 let data = rawData;
                 if (data && data.length > 0) {
                     // Filter payloads to only show one recording session (handles merged mockup files)
