@@ -19,7 +19,9 @@ interface ECGCanvasProps {
     rPeaks: RPeakMarker[];
     isAnomaly?: boolean;
     classResult?: string;
-    speed?: 25 | 50; // mm/s
+    speed?: number;
+    paperSpeed?: number;
+    gain?: number;
     timeOffset?: number; // Untuk mode Analytics
     scale?: number; // Prop untuk physical zoom scaling
 }
@@ -30,6 +32,8 @@ export const ECGCanvas: React.FC<ECGCanvasProps> = ({
     isAnomaly = false,
     classResult = "NORM",
     speed = 25,
+    paperSpeed = 25,
+    gain = 10,
     timeOffset = 0,
     scale = 1.0
 }) => {
@@ -37,7 +41,7 @@ export const ECGCanvas: React.FC<ECGCanvasProps> = ({
     const [pointerX, setPointerX] = useState<number | null>(null);
     const [pointerY, setPointerY] = useState<number | null>(null);
 
-    const canvasWidth = speed === 25 ? 2000 : 1000;
+    const canvasWidth = 10 * paperSpeed * 8;
     const lead2Stroke = '#001F54';
 
     const handlePointerMove = (e: React.MouseEvent | React.TouchEvent) => {
@@ -65,7 +69,7 @@ export const ECGCanvas: React.FC<ECGCanvasProps> = ({
     let tooltipY = (pointerY || 0) + 20;
     if (pointerY && pointerY > 1300) tooltipY = pointerY - 80;
 
-    const absoluteSecs = timeOffset + ((pointerX || 0) / (speed === 25 ? 200 : 100));
+    const absoluteSecs = timeOffset + ((pointerX || 0) / (paperSpeed * 8));
     const mStr = Math.floor(absoluteSecs / 60).toString().padStart(2, '0');
     const sStr = Math.floor(absoluteSecs % 60).toString().padStart(2, '0');
     const msStr = Math.floor((absoluteSecs % 1) * 100).toString().padStart(2, '0');

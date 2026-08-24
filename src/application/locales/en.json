@@ -169,6 +169,11 @@
     "anomalyDetected": "Rhythm Abnormality Detected",
     "anomalyDesc1": "Our system detected an indication of ",
     "anomalyDesc2": " in this recording. Generally, indications like this can be marked by irregular heartbeat, palpitations, dizziness, or fatigue.",
-    "anomalyTip": "Please stay calm, this result is an early detection. We strongly recommend that you consult a doctor immediately for further medical examination."
+    "anomalyTip": "Please stay calm, this result is an early detection. We strongly recommend that you consult a doctor immediately for further medical examination.",
+    "play": "Play",
+    "pause": "Pause",
+    "replay": "Replay",
+    "animationSpeed": "Animation Speed",
+    "playbackSpeed": "Playback Speed"
   }
 }

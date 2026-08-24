@@ -169,6 +169,11 @@
     "anomalyDetected": "Terdeteksi Ketidaknormalan Irama",
     "anomalyDesc1": "Sistem kami mendeteksi adanya indikasi ",
     "anomalyDesc2": " pada rekaman ini. Pada umumnya, indikasi seperti ini bisa ditandai dengan detak jantung yang tidak beraturan, rasa berdebar, pusing, atau kelelahan.",
-    "anomalyTip": "Harap tenang, hasil ini merupakan deteksi awal. Kami sangat menyarankan Anda untuk segera berkonsultasi dengan dokter untuk pemeriksaan medis lebih lanjut."
+    "anomalyTip": "Harap tenang, hasil ini merupakan deteksi awal. Kami sangat menyarankan Anda untuk segera berkonsultasi dengan dokter untuk pemeriksaan medis lebih lanjut.",
+    "play": "Putar",
+    "pause": "Jeda",
+    "replay": "Putar Ulang",
+    "animationSpeed": "Kecepatan Animasi",
+    "playbackSpeed": "Kecepatan Putar"
   }
 }

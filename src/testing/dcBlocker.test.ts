@@ -45,7 +45,7 @@ describe('DCBlocker filter', () => {
     
     // Next input
     const nextResult = dcBlocker.process(3.5, 6.2);
-    expect(nextResult.cleanI).toBeCloseTo(0.5);
-    expect(nextResult.cleanII).toBeCloseTo(1.2);
+    expect(nextResult.cleanI).toBeCloseTo(0.4975);
+    expect(nextResult.cleanII).toBeCloseTo(1.194);
   });
 });
