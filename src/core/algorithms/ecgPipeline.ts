@@ -7,7 +7,7 @@
 import { calculateEinthovenPoint } from './einthoven';
 import { PanTompkins } from './panTompkins';
 import { DCBlocker } from './dcBlocker';
-import { calculateSingleRRInterval, calculateRRMetrics } from './peakToPeak';
+import { calculateSingleRRInterval, calculateRRMetrics, calculateBatchRRIntervals, calculateHeartRate } from './peakToPeak';
 import type { ECGPaths, RPeakMarker } from '../types/ecgTypes';
 
 export interface PipelineState {
@@ -34,6 +34,31 @@ export interface PipelineResult {
   state: PipelineState;
   frameCompleted: boolean;
 }
+
+export const processAllLeadEcgData = (
+  rawChunk: { ch1: number[]; ch2: number[]; ch3?: number[] },
+  samplingRate: number = 250
+): { bpm: number } => {
+  if (!rawChunk.ch1 || rawChunk.ch1.length === 0) return { bpm: 0 };
+  const pt = new PanTompkins(samplingRate);
+  const dcBlocker = new DCBlocker();
+  const peakIndices: number[] = [];
+  
+  for (let i = 0; i < rawChunk.ch1.length; i++) {
+    const rawI = rawChunk.ch1[i];
+    const rawII = rawChunk.ch2 && rawChunk.ch2.length > i ? rawChunk.ch2[i] : rawI;
+    const cleaned = dcBlocker.process(rawI, rawII);
+    
+    if (pt.detectRealTime(cleaned.cleanI, i)) {
+      peakIndices.push(i);
+    }
+  }
+  
+  const rrIntervals = calculateBatchRRIntervals(peakIndices, samplingRate);
+  const bpm = calculateHeartRate(rrIntervals);
+  
+  return { bpm };
+};
 
 export const processECGSamples = (
   rawChunk: { ch1: number[]; ch2: number[]; ch3: number[] },

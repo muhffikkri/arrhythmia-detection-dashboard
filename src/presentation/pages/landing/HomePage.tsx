@@ -9,7 +9,6 @@ import athayaImg from '../../../assets/team-profile/Athaya Rashif Hanang Syah.we
 import rafaImg from '../../../assets/team-profile/Rafa Azlan.webp';
 import raffiImg from '../../../assets/team-profile/Raffi Arditama.webp';
 
-
 const RevealContent: React.FC<{ children: React.ReactNode, className?: string }> = ({ children, className }) => {
   const [isVisible, setIsVisible] = React.useState(false);
   const ref = React.useRef<HTMLDivElement>(null);

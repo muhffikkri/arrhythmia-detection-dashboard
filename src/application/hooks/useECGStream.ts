@@ -21,6 +21,7 @@ import { calculateSingleRRInterval, calculateRRMetrics } from '../../core/algori
 
 import type { ClinicalExplanation } from '../../core/clinical/ruleBasedEngine';
 import type { ECGPaths, RPeakMarker, TimelineEvent, ServerMessage, ECGDataPayload, DeviceSystem, DeviceNetwork, DevicePrediction, DeviceStressTest } from '../../core/types/ecgTypes';
+import { fetchWithAuth } from '../../config/api';
 
 const TOTAL_POINTS = 2500;
 const X_STEP = 2000 / TOTAL_POINTS;
@@ -90,20 +91,21 @@ export const useECGStream = (endpoint: string): UseECGStreamReturn => {
     const [isFilterOn, setIsFilterOn] = useState<boolean>(true);
     const filterStateRef = useRef<boolean>(true);
 
+    const clientRef = useRef<ECGWebSocketClient | null>(null);
+    const ptRef = useRef<PanTompkins>(new PanTompkins(250));
+    const visualDcBlockerRef = useRef<DCBlocker>(new DCBlocker());
+    const mathDcBlockerRef = useRef<DCBlocker>(new DCBlocker());
+
     const toggleFilter = useCallback(() => {
         setIsFilterOn(prev => {
             const newState = !prev;
             filterStateRef.current = newState;
-            if (newState && dcBlockerRef.current) {
-                dcBlockerRef.current.reset();
+            if (newState && visualDcBlockerRef.current) {
+                visualDcBlockerRef.current.reset();
             }
             return newState;
         });
     }, []);
-
-    const clientRef = useRef<ECGWebSocketClient | null>(null);
-    const ptRef = useRef<PanTompkins>(new PanTompkins(250));
-    const dcBlockerRef = useRef<DCBlocker>(new DCBlocker());
 
     const dataRef = useRef({
         xIndex: 0,
@@ -144,7 +146,8 @@ export const useECGStream = (endpoint: string): UseECGStreamReturn => {
                 xIndex = 0; timelineSeconds += 10;
                 currentPaths = { I: [], II: [], III: [], aVR: [], aVL: [], aVF: [], V1: [] };
                 peakBuffer = []; rrIntervals = []; currentRPeaks = []; recentSamples = [];
-                ptRef.current.reset();
+                // JALUR MATEMATIS KONTINU: ptRef dan mathDcBlockerRef tidak direset
+                visualDcBlockerRef.current.reset(); // JALUR VISUAL: Reset agar selalu dimulai tepat dari 0
             }
 
             if (xIndex === 0) {
@@ -153,7 +156,7 @@ export const useECGStream = (endpoint: string): UseECGStreamReturn => {
                     preRegisteredFramesRef.current.add(currentIntervalStr);
                     const frameId = `fra${Date.now()}${Math.floor(Math.random() * 1000)}`;
 
-                    fetch(`${API_URL}/api/frames`, {
+                    fetchWithAuth(`/api/frames`, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({
@@ -173,23 +176,23 @@ export const useECGStream = (endpoint: string): UseECGStreamReturn => {
             const rawII = ch2[i];
             const rawIII = ch3[i];
 
-            let finalI = rawI, finalII = rawII, finalIII = rawIII;
+            let visualI = rawI, visualII = rawII, visualIII = rawIII;
 
             if (filterStateRef.current) {
-                const cleaned = dcBlockerRef.current.process(rawI, rawII);
-                finalI = cleaned.cleanI;
-                finalII = cleaned.cleanII;
-                finalIII = cleaned.cleanIII;
+                const vCleaned = visualDcBlockerRef.current.process(rawI, rawII);
+                visualI = vCleaned.cleanI;
+                visualII = vCleaned.cleanII;
+                visualIII = vCleaned.cleanIII;
             }
 
-            const calculated = calculateEinthovenPoint(finalI, finalII);
+            const calculated = calculateEinthovenPoint(visualI, visualII);
 
             const currentX = Number((xIndex * X_STEP).toFixed(2));
 
             // Kalkulasi koordinat Y untuk seluruh 7 saluran (Skala Medis Standar: 1mV = 80px, Center = 240px)
-            const yI = 240 - finalI * 80;
-            const yII = 240 - finalII * 80;
-            const yIII = 240 - finalIII * 80;
+            const yI = 240 - visualI * 80;
+            const yII = 240 - visualII * 80;
+            const yIII = 240 - visualIII * 80;
             const yaVR = 240 - calculated.aVR * 80;
             const yaVL = 240 - calculated.aVL * 80;
             const yaVF = 240 - calculated.aVF * 80;
@@ -208,8 +211,12 @@ export const useECGStream = (endpoint: string): UseECGStreamReturn => {
             // Menjaga memori maksimal 50 sampel terakhir (setara 200ms)
             if (recentSamples.length > 50) recentSamples.shift();
 
+            // JALUR MATEMATIS KONTINU
+            const mCleaned = mathDcBlockerRef.current.process(rawI, rawII);
+            const absoluteXIndex = (timelineSeconds / 10) * TOTAL_POINTS + xIndex;
+
             // Eksekusi Pendeteksi Puncak QRS
-            const isPeak = ptRef.current.detectRealTime(finalII, xIndex);
+            const isPeak = ptRef.current.detectRealTime(mCleaned.cleanII, absoluteXIndex);
 
             if (isPeak && recentSamples.length > 0) {
                 // Algoritma Pan-Tompkins memiliki keterlambatan (delay) secara natural.
@@ -246,6 +253,9 @@ export const useECGStream = (endpoint: string): UseECGStreamReturn => {
                     rrIntervals.push(secDist);
                     marker.rrText = `${secDist}s`;
                     marker.prevX = prev.x;
+                    
+                    // NEW: Update BPM seketika secara Real-Time tanpa menunggu frame selesai!
+                    setHeartRate(metrics.bpm);
                 }
 
                 currentRPeaks.push(marker);
@@ -258,7 +268,12 @@ export const useECGStream = (endpoint: string): UseECGStreamReturn => {
                 const evalResult = evaluateIrregularity(rrIntervals);
                 const explanation = generateClinicalExplanation(classification_result || "UNKNOWN", isAnomaly, evalResult);
                 setClinicalStatus(explanation);
-                setHeartRate(evalResult.hr > 0 ? evalResult.hr : '--');
+                setHeartRate(prevHR => {
+                    if (evalResult.hr > 0) return evalResult.hr;
+                    if (payload.validation?.hr) return payload.validation.hr;
+                    if (payload.heart_rate) return payload.heart_rate;
+                    return prevHR !== '--' ? prevHR : '--';
+                });
                 setTimeline(prev => [...prev, {
                     index: timelineSeconds / 10, timeStr: formatTime(timelineSeconds),
                     isAnomaly, classResult: classification_result || "UNKNOWN"
@@ -294,7 +309,7 @@ export const useECGStream = (endpoint: string): UseECGStreamReturn => {
                         // Link frames that were created before session_id was available
                         if (unlinkedFramesRef.current.length > 0) {
                             unlinkedFramesRef.current.forEach(frameId => {
-                                fetch(`${API_URL}/api/frames/${frameId}/session`, {
+                                fetchWithAuth(`/api/frames/${frameId}/session`, {
                                     method: 'PUT',
                                     headers: { 'Content-Type': 'application/json' },
                                     body: JSON.stringify({ session_id: msg.session_id })
@@ -329,7 +344,8 @@ export const useECGStream = (endpoint: string): UseECGStreamReturn => {
         unlinkedFramesRef.current = [];
         lastSessionIdRef.current = null;
         ptRef.current.reset();
-        dcBlockerRef.current.reset();
+        visualDcBlockerRef.current.reset();
+        mathDcBlockerRef.current.reset();
 
         initWebSocket();
         clientRef.current?.connect();

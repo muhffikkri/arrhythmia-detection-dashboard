@@ -4,6 +4,9 @@ import { LogoutModal } from '../../components/shared/LogoutModal';
 import { PatientHeader } from '../../components/layout/PatientHeader';
 import { useTranslation } from '../../../application/hooks/useTranslation';
 import { API_URL } from '../../../config/env';
+import { fetchWithAuth } from '../../../config/api';
+import { useCachedFetch } from '../../../application/hooks/useCachedFetch';
+import { ActionModal } from '../../components/shared/ActionModal';
 
 export const PatientProfilePage: React.FC = () => {
     const navigate = useNavigate();
@@ -11,115 +14,111 @@ export const PatientProfilePage: React.FC = () => {
     const { t } = useTranslation();
 
     // Profile data state
-    const [profile, setProfile] = useState<any>(null);
-    const [isLoading, setIsLoading] = useState(true);
-    const [error, setError] = useState('');
+    const userId = localStorage.getItem('user_id') || '1';
+    const { data: profileResponse, isLoading, error: swrError, mutate: mutateProfile } = useCachedFetch(`/api/patients/${userId}`);
+    const profile = profileResponse || null;
+    const [error, setError] = useState(swrError?.message || '');
 
     // Edit mode state
     const [isEditing, setIsEditing] = useState(false);
     const [formData, setFormData] = useState({
         first_name: '',
         last_name: '',
-        date_of_birth: '',
+        age: 0,
         profile_photo: ''
     });
     const [isSaving, setIsSaving] = useState(false);
-    const [showSuccessPopup, setShowSuccessPopup] = useState(false);
+    
+    const [actionModal, setActionModal] = useState<{
+        isOpen: boolean;
+        type: 'confirm' | 'success' | 'error' | 'warning';
+        title: string;
+        message: React.ReactNode;
+        onConfirm?: () => void;
+    }>({
+        isOpen: false,
+        type: 'confirm',
+        title: '',
+        message: ''
+    });
 
-    useEffect(() => {
-        const userId = localStorage.getItem('user_id') || '1'; // Default to 1 if not logged in for testing
-        fetchProfile(userId);
-    }, []);
-
-    const fetchProfile = async (userId: string) => {
-        const role = localStorage.getItem('user_role');
-        if (role !== 'pasien') return;
-        setIsLoading(true);
-        setError('');
-        try {
-            const response = await fetch(`${API_URL}/api/patients/${userId}`);
-            if (!response.ok) throw new Error(t('profile.fetchError'));
-            const data = await response.json();
-            setProfile(data);
-
-            // Populate form data
-            if (data && data.patient) {
-                setFormData({
-                    first_name: data.patient.first_name || '',
-                    last_name: data.patient.last_name || '',
-                    date_of_birth: data.patient.date_of_birth || '',
-                    profile_photo: data.patient.profile_photo || ''
-                });
-            }
-        } catch (err: any) {
-            console.error("Error fetching patient profile:", err);
-            setError(err.message || t('profile.fetchError'));
-
-            // Fallback for UI visualization if server is off
-            const savedMock = localStorage.getItem('mock_patient_profile');
-            let mockData;
-            if (savedMock) {
-                mockData = JSON.parse(savedMock);
-            } else {
-                mockData = {
-                    patient: {
-                        id: parseInt(userId),
-                        first_name: 'Budi',
-                        last_name: 'Santoso',
-                        date_of_birth: '1968-05-12',
-                        profile_photo: 'https://lh3.googleusercontent.com/aida-public/AB6AXuCQ0uEsAKEJ35lYFco-uP_vXQ6H-pXYfl4gMz5Tu4x5cIRXy_OUpMD68BU_iIYd2zfCcdMordvK3mPI_DkqchZifxr3BV9omv2qzSipTCs8WkY-x0uudqBJ54VzaA9W6_NyVAUJ_Rb8rYSodpiC7L-91vz0MrYpI3F6yZ32er1x6AlM-P02VbBkAatansWqbncKJzLpfQJIcOUvsJwkzQ_3nDbpYi1yC8uox5YF6IV5AgVX3uwbngpSkxuR4-InIetFQiCUP9yI5yBf'
-                    },
-                    doctor: {
-                        id: 2,
-                        first_name: 'Fikri',
-                        last_name: 'Ahmad',
-                        hospital: 'Klinik Jantung Sehat',
-                        profile_photo: 'https://lh3.googleusercontent.com/aida-public/AB6AXuD9y3H1x3YF-j_V7K-gXpYt9o_4jA1vXhX5Lz_11WnKxV2pZ9jC99xR6_0B6xO9H5k332PqD8Q_kM4b8xK6jH0wQ6C2pP6aG2O3Y0L4lR6L2N3c2lQ2g_qL6bY9hA8sJ6I6v6t6_hG4P3j6xO3yI_4n_s_tI8mD7K_kH2sK4X6_tV0lZ3gB9a_tP5O0_2k4m_y1'
-                    }
-                };
-            }
-            setProfile(mockData);
-            setFormData({
-                first_name: mockData.patient.first_name,
-                last_name: mockData.patient.last_name,
-                date_of_birth: mockData.patient.date_of_birth,
-                profile_photo: mockData.patient.profile_photo
-            });
-        } finally {
-            setIsLoading(false);
-        }
+    const closeActionModal = () => {
+        if (!isSaving) setActionModal(prev => ({ ...prev, isOpen: false }));
     };
 
-    const handleSaveProfile = async (e: React.FormEvent) => {
+    useEffect(() => {
+        if (profile && profile.patient && !isEditing) {
+            setFormData({
+                first_name: profile.patient.first_name || '',
+                last_name: profile.patient.last_name || '',
+                age: profile.patient.age || 0,
+                profile_photo: profile.patient.profile_photo || ''
+            });
+        }
+    }, [profile, isEditing]);
+
+    const handleSaveProfile = (e: React.FormEvent) => {
         e.preventDefault();
+        setActionModal({
+            isOpen: true,
+            type: 'confirm',
+            title: 'Konfirmasi Simpan',
+            message: 'Apakah Anda yakin ingin menyimpan perubahan profil ini?',
+            onConfirm: executeSaveProfile
+        });
+    };
+
+    const executeSaveProfile = async () => {
         setIsSaving(true);
         setError('');
         const userId = localStorage.getItem('user_id') || '1';
 
         try {
-            const response = await fetch(`${API_URL}/api/patients/${userId}`, {
+            const response = await fetchWithAuth(`/api/patients/${userId}`, {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     first_name: formData.first_name,
                     last_name: formData.last_name,
-                    date_of_birth: formData.date_of_birth,
+                    age: String(formData.age),
                     profile_photo: formData.profile_photo || null
                 })
             });
 
+            if (!response.ok) {
+                const errorText = await response.text();
+                throw new Error(errorText || t('profile.saveError'));
+            }
+
             const data = await response.json();
             if (data.success) {
                 setIsEditing(false);
-                fetchProfile(userId); // Refresh data
+                mutateProfile(); // Refresh SWR data
                 window.dispatchEvent(new Event('patient_profile_updated')); // Notify other components
-                setShowSuccessPopup(true);
-                setTimeout(() => setShowSuccessPopup(false), 3000);
+                setActionModal({
+                    isOpen: true,
+                    type: 'success',
+                    title: 'Berhasil',
+                    message: 'Profil berhasil diperbarui.',
+                    onConfirm: closeActionModal
+                });
             } else {
-                setError(data.message || t('profile.saveFailed'));
+                setActionModal({
+                    isOpen: true,
+                    type: 'error',
+                    title: 'Gagal',
+                    message: data.message || t('profile.saveFailed'),
+                    onConfirm: closeActionModal
+                });
             }
-        } catch (err) {
-            setError(t('profile.serverError'));
+        } catch (err: any) {
+            setActionModal({
+                isOpen: true,
+                type: 'error',
+                title: 'Error',
+                message: err.message || t('profile.serverError'),
+                onConfirm: closeActionModal
+            });
         } finally {
             setIsSaving(false);
         }
@@ -168,7 +167,7 @@ export const PatientProfilePage: React.FC = () => {
                                 )}
                             </div>
                             <h2 className="text-2xl font-extrabold text-clinical-charcoal tracking-tight mb-1">
-                                {isLoading ? t('profile.loading') : (profile?.patient ? `${profile.patient.first_name} ${profile.patient.last_name}` : t('profile.notFound'))}
+                                {isLoading ? t('profile.loading') : (profile ? `${profile.patient.first_name} ${profile.patient.last_name}` : t('profile.notFound'))}
                             </h2>
                             <p className="text-xs font-bold text-clinical-blue uppercase tracking-[0.2em] mb-6 flex items-center gap-1 justify-center">
                                 <span className="material-symbols-outlined text-[14px]">badge</span>
@@ -211,16 +210,11 @@ export const PatientProfilePage: React.FC = () => {
                                     </div>
 
                                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-                                        <div className="bg-clinical-surface p-5 rounded-2xl border border-clinical-charcoal/5 transition-all hover:border-clinical-blue/30 hover:shadow-sm">
-                                            <p className="text-[10px] text-clinical-charcoal/60 uppercase font-bold tracking-widest mb-1">{t('profile.dob')}</p>
-                                            <p className="text-base font-bold text-clinical-charcoal flex items-center gap-2">
-                                                {isLoading ? '---' : (profile?.patient?.date_of_birth ? new Date(profile.patient.date_of_birth).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' }) : '-')}
-                                            </p>
-                                        </div>
+                                        
                                         <div className="bg-clinical-surface p-5 rounded-2xl border border-clinical-charcoal/5 transition-all hover:border-clinical-blue/30 hover:shadow-sm">
                                             <p className="text-[10px] text-clinical-charcoal/60 uppercase font-bold tracking-widest mb-1">{t('profile.age')}</p>
                                             <p className="text-base font-bold text-clinical-charcoal">
-                                                {isLoading ? '---' : (calculateAge(profile?.patient?.date_of_birth) ? `${calculateAge(profile.patient.date_of_birth)} ${t('profile.yearsOld')}` : '-')}
+                                                {isLoading ? '---' : (profile?.patient?.age ? `${profile.patient.age} ${t('profile.yearsOld')}` : '-')}
                                             </p>
                                         </div>
                                     </div>
@@ -251,11 +245,12 @@ export const PatientProfilePage: React.FC = () => {
                                     </div>
 
                                     <div className="space-y-1.5">
-                                        <label className="text-xs font-bold text-clinical-charcoal uppercase tracking-wider">{t('profile.dob')}</label>
+                                        <label className="text-xs font-bold text-clinical-charcoal uppercase tracking-wider">{t('profile.age')}</label>
                                         <input
-                                            type="date"
-                                            value={formData.date_of_birth}
-                                            onChange={e => setFormData({ ...formData, date_of_birth: e.target.value })}
+                                            type="number"
+                                            min="0" max="150"
+                                            value={formData.age || ''}
+                                            onChange={e => setFormData({ ...formData, age: Number(e.target.value) })}
                                             className="w-full px-4 py-3 bg-white border border-clinical-charcoal/10 rounded-2xl focus:outline-none focus:ring-2 focus:ring-clinical-blue focus:border-transparent text-clinical-charcoal font-medium transition-all"
                                         />
                                     </div>
@@ -263,7 +258,7 @@ export const PatientProfilePage: React.FC = () => {
                                     <div className="space-y-1.5">
                                         <label className="text-xs font-bold text-clinical-charcoal uppercase tracking-wider">{t('profile.uploadPhoto')}</label>
                                         <div className="flex items-center gap-4">
-                                            {formData.profile_photo && formData.profile_photo.startsWith('data:') && (
+                                            {formData.profile_photo && (
                                                 <div className="w-12 h-12 rounded-full overflow-hidden border border-clinical-charcoal/10 shrink-0">
                                                     <img src={formData.profile_photo} alt="Preview" className="w-full h-full object-cover" />
                                                 </div>
@@ -288,7 +283,7 @@ export const PatientProfilePage: React.FC = () => {
                                                     setFormData({
                                                         first_name: profile.patient.first_name,
                                                         last_name: profile.patient.last_name,
-                                                        date_of_birth: profile.patient.date_of_birth,
+                                                        age: profile.patient.age,
                                                         profile_photo: profile.patient.profile_photo || ''
                                                     });
                                                 }
@@ -367,13 +362,15 @@ export const PatientProfilePage: React.FC = () => {
 
             <LogoutModal isOpen={isLogoutModalOpen} onClose={() => setIsLogoutModalOpen(false)} />
 
-            {/* Success Popup */}
-            {showSuccessPopup && (
-                <div className="fixed top-24 left-1/2 -translate-x-1/2 bg-white border border-clinical-charcoal/10 shadow-[0px_20px_40px_rgba(0,0,0,0.08)] p-4 rounded-xl z-50 flex items-center gap-3 animate-in fade-in slide-in-from-top-5 duration-300 pointer-events-none">
-                    <span className="material-symbols-outlined text-status-green text-[28px]">check_circle</span>
-                    <p className="font-bold text-clinical-charcoal text-sm md:text-base pr-2">{t('profile.saveSuccess')}</p>
-                </div>
-            )}
+            <ActionModal 
+                isOpen={actionModal.isOpen}
+                type={actionModal.type}
+                title={actionModal.title}
+                message={actionModal.message}
+                onConfirm={actionModal.onConfirm}
+                onClose={closeActionModal}
+                isLoading={isSaving}
+            />
         </div>
     );
 };

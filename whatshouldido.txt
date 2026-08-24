@@ -1,0 +1,40 @@
+teamwork:
+1. bandingkan repo yang sekarang dengan https://github.com/muhffikkri/arrhythmia-detection-dashboard.git agar sinkron
+
+fitur:
+1. tambahkan fitur import zip yang berisi json hasil perekaman dan menyimpannya sebagai rekaman yang terjadi
+
+frontend:
+1. ganti gambar gambar ai jadi gambar asli
+2. fix semua mobile view
+3. fix all layout
+4. tambahkan animasi transisi antar halaman
+5. refine page admin
+6. tambahkan kondisi isadminlogin pada login akun user (dokter, pasien) via page admin agar jika logout kembali ke page admin
+7. hapus seluruh jenis notifikasi
+8. buat pada profile pasien dan dokter dapat melihat email dan password
+9. buat pada page manajemen pengguna pada admin dapat melihat email user
+
+backend:
+1. fix semua sinkronisasi dokter pasien
+detail:
+pada dashboardnya terhubung hanya ada 2 pasien
+pada riwayat klinis ada 3
+2. buat alat hanya dapat terhubung dengan 1 pasien
+3. buat sinkronisasi alat dan dokter dengan pasien pada page admin benar benar terhubung, jika sync dan unsync
+
+database:
+1. ganti jadi sqlite menjadi supabase
+2. walau sudah diganti, tambahkan data yang sudah ada pada sqllite sekarang (yang sudah di deploy, bukan yang local)
+
+all:
+1. deploy frontend
+2. deploy backend
+
+post migration:
+1. buat akun pasien asli
+2. buat data rekaman (data grafiknya) benar benar muncul, bukan hanya hasil penarikan dari database tanpa data asli
+3. buat data bpm di history muncul semua tak terkecuali
+4. buat data bpm di monitor pasti muncul, walaupun datanya agak berantakan
+5. buat admin dapat login ke akun user via page manajemen pengguna (seluruh jenis akun)
+

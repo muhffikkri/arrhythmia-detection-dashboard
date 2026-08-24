@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Html5Qrcode } from 'html5-qrcode';
 import { PatientHeader } from '../../components/layout/PatientHeader';
 import { API_URL } from '../../../config/env';
+import { fetchWithAuth } from '../../../config/api';
 
 export const PatientDeviceScannerPage: React.FC = () => {
   const navigate = useNavigate();
@@ -87,10 +88,10 @@ export const PatientDeviceScannerPage: React.FC = () => {
     try {
       const patientId = localStorage.getItem('user_id');
       if (patientId) {
-        await fetch(`${API_URL}/api/devices/${deviceId}/command`, {
+        await fetchWithAuth(`/api/devices/${deviceId}/assign`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ command: 'connect', patient_id: patientId })
+          body: JSON.stringify({ patient_id: patientId })
         });
       }
 

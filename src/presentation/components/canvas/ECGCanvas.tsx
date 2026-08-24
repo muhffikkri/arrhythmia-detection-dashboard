@@ -138,42 +138,35 @@ export const ECGCanvas: React.FC<ECGCanvasProps> = ({
         <div className="flex-1 overflow-auto custom-scrollbar relative flex flex-col bg-[#FFF9FA]" id="ecg-scroll-container">
             <div className="flex flex-col relative" style={{ minWidth: `${canvasWidth + 64}px`, zoom: scale } as React.CSSProperties}>
 
-                {/* Header Batas Scroll Kiri */}
-                <div className="sticky top-0 h-[40px] flex z-50 pointer-events-none bg-white rounded-tl-xl border-b border-pink-300">
-                    <div className="sticky left-0 w-16 flex-shrink-0 bg-white rounded-tl-xl"></div>
-                </div>
+                {/* Header Frame Atas (Non-sticky, sejajar kertas) */}
+                <div className="w-full h-[40px] flex-shrink-0 bg-white rounded-t-[2rem] border-b border-clinical-charcoal/5 z-0"></div>
 
                 <div className="relative flex flex-row">
                     {/* Y-Axis Skala Garis Tepi (Kiri) */}
                     <div className="sticky left-0 w-16 h-[2880px] flex-shrink-0 bg-white/95 backdrop-blur z-30 shadow-[2px_0_5px_rgba(0,0,0,0.03)] relative">
                         {Array.from({ length: 6 }).map((_, idx) => (
                             <div key={idx} className="absolute w-full h-[480px]" style={{ top: `${idx * 480}px` }}>
-                                {idx < 5 && <div className="absolute bottom-0 left-0 w-full border-b-[2px] border-pink-300/80"></div>}
-                                <span className="absolute top-[0px] left-1.5 md:left-2 text-[9px] font-mono-data font-bold text-red-600 leading-none -translate-y-1/2">+3.0mV</span>
+                                {/* Garis batas pink dihilangkan sepenuhnya dari sumbu Y */}
+                                <span className="absolute top-[0px] left-1 md:left-1.5 text-[9px] font-mono-data font-bold text-red-600 leading-none -translate-y-1/2">±3.0mV</span>
                                 <span className="absolute top-[80px] left-1.5 md:left-2 text-[9px] font-mono-data font-bold text-red-600 leading-none -translate-y-1/2">+2.0mV</span>
                                 <span className="absolute top-[160px] left-1.5 md:left-2 text-[9px] font-mono-data font-bold text-red-600 leading-none -translate-y-1/2">+1.0mV</span>
                                 <span className="absolute top-[240px] left-1.5 md:left-2 text-[9px] font-mono-data font-bold text-red-600 leading-none -translate-y-1/2">0</span>
                                 <span className="absolute top-[320px] left-1.5 md:left-2 text-[9px] font-mono-data font-bold text-red-600 leading-none -translate-y-1/2">-1.0mV</span>
                                 <span className="absolute top-[400px] left-1.5 md:left-2 text-[9px] font-mono-data font-bold text-red-600 leading-none -translate-y-1/2">-2.0mV</span>
-                                <span className="absolute top-[480px] left-1.5 md:left-2 text-[9px] font-mono-data font-bold text-red-600 leading-none -translate-y-1/2">-3.0mV</span>
+                                {/* Dihapus span -3.0mV karena sudah tertutupi oleh ±3.0mV dari block selanjutnya */}
                             </div>
                         ))}
                     </div>
 
                     {/* Area Canvas Interaktif Utama */}
                     <div
-                        className="relative z-10 flex flex-col cursor-crosshair -mt-[40px]"
-                        style={{ width: `${canvasWidth}px`, height: '2920px' }}
+                        className="relative z-10 flex flex-col cursor-crosshair"
+                        style={{ width: `${canvasWidth}px`, height: '2880px' }}
                         ref={canvasRef} onMouseMove={handlePointerMove} onTouchMove={handlePointerMove}
                         onMouseEnter={() => setPointerX(0)} onMouseLeave={hidePointer} onTouchStart={() => setPointerX(0)} onTouchEnd={hidePointer}
                     >
-                        {/* Garis Waktu Atas */}
-                        <svg className="sticky top-0 left-0 z-50 pointer-events-none" width={canvasWidth} height={40} xmlns="http://www.w3.org/2000/svg">
-                            {renderSVGTimeline()}
-                        </svg>
-
                         {/* SATU CANVAS RAKSASA (GRID + GELOMBANG EKG TERINTEGRASI) */}
-                        <svg className="absolute top-[40px] left-0 pointer-events-none z-10 overflow-visible" width={canvasWidth} height={2880} viewBox={`0 0 ${canvasWidth} 2880`} xmlns="http://www.w3.org/2000/svg">
+                        <svg className="absolute top-0 left-0 pointer-events-none z-10 overflow-visible" width={canvasWidth} height={2880} viewBox={`0 0 ${canvasWidth} 2880`} xmlns="http://www.w3.org/2000/svg">
                             {/* Layer 1: Definisi & Latar Belakang Grid */}
                             <defs>
                                 <pattern id="smallGrid" width="8" height="8" patternUnits="userSpaceOnUse"><path d="M 8 0 L 0 0 0 8" fill="none" stroke="#FFD1DC" strokeWidth="0.5" /></pattern>
@@ -223,7 +216,7 @@ export const ECGCanvas: React.FC<ECGCanvasProps> = ({
                         </svg>
 
                         {/* Layer 3: Label Nama Saluran (Floating / Absolute Position) */}
-                        <div className="absolute top-[40px] left-0 w-full h-[2880px] pointer-events-none z-20">
+                        <div className="absolute top-0 left-0 w-full h-[2880px] pointer-events-none z-20">
                             <div className="absolute left-2 bg-white/80 backdrop-blur px-2 py-0.5 rounded border border-pink-200 font-mono-data font-bold text-brand-navy text-[10px] shadow-sm" style={{ top: '8px' }}>Lead I</div>
                             <div className="absolute left-2 bg-white/80 backdrop-blur px-2 py-0.5 rounded border border-pink-200 font-mono-data font-bold text-brand-navy text-[10px] shadow-sm" style={{ top: '488px' }}>Lead II</div>
                             <div className="absolute left-2 bg-white/80 backdrop-blur px-2 py-0.5 rounded border border-pink-200 font-mono-data font-bold text-brand-navy text-[10px] shadow-sm" style={{ top: '968px' }}>Lead III</div>
@@ -233,7 +226,7 @@ export const ECGCanvas: React.FC<ECGCanvasProps> = ({
                         </div>
 
                         {/* Layer 4: Interaksi Pointer Mouse & Tooltip (Paling Atas) */}
-                        <div className="absolute top-[40px] bottom-0 border-l border-dashed border-outline pointer-events-none z-30 transition-opacity duration-100" style={{ transform: `translateX(${pointerX || 0}px)`, opacity: pointerX !== null ? 1 : 0 }} />
+                        <div className="absolute top-0 bottom-0 border-l border-dashed border-outline pointer-events-none z-30 transition-opacity duration-100" style={{ transform: `translateX(${pointerX || 0}px)`, opacity: pointerX !== null ? 1 : 0 }} />
                         <div className="absolute z-40 pointer-events-none transition-transform duration-75 bg-charcoal/95 backdrop-blur-sm text-white p-3 rounded-xl shadow-xl border border-white/20 min-w-[140px]" style={{ transform: `translate(${tooltipX}px, ${tooltipY}px)`, opacity: pointerX !== null ? 1 : 0 }}>
                             <div className="flex flex-col gap-1.5 text-[11px]">
                                 <div className="flex justify-between items-center"><span className="text-slate-400">Waktu:</span> <span className="font-mono-data font-bold text-xs">{`${mStr}:${sStr}.${msStr}s`}</span></div>
@@ -243,6 +236,9 @@ export const ECGCanvas: React.FC<ECGCanvasProps> = ({
 
                     </div>
                 </div>
+
+                {/* Footer Frame Bawah (Non-sticky, sejajar kertas) */}
+                <div className="w-full h-[40px] flex-shrink-0 bg-white rounded-b-[2rem] border-t border-clinical-charcoal/5 mt-auto z-0"></div>
             </div>
         </div>
     );
