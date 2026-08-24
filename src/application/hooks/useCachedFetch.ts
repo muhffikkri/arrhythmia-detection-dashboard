@@ -34,7 +34,7 @@ function writeCache<T>(key: string, data: T, ttlMs = CACHE_TTL_MS): void {
         const entry: CacheEntry<T> = { data, expiresAt: Date.now() + ttlMs };
         localStorage.setItem(`swr_cache:${key}`, JSON.stringify(entry));
     } catch {
-        // quota exceeded or unavailable — silently ignore
+        // quota exceeded or unavailable ï¿½ silently ignore
     }
 }
 
