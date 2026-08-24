@@ -44,10 +44,13 @@ export const PatientMonitorPage: React.FC = () => {
     const aiProbabilities = prediction?.probabilities || null;
     const aiMetrics = { latency_ms: prediction?.latency_ms, runtime: prediction?.runtime };
 
-    const [speed] = useState<25 | 50>(25);
+    const [speed, setSpeed] = useState<12.5 | 25 | 50>(25);
+    const [playbackSpeed, setPlaybackSpeed] = useState<1 | 2>(1);
     const [showAlert, setShowAlert] = useState<boolean>(false);
 
-    const { scale } = useECGScale();
+    const { scale, saveScale } = useECGScale();
+    const gain = scale === 2.0 ? 20 : 10;
+    const setGain = (g: 10 | 20) => saveScale(g === 20 ? 2.0 : 1.0);
     useEffect(() => {
         const isNormal = rawClassification?.toUpperCase() === 'NORMAL' || rawClassification?.toUpperCase() === 'NORM';
         setShowAlert(clinicalStatus?.isAnomaly && !isNormal ? true : false);
@@ -248,18 +251,96 @@ export const PatientMonitorPage: React.FC = () => {
                 <main className="w-full max-w-container-max pt-8 pb-16 mx-auto px-margin-mobile md:px-margin-desktop flex flex-col gap-8 flex-1">
 
                     <section className="w-full flex flex-col gap-5 flex-1">
-                        {/* Top Control Panel */}
-                        <div className="bg-white rounded-[2rem] px-8 py-4 flex flex-wrap justify-between items-center shadow-[0px_20px_40px_rgba(0,0,0,0.04)] border border-clinical-charcoal/5 gap-4 group hover:-translate-y-1 hover:shadow-[0px_30px_60px_rgba(0,0,0,0.08)] transition-all duration-700">
-                            <div className="flex items-center gap-6">
-                                <div className="flex items-center gap-2 text-clinical-charcoal">
-                                    <span className="material-symbols-outlined text-clinical-blue group-hover:scale-110 transition-transform duration-700">tune</span>
-                                    <span className="text-[12px] font-bold uppercase tracking-[0.2em] hidden sm:block opacity-80">
-                                        Kecepatan: <span className="font-mono-data text-clinical-blue font-bold ml-1">{speed} mm/s</span>
+                        {/* Top Control Panel - Matching EcgViewer UI */}
+                        <div className="bg-white rounded-[2rem] px-6 py-4 flex flex-wrap justify-between items-center shadow-[0px_20px_40px_rgba(0,0,0,0.04)] border border-clinical-charcoal/5 gap-4 transition-all duration-700">
+                            
+                            <div className="flex flex-wrap items-center gap-3 w-full lg:w-auto overflow-x-auto custom-scrollbar pb-2 lg:pb-0">
+                                {/* Gain Config */}
+                                <div className="flex items-center gap-1.5 bg-clinical-surface p-1 rounded-full border border-clinical-charcoal/5">
+                                    <span className="text-[9px] font-bold text-clinical-charcoal/40 uppercase tracking-wider px-2 select-none">
+                                        Gain
                                     </span>
+                                    <button
+                                        onClick={() => setGain(10)}
+                                        className={`px-2.5 py-1 rounded-full text-xs font-bold transition-all ${gain === 10 ? 'bg-white text-clinical-blue shadow-xs' : 'text-clinical-charcoal/60 hover:text-clinical-charcoal'}`}
+                                        title="10 mm/mV (1x)"
+                                    >
+                                        10
+                                    </button>
+                                    <button
+                                        onClick={() => setGain(20)}
+                                        className={`px-2.5 py-1 rounded-full text-xs font-bold transition-all ${gain === 20 ? 'bg-white text-clinical-blue shadow-xs' : 'text-clinical-charcoal/60 hover:text-clinical-charcoal'}`}
+                                        title="20 mm/mV (2x)"
+                                    >
+                                        20
+                                    </button>
+                                </div>
+
+                                {/* Paper Speed Config */}
+                                <div className="flex items-center gap-1.5 bg-clinical-surface p-1 rounded-full border border-clinical-charcoal/5">
+                                    <span className="text-[9px] font-bold text-clinical-charcoal/40 uppercase tracking-wider px-2 select-none">
+                                        Speed
+                                    </span>
+                                    <button
+                                        onClick={() => setSpeed(12.5)}
+                                        className={`px-2.5 py-1 rounded-full text-xs font-bold transition-all ${speed === 12.5 ? 'bg-white text-clinical-blue shadow-xs' : 'text-clinical-charcoal/60 hover:text-clinical-charcoal'}`}
+                                        title="12.5 mm/s"
+                                    >
+                                        12.5
+                                    </button>
+                                    <button
+                                        onClick={() => setSpeed(25)}
+                                        className={`px-2.5 py-1 rounded-full text-xs font-bold transition-all ${speed === 25 ? 'bg-white text-clinical-blue shadow-xs' : 'text-clinical-charcoal/60 hover:text-clinical-charcoal'}`}
+                                        title="25 mm/s (1x)"
+                                    >
+                                        25
+                                    </button>
+                                    <button
+                                        onClick={() => setSpeed(50)}
+                                        className={`px-2.5 py-1 rounded-full text-xs font-bold transition-all ${speed === 50 ? 'bg-white text-clinical-blue shadow-xs' : 'text-clinical-charcoal/60 hover:text-clinical-charcoal'}`}
+                                        title="50 mm/s (2x)"
+                                    >
+                                        50
+                                    </button>
+                                </div>
+
+                                {/* Playback Speed Multiplier */}
+                                <div className="flex items-center gap-1 bg-clinical-surface p-1 rounded-full border border-clinical-charcoal/5">
+                                    <span className="text-[9px] font-bold text-clinical-charcoal/40 uppercase tracking-wider px-2 select-none">
+                                        Playback
+                                    </span>
+                                    <button
+                                        onClick={() => setPlaybackSpeed(1)}
+                                        className={`px-3 py-1 rounded-full text-xs font-bold transition-all ${playbackSpeed === 1 ? 'bg-white text-clinical-blue shadow-xs' : 'text-clinical-charcoal/60 hover:text-clinical-charcoal'}`}
+                                        title="1x Speed"
+                                    >
+                                        1x
+                                    </button>
+                                    <button
+                                        onClick={() => setPlaybackSpeed(2)}
+                                        className={`px-3 py-1 rounded-full text-xs font-bold transition-all ${playbackSpeed === 2 ? 'bg-white text-clinical-blue shadow-xs' : 'text-clinical-charcoal/60 hover:text-clinical-charcoal'}`}
+                                        title="2x Speed"
+                                    >
+                                        2x
+                                    </button>
                                 </div>
 
                                 <div className="h-6 w-px bg-clinical-charcoal/10 hidden sm:block"></div>
 
+                                {/* Filter Toggle */}
+                                <button
+                                    onClick={toggleFilter}
+                                    className={`${isFilterOn ? 'bg-blue-50 text-clinical-blue border-blue-100' : 'bg-clinical-surface text-clinical-charcoal/60 border-clinical-charcoal/5'} border px-4 py-1.5 rounded-full font-bold uppercase tracking-wider text-[10px] transition-all duration-300 flex items-center gap-2 outline-none hover:-translate-y-0.5 hover:shadow-sm`}
+                                    title="Matikan untuk melihat sinyal mentah asli (Raw Data) dari perangkat"
+                                >
+                                    <span className="material-symbols-outlined text-[16px]">
+                                        {isFilterOn ? 'filter_alt' : 'filter_alt_off'}
+                                    </span>
+                                    <span className="hidden sm:inline">Bandpass: {isFilterOn ? 'ON' : 'OFF'}</span>
+                                </button>
+                            </div>
+
+                            <div className="flex items-center justify-end w-full lg:w-auto">
                                 <button
                                     disabled={isCommandLoading}
                                     onClick={handleToggleRecord}
@@ -273,19 +354,6 @@ export const PatientMonitorPage: React.FC = () => {
                                         <><span className="material-symbols-outlined text-[18px]">play_circle</span> <span className="hidden sm:inline">Mulai Perekaman</span></>
                                     )}
                                 </button>
-
-                                {/* TOMBOL BYPASS FILTER BARU */}
-                                <button
-                                    onClick={toggleFilter}
-                                    className={`${isFilterOn ? 'bg-blue-50 text-clinical-blue border-blue-100' : 'bg-clinical-surface text-clinical-charcoal/60 border-clinical-charcoal/5'} border px-5 py-2.5 rounded-full font-bold uppercase tracking-wider text-[10px] transition-all duration-300 flex items-center gap-2 outline-none hover:-translate-y-0.5 hover:shadow-sm`}
-                                    title="Matikan untuk melihat sinyal mentah asli (Raw Data) dari perangkat"
-                                >
-                                    <span className="material-symbols-outlined text-[16px]">
-                                        {isFilterOn ? 'filter_alt' : 'filter_alt_off'}
-                                    </span>
-                                    <span className="hidden sm:inline">Filter: {isFilterOn ? 'ON' : 'OFF'}</span>
-                                </button>
-                                
                             </div>
                         </div>
 

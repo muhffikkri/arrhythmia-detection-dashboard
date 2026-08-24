@@ -348,10 +348,10 @@ export const AdminAnalyticsPage: React.FC = () => {
             
             <main className={`flex flex-col transition-all duration-300 min-h-screen pb-12 w-full relative z-10 ${isOpen ? 'md:ml-[260px] md:w-[calc(100%-260px)]' : 'md:ml-0 md:w-full'}`}>
             {/* --- HEADER KOMPONEN --- */}
-            <header className="sticky top-0 bg-clinical-surface/80 backdrop-blur-xl border-b border-clinical-charcoal/5 z-40 px-4 md:px-6 py-4 flex justify-between items-center max-w-container-max mx-auto w-full transition-all duration-300">
+            <header className="sticky top-0 bg-clinical-surface/80 backdrop-blur-xl border-b border-clinical-charcoal/5 z-40 px-4 md:px-6 py-4 flex justify-between items-center w-full w-full transition-all duration-300">
                 
                 <div className="flex items-center gap-3">
-                    <button onClick={toggleSidebar} className="flex items-center justify-center p-2 -ml-2 rounded-full hover:bg-clinical-surface text-clinical-charcoal/70 transition-colors outline-none" title="Sembunyikan / Tampilkan Menu Utama">
+                    <button onClick={toggleSidebar} className="md:hidden flex items-center justify-center p-2 -ml-2 rounded-full hover:bg-clinical-surface text-clinical-charcoal/70 transition-colors outline-none" title="Sembunyikan / Tampilkan Menu Utama">
                         <span className="material-symbols-outlined">menu</span>
                     </button>
                     <div>
@@ -363,7 +363,7 @@ export const AdminAnalyticsPage: React.FC = () => {
             </header>
 
             {/* --- TOOLBAR INFORMASI --- */}
-            <div className="max-w-container-max mx-auto px-4 md:px-6 pt-4 w-full z-30 relative animate-in fade-in slide-in-from-bottom-4 duration-700 ease-out">
+            <div className="w-full px-4 md:px-6 pt-4 w-full z-30 relative animate-in fade-in slide-in-from-bottom-4 duration-700 ease-out">
                 <div className="bg-white/80 backdrop-blur-md rounded-[1.5rem] border border-clinical-charcoal/5 shadow-sm p-4 flex flex-col md:flex-row md:items-center justify-between gap-4 transition-all duration-700 hover:shadow-md">
                 <div className="flex items-center gap-3">
                     <div className="bg-clinical-blue/10 p-2 rounded-lg text-clinical-blue">

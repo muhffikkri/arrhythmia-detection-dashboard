@@ -1008,7 +1008,7 @@ export const AdminSessionsPage: React.FC = () => {
                 {/* Header */}
                 <header className="sticky top-0 bg-clinical-surface/80 backdrop-blur-xl border-b border-clinical-charcoal/5 z-40 px-4 md:px-6 py-4 flex justify-between items-center w-full transition-all duration-300">
                     <div className="flex items-center gap-3">
-                        <button onClick={toggleSidebar} className="flex items-center justify-center p-2 -ml-2 rounded-full hover:bg-clinical-surface text-clinical-charcoal/70 transition-colors outline-none" title="Sembunyikan / Tampilkan Menu Utama">
+                        <button onClick={toggleSidebar} className="md:hidden flex items-center justify-center p-2 -ml-2 rounded-full hover:bg-clinical-surface text-clinical-charcoal/70 transition-colors outline-none" title="Sembunyikan / Tampilkan Menu Utama">
                             <span className="material-symbols-outlined">menu</span>
                         </button>
                         <div>
@@ -1018,7 +1018,7 @@ export const AdminSessionsPage: React.FC = () => {
                     </div>
                 </header>
 
-                <div className="flex-1 px-4 md:px-6 max-w-container-max mx-auto mt-6 w-full flex flex-col gap-6 animate-in fade-in slide-in-from-bottom-4 duration-700 ease-out">
+                <div className="flex-1 px-4 md:px-6 w-full mt-6 w-full flex flex-col gap-6 animate-in fade-in slide-in-from-bottom-4 duration-700 ease-out">
                     
                     <div className="bg-white rounded-[2rem] border border-clinical-charcoal/5 shadow-sm overflow-hidden flex flex-col hover:shadow-md transition-shadow duration-500">
                         <div className="px-6 py-6 border-b border-clinical-charcoal/5 flex flex-col sm:flex-row justify-between items-start sm:items-center bg-white/50 backdrop-blur-sm gap-4">

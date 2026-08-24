@@ -31,8 +31,8 @@ export const AdminDashboardPage: React.FC = () => {
             <AdminSidebar />
             
             <main id="main-content" className={`pb-24 md:pb-12 transition-all duration-300 min-h-screen flex flex-col ${isOpen ? "md:ml-[260px]" : "md:ml-0"} ${isCollapsed ? "md:!ml-[72px]" : ""}`}>
-                <header className="sticky top-0 bg-clinical-surface/80 backdrop-blur-xl border-b border-clinical-charcoal/5 z-40 px-4 md:px-6 py-4 flex items-center gap-4 max-w-container-max mx-auto w-full transition-all duration-300">
-                    <button onClick={toggleSidebar} className="flex items-center justify-center p-2 -ml-2 rounded-full hover:bg-clinical-surface text-clinical-charcoal/70 transition-colors outline-none" title="Sembunyikan / Tampilkan Menu Utama">
+                <header className="sticky top-0 bg-clinical-surface/80 backdrop-blur-xl border-b border-clinical-charcoal/5 z-40 px-4 md:px-6 py-4 flex items-center gap-4 w-full w-full transition-all duration-300">
+                    <button onClick={toggleSidebar} className="md:hidden flex items-center justify-center p-2 -ml-2 rounded-full hover:bg-clinical-surface text-clinical-charcoal/70 transition-colors outline-none" title="Sembunyikan / Tampilkan Menu Utama">
                         <span className="material-symbols-outlined">menu</span>
                     </button>
                     <div>
@@ -43,7 +43,7 @@ export const AdminDashboardPage: React.FC = () => {
                     </div>
                 </header>
 
-                <div className="px-4 md:px-6 max-w-container-max mx-auto mt-6 space-y-6 relative z-10 animate-in fade-in slide-in-from-bottom-4 duration-700 ease-out">
+                <div className="px-4 md:px-6 w-full mt-6 space-y-6 relative z-10 animate-in fade-in slide-in-from-bottom-4 duration-700 ease-out">
                     {/* Quick Stats */}
                     <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                         <div className="bg-white border border-clinical-charcoal/5 rounded-[1.5rem] p-5 shadow-sm hover:shadow-md transition-all duration-300">
