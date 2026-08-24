@@ -25,6 +25,7 @@ export const PatientProfilePage: React.FC = () => {
         first_name: '',
         last_name: '',
         age: 0,
+        gender: 'L',
         profile_photo: ''
     });
     const [isSaving, setIsSaving] = useState(false);
@@ -52,6 +53,7 @@ export const PatientProfilePage: React.FC = () => {
                 first_name: profile.patient.first_name || '',
                 last_name: profile.patient.last_name || '',
                 age: profile.patient.age || 0,
+                gender: profile.patient.gender || 'L',
                 profile_photo: profile.patient.profile_photo || ''
             });
         }
@@ -81,6 +83,7 @@ export const PatientProfilePage: React.FC = () => {
                     first_name: formData.first_name,
                     last_name: formData.last_name,
                     age: String(formData.age),
+                    gender: formData.gender,
                     profile_photo: formData.profile_photo || null
                 })
             });
@@ -217,6 +220,12 @@ export const PatientProfilePage: React.FC = () => {
                                                 {isLoading ? '---' : (profile?.patient?.age ? `${profile.patient.age} ${t('profile.yearsOld')}` : '-')}
                                             </p>
                                         </div>
+                                        <div className="bg-clinical-surface p-5 rounded-2xl border border-clinical-charcoal/5 transition-all hover:border-clinical-blue/30 hover:shadow-sm">
+                                            <p className="text-[10px] text-clinical-charcoal/60 uppercase font-bold tracking-widest mb-1">Jenis Kelamin</p>
+                                            <p className="text-base font-bold text-clinical-charcoal">
+                                                {isLoading ? '---' : (profile?.patient?.gender === 'L' ? 'Laki-laki' : profile?.patient?.gender === 'P' ? 'Perempuan' : '-')}
+                                            </p>
+                                        </div>
                                     </div>
                                 </div>
                             ) : (
@@ -244,15 +253,28 @@ export const PatientProfilePage: React.FC = () => {
                                         </div>
                                     </div>
 
-                                    <div className="space-y-1.5">
-                                        <label className="text-xs font-bold text-clinical-charcoal uppercase tracking-wider">{t('profile.age')}</label>
-                                        <input
-                                            type="number"
-                                            min="0" max="150"
-                                            value={formData.age || ''}
-                                            onChange={e => setFormData({ ...formData, age: Number(e.target.value) })}
-                                            className="w-full px-4 py-3 bg-white border border-clinical-charcoal/10 rounded-2xl focus:outline-none focus:ring-2 focus:ring-clinical-blue focus:border-transparent text-clinical-charcoal font-medium transition-all"
-                                        />
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+                                        <div className="space-y-1.5">
+                                            <label className="text-xs font-bold text-clinical-charcoal uppercase tracking-wider">{t('profile.age')}</label>
+                                            <input
+                                                type="number"
+                                                min="0" max="150"
+                                                value={formData.age || ''}
+                                                onChange={e => setFormData({ ...formData, age: Number(e.target.value) })}
+                                                className="w-full px-4 py-3 bg-white border border-clinical-charcoal/10 rounded-2xl focus:outline-none focus:ring-2 focus:ring-clinical-blue focus:border-transparent text-clinical-charcoal font-medium transition-all"
+                                            />
+                                        </div>
+                                        <div className="space-y-1.5">
+                                            <label className="text-xs font-bold text-clinical-charcoal uppercase tracking-wider">Jenis Kelamin</label>
+                                            <select
+                                                value={formData.gender}
+                                                onChange={e => setFormData({ ...formData, gender: e.target.value })}
+                                                className="w-full px-4 py-3 bg-white border border-clinical-charcoal/10 rounded-2xl focus:outline-none focus:ring-2 focus:ring-clinical-blue focus:border-transparent text-clinical-charcoal font-medium transition-all appearance-none"
+                                            >
+                                                <option value="L">Laki-laki</option>
+                                                <option value="P">Perempuan</option>
+                                            </select>
+                                        </div>
                                     </div>
 
                                     <div className="space-y-1.5">
@@ -284,6 +306,7 @@ export const PatientProfilePage: React.FC = () => {
                                                         first_name: profile.patient.first_name,
                                                         last_name: profile.patient.last_name,
                                                         age: profile.patient.age,
+                                                        gender: profile.patient.gender || 'L',
                                                         profile_photo: profile.patient.profile_photo || ''
                                                     });
                                                 }
