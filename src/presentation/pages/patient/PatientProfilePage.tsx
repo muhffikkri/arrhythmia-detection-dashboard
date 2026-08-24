@@ -7,6 +7,7 @@ import { API_URL } from '../../../config/env';
 import { fetchWithAuth } from '../../../config/api';
 import { useCachedFetch } from '../../../application/hooks/useCachedFetch';
 import { ActionModal } from '../../components/shared/ActionModal';
+import { FolderUploadModal } from '../../components/shared/FolderUploadModal';
 
 export const PatientProfilePage: React.FC = () => {
     const navigate = useNavigate();
@@ -21,6 +22,7 @@ export const PatientProfilePage: React.FC = () => {
 
     // Edit mode state
     const [isEditing, setIsEditing] = useState(false);
+    const [isUploadOpen, setIsUploadOpen] = useState(false);
     const [formData, setFormData] = useState({
         first_name: '',
         last_name: '',
@@ -178,10 +180,16 @@ export const PatientProfilePage: React.FC = () => {
                             </p>
 
                             {!isEditing && (
-                                <button onClick={() => setIsEditing(true)} disabled={isLoading || !profile} className="w-full bg-clinical-charcoal text-white hover:brightness-110 font-bold py-3 rounded-xl transition-all shadow-md active:scale-95 disabled:opacity-50 flex justify-center items-center gap-2">
-                                    <span className="material-symbols-outlined text-[18px]">edit</span>
-                                    {t('profile.editProfile')}
-                                </button>
+                                <div className="w-full flex flex-col gap-3">
+                                    <button onClick={() => setIsEditing(true)} disabled={isLoading || !profile} className="w-full bg-clinical-charcoal text-white hover:brightness-110 font-bold py-3 rounded-xl transition-all shadow-md active:scale-95 disabled:opacity-50 flex justify-center items-center gap-2">
+                                        <span className="material-symbols-outlined text-[18px]">edit</span>
+                                        {t('profile.editProfile')}
+                                    </button>
+                                    <button onClick={() => setIsUploadOpen(true)} className="w-full bg-[#136a72] text-white hover:brightness-110 font-bold py-3 rounded-xl transition-all shadow-md active:scale-95 flex justify-center items-center gap-2">
+                                        <span className="material-symbols-outlined text-[18px]">folder_open</span>
+                                        + Upload Folder Sesi Baru
+                                    </button>
+                                </div>
                             )}
                         </div>
 
@@ -393,6 +401,16 @@ export const PatientProfilePage: React.FC = () => {
                 onConfirm={actionModal.onConfirm}
                 onClose={closeActionModal}
                 isLoading={isSaving}
+            />
+
+            <FolderUploadModal 
+                isOpen={isUploadOpen} 
+                onClose={() => setIsUploadOpen(false)} 
+                patientId={userId}
+                onSuccess={() => {
+                    console.log("Upload selesai!");
+                    // Letakkan kode refresh daftar sesi atau reload di sini
+                }} 
             />
         </div>
     );
