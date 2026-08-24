@@ -6,7 +6,7 @@
  * UPDATE: Penambahan fitur Bypass Filter (ON/OFF) untuk komparasi sinyal mentah.
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useECGStream } from '../../../application/hooks/useECGStream';
 import { ECGCanvas } from '../../components/canvas/ECGCanvas';
 import { TimelineBar } from '../../components/shared/TimelineBar';
@@ -45,12 +45,115 @@ export const PatientMonitorPage: React.FC = () => {
     const aiMetrics = { latency_ms: prediction?.latency_ms, runtime: prediction?.runtime };
 
     const [speed, setSpeed] = useState<12.5 | 25 | 50>(25);
-    const [playbackSpeed, setPlaybackSpeed] = useState<1 | 2>(1);
+    const [playbackSpeed, setPlaybackSpeed] = useState<number>(1);
     const [showAlert, setShowAlert] = useState<boolean>(false);
 
-    const { scale, saveScale } = useECGScale();
-    const gain = scale === 2.0 ? 20 : 10;
-    const setGain = (g: 10 | 20) => saveScale(g === 20 ? 2.0 : 1.0);
+    // Animasi Playback
+    const [isPlaying, setIsPlaying] = useState<boolean>(false);
+    const [visibleCount, setVisibleCount] = useState<number>(0);
+    const animRef = useRef<number | null>(null);
+    const startTimeRef = useRef<number>(0);
+    const startCountRef = useRef<number>(0);
+    const TOTAL_SAMPLES = 2500;
+
+    useEffect(() => {
+        if (isRecording) {
+            setVisibleCount(paths.I.length);
+            setIsPlaying(false);
+            if (animRef.current) {
+                cancelAnimationFrame(animRef.current);
+                animRef.current = null;
+            }
+        }
+    }, [isRecording, paths.I.length]);
+
+    useEffect(() => {
+        if (!isRecording && currentSegmentIndex !== undefined) {
+            setVisibleCount(paths.I.length);
+            setIsPlaying(false);
+            if (animRef.current) {
+                cancelAnimationFrame(animRef.current);
+                animRef.current = null;
+            }
+        }
+    }, [currentSegmentIndex, isRecording, paths.I.length]);
+
+    const animate = (time: number) => {
+        if (!startTimeRef.current) startTimeRef.current = time;
+        const elapsed = (time - startTimeRef.current) / 1000;
+        const rate = 250 * playbackSpeed;
+        const targetLength = isRecording ? paths.I.length : TOTAL_SAMPLES;
+        const nextCount = Math.min(targetLength, Math.floor(startCountRef.current + elapsed * rate));
+
+        setVisibleCount(nextCount);
+
+        if (nextCount < targetLength) {
+            animRef.current = requestAnimationFrame(animate);
+        } else {
+            setIsPlaying(false);
+        }
+    };
+
+    const handlePlayPause = () => {
+        if (isPlaying) {
+            setIsPlaying(false);
+            if (animRef.current) cancelAnimationFrame(animRef.current);
+        } else {
+            const targetLength = isRecording ? paths.I.length : TOTAL_SAMPLES;
+            let startFrom = visibleCount;
+            if (visibleCount >= targetLength) {
+                startFrom = 0;
+                setVisibleCount(0);
+            }
+            setIsPlaying(true);
+            startTimeRef.current = 0;
+            startCountRef.current = startFrom;
+            animRef.current = requestAnimationFrame(animate);
+        }
+    };
+
+    const handleReplay = () => {
+        setIsPlaying(true);
+        setVisibleCount(0);
+        startTimeRef.current = 0;
+        startCountRef.current = 0;
+        if (animRef.current) cancelAnimationFrame(animRef.current);
+        animRef.current = requestAnimationFrame(animate);
+    };
+
+    const handleSliderChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const val = parseInt(e.target.value, 10);
+        setVisibleCount(val);
+        if (isPlaying) {
+            setIsPlaying(false);
+            if (animRef.current) cancelAnimationFrame(animRef.current);
+        }
+    };
+
+    const slicedPaths = React.useMemo(() => {
+        if (visibleCount >= paths.I.length) return paths;
+        return {
+            I: paths.I.slice(0, visibleCount),
+            II: paths.II.slice(0, visibleCount),
+            III: paths.III.slice(0, visibleCount),
+            aVR: paths.aVR.slice(0, visibleCount),
+            aVL: paths.aVL.slice(0, visibleCount),
+            aVF: paths.aVF.slice(0, visibleCount),
+            V1: paths.V1.slice(0, visibleCount),
+        };
+    }, [paths, visibleCount]);
+
+    const slicedRPeaks = React.useMemo(() => {
+        if (visibleCount >= paths.I.length) return rPeaks;
+        const canvasWidth = 10 * speed * 8; 
+        const maxVisibleX = (visibleCount / TOTAL_SAMPLES) * canvasWidth;
+        return rPeaks.filter((p: any) => p.x <= maxVisibleX);
+    }, [rPeaks, visibleCount, paths.I.length, speed]);
+
+    // Gain override untuk 5, 10, 20
+    const [gain, setGain] = useState<number>(10);
+    const scale = gain / 10;
+
     useEffect(() => {
         const isNormal = rawClassification?.toUpperCase() === 'NORMAL' || rawClassification?.toUpperCase() === 'NORM';
         setShowAlert(clinicalStatus?.isAnomaly && !isNormal ? true : false);
@@ -251,82 +354,9 @@ export const PatientMonitorPage: React.FC = () => {
                 <main className="w-full max-w-container-max pt-8 pb-16 mx-auto px-margin-mobile md:px-margin-desktop flex flex-col gap-8 flex-1">
 
                     <section className="w-full flex flex-col gap-5 flex-1">
-                        {/* Top Control Panel - Matching EcgViewer UI */}
                         <div className="bg-white rounded-[2rem] px-6 py-4 flex flex-wrap justify-between items-center shadow-[0px_20px_40px_rgba(0,0,0,0.04)] border border-clinical-charcoal/5 gap-4 transition-all duration-700">
                             
                             <div className="flex flex-wrap items-center gap-3 w-full lg:w-auto overflow-x-auto custom-scrollbar pb-2 lg:pb-0">
-                                {/* Gain Config */}
-                                <div className="flex items-center gap-1.5 bg-clinical-surface p-1 rounded-full border border-clinical-charcoal/5">
-                                    <span className="text-[9px] font-bold text-clinical-charcoal/40 uppercase tracking-wider px-2 select-none">
-                                        Gain
-                                    </span>
-                                    <button
-                                        onClick={() => setGain(10)}
-                                        className={`px-2.5 py-1 rounded-full text-xs font-bold transition-all ${gain === 10 ? 'bg-white text-clinical-blue shadow-xs' : 'text-clinical-charcoal/60 hover:text-clinical-charcoal'}`}
-                                        title="10 mm/mV (1x)"
-                                    >
-                                        10
-                                    </button>
-                                    <button
-                                        onClick={() => setGain(20)}
-                                        className={`px-2.5 py-1 rounded-full text-xs font-bold transition-all ${gain === 20 ? 'bg-white text-clinical-blue shadow-xs' : 'text-clinical-charcoal/60 hover:text-clinical-charcoal'}`}
-                                        title="20 mm/mV (2x)"
-                                    >
-                                        20
-                                    </button>
-                                </div>
-
-                                {/* Paper Speed Config */}
-                                <div className="flex items-center gap-1.5 bg-clinical-surface p-1 rounded-full border border-clinical-charcoal/5">
-                                    <span className="text-[9px] font-bold text-clinical-charcoal/40 uppercase tracking-wider px-2 select-none">
-                                        Speed
-                                    </span>
-                                    <button
-                                        onClick={() => setSpeed(12.5)}
-                                        className={`px-2.5 py-1 rounded-full text-xs font-bold transition-all ${speed === 12.5 ? 'bg-white text-clinical-blue shadow-xs' : 'text-clinical-charcoal/60 hover:text-clinical-charcoal'}`}
-                                        title="12.5 mm/s"
-                                    >
-                                        12.5
-                                    </button>
-                                    <button
-                                        onClick={() => setSpeed(25)}
-                                        className={`px-2.5 py-1 rounded-full text-xs font-bold transition-all ${speed === 25 ? 'bg-white text-clinical-blue shadow-xs' : 'text-clinical-charcoal/60 hover:text-clinical-charcoal'}`}
-                                        title="25 mm/s (1x)"
-                                    >
-                                        25
-                                    </button>
-                                    <button
-                                        onClick={() => setSpeed(50)}
-                                        className={`px-2.5 py-1 rounded-full text-xs font-bold transition-all ${speed === 50 ? 'bg-white text-clinical-blue shadow-xs' : 'text-clinical-charcoal/60 hover:text-clinical-charcoal'}`}
-                                        title="50 mm/s (2x)"
-                                    >
-                                        50
-                                    </button>
-                                </div>
-
-                                {/* Playback Speed Multiplier */}
-                                <div className="flex items-center gap-1 bg-clinical-surface p-1 rounded-full border border-clinical-charcoal/5">
-                                    <span className="text-[9px] font-bold text-clinical-charcoal/40 uppercase tracking-wider px-2 select-none">
-                                        Playback
-                                    </span>
-                                    <button
-                                        onClick={() => setPlaybackSpeed(1)}
-                                        className={`px-3 py-1 rounded-full text-xs font-bold transition-all ${playbackSpeed === 1 ? 'bg-white text-clinical-blue shadow-xs' : 'text-clinical-charcoal/60 hover:text-clinical-charcoal'}`}
-                                        title="1x Speed"
-                                    >
-                                        1x
-                                    </button>
-                                    <button
-                                        onClick={() => setPlaybackSpeed(2)}
-                                        className={`px-3 py-1 rounded-full text-xs font-bold transition-all ${playbackSpeed === 2 ? 'bg-white text-clinical-blue shadow-xs' : 'text-clinical-charcoal/60 hover:text-clinical-charcoal'}`}
-                                        title="2x Speed"
-                                    >
-                                        2x
-                                    </button>
-                                </div>
-
-                                <div className="h-6 w-px bg-clinical-charcoal/10 hidden sm:block"></div>
-
                                 {/* Filter Toggle */}
                                 <button
                                     onClick={toggleFilter}
@@ -357,16 +387,145 @@ export const PatientMonitorPage: React.FC = () => {
                             </div>
                         </div>
 
-                        <div className="relative flex-1 min-h-[560px] md:min-h-[600px] group">
-                            <div className="absolute inset-0 z-0 bg-white border border-clinical-charcoal/5 rounded-[2rem] overflow-y-auto overflow-x-hidden shadow-[0px_20px_40px_rgba(0,0,0,0.04)] flex flex-col transition-all duration-700 hover:shadow-[0px_30px_60px_rgba(0,0,0,0.08)] hover:-translate-y-1">
+                        <div className="relative flex-1 min-h-[560px] md:min-h-[600px] group flex flex-col bg-white border border-clinical-charcoal/5 rounded-[2rem] shadow-[0px_20px_40px_rgba(0,0,0,0.04)] transition-all duration-700 hover:shadow-[0px_30px_60px_rgba(0,0,0,0.08)] hover:-translate-y-1 overflow-hidden">
+                            <div className="relative flex-1 overflow-y-auto overflow-x-hidden">
                                 <ECGCanvas
-                                    paths={paths}
-                                    rPeaks={rPeaks}
+                                    paths={slicedPaths}
+                                    rPeaks={slicedRPeaks}
                                     speed={speed}
+                                    paperSpeed={speed}
                                     isAnomaly={clinicalStatus?.isAnomaly}
                                     classResult={aiClassResult}
                                     scale={scale}
                                 />
+                            </div>
+
+                            {/* Playback Control Bar */}
+                            <div className="flex-shrink-0 bg-white border-t border-clinical-charcoal/5 px-6 py-3.5 flex flex-col xl:flex-row items-center justify-between gap-4 z-20 select-none">
+                                {/* Left: Controls & Time Indicator */}
+                                <div className="flex items-center gap-3 w-full xl:w-auto justify-between xl:justify-start">
+                                    <div className="flex items-center gap-2">
+                                        <button
+                                            onClick={handlePlayPause}
+                                            className="flex items-center justify-center bg-clinical-blue text-white rounded-full w-10 h-10 hover:bg-clinical-blue/90 active:scale-95 transition-all shadow-sm outline-none"
+                                        >
+                                            <span className="material-symbols-outlined text-[22px] font-bold">
+                                                {isPlaying ? 'pause' : 'play_arrow'}
+                                            </span>
+                                        </button>
+                                        
+                                        <button
+                                            onClick={handleReplay}
+                                            className="flex items-center justify-center bg-clinical-surface border border-clinical-charcoal/10 text-clinical-charcoal hover:bg-clinical-surface/80 active:scale-95 transition-all rounded-full w-10 h-10 shadow-xs outline-none"
+                                        >
+                                            <span className="material-symbols-outlined text-[18px]">
+                                                replay
+                                            </span>
+                                        </button>
+                                    </div>
+
+                                    <div className="ml-2 flex flex-col justify-center">
+                                        <span className="text-[9px] font-bold text-clinical-charcoal/40 uppercase tracking-wider leading-none">
+                                            WAKTU REKAMAN
+                                        </span>
+                                        <span className="font-mono-data text-xs font-bold text-clinical-charcoal mt-1">
+                                            {(visibleCount / 250).toFixed(1)}s / {(paths.I.length / 250).toFixed(1)}s
+                                        </span>
+                                    </div>
+                                </div>
+
+                                {/* Center: Progress Slider */}
+                                <div className="flex-1 flex items-center gap-3 w-full px-2">
+                                    <input 
+                                        type="range"
+                                        min={0}
+                                        max={TOTAL_SAMPLES}
+                                        value={visibleCount}
+                                        onChange={handleSliderChange}
+                                        className="flex-1 h-1.5 bg-clinical-charcoal/10 rounded-full appearance-none cursor-pointer accent-clinical-blue focus:outline-none transition-all"
+                                        style={{
+                                            background: `linear-gradient(to right, #3B82F6 0%, #3B82F6 ${(visibleCount / TOTAL_SAMPLES) * 100}%, rgba(0, 0, 0, 0.1) ${(visibleCount / TOTAL_SAMPLES) * 100}%, rgba(0, 0, 0, 0.1) 100%)`
+                                        }}
+                                    />
+                                    <span className="text-xs font-bold text-clinical-charcoal/50 w-10 text-right font-mono-data">
+                                        {Math.round((visibleCount / TOTAL_SAMPLES) * 100)}%
+                                    </span>
+                                </div>
+
+                                {/* Right: Medical Configurations (Gain, Paper Speed, Playback Speed) */}
+                                <div className="flex items-center gap-3 flex-wrap justify-end w-full xl:w-auto">
+                                    {/* Gain Config */}
+                                    <div className="flex items-center gap-1.5 bg-clinical-surface p-1 rounded-full border border-clinical-charcoal/5">
+                                        <span className="text-[9px] font-bold text-clinical-charcoal/40 uppercase tracking-wider px-2 select-none">
+                                            Gain
+                                        </span>
+                                        <button
+                                            onClick={() => setGain(5)}
+                                            className={`px-2.5 py-1 rounded-full text-xs font-bold transition-all ${gain === 5 ? 'bg-white text-clinical-blue shadow-xs' : 'text-clinical-charcoal/60 hover:text-clinical-charcoal'}`}
+                                            title="5 mm/mV (0.5x)"
+                                        >
+                                            5
+                                        </button>
+                                        <button
+                                            onClick={() => setGain(10)}
+                                            className={`px-2.5 py-1 rounded-full text-xs font-bold transition-all ${gain === 10 ? 'bg-white text-clinical-blue shadow-xs' : 'text-clinical-charcoal/60 hover:text-clinical-charcoal'}`}
+                                            title="10 mm/mV (1x)"
+                                        >
+                                            10
+                                        </button>
+                                        <button
+                                            onClick={() => setGain(20)}
+                                            className={`px-2.5 py-1 rounded-full text-xs font-bold transition-all ${gain === 20 ? 'bg-white text-clinical-blue shadow-xs' : 'text-clinical-charcoal/60 hover:text-clinical-charcoal'}`}
+                                            title="20 mm/mV (2x)"
+                                        >
+                                            20
+                                        </button>
+                                    </div>
+
+                                    {/* Paper Speed Config */}
+                                    <div className="flex items-center gap-1.5 bg-clinical-surface p-1 rounded-full border border-clinical-charcoal/5">
+                                        <span className="text-[9px] font-bold text-clinical-charcoal/40 uppercase tracking-wider px-2 select-none">
+                                            Speed
+                                        </span>
+                                        <button
+                                            onClick={() => setSpeed(12.5)}
+                                            className={`px-2.5 py-1 rounded-full text-xs font-bold transition-all ${speed === 12.5 ? 'bg-white text-clinical-blue shadow-xs' : 'text-clinical-charcoal/60 hover:text-clinical-charcoal'}`}
+                                        >
+                                            12.5
+                                        </button>
+                                        <button
+                                            onClick={() => setSpeed(25)}
+                                            className={`px-2.5 py-1 rounded-full text-xs font-bold transition-all ${speed === 25 ? 'bg-white text-clinical-blue shadow-xs' : 'text-clinical-charcoal/60 hover:text-clinical-charcoal'}`}
+                                        >
+                                            25
+                                        </button>
+                                        <button
+                                            onClick={() => setSpeed(50)}
+                                            className={`px-2.5 py-1 rounded-full text-xs font-bold transition-all ${speed === 50 ? 'bg-white text-clinical-blue shadow-xs' : 'text-clinical-charcoal/60 hover:text-clinical-charcoal'}`}
+                                        >
+                                            50
+                                        </button>
+                                    </div>
+
+                                    {/* Playback Speed Multiplier */}
+                                    <div className="flex items-center gap-1 bg-clinical-surface p-1 rounded-full border border-clinical-charcoal/5">
+                                        <span className="text-[9px] font-bold text-clinical-charcoal/40 uppercase tracking-wider px-2 select-none">
+                                            Playback
+                                        </span>
+                                        <button
+                                            onClick={() => setPlaybackSpeed(1)}
+                                            className={`px-3 py-1 rounded-full text-xs font-bold transition-all ${playbackSpeed === 1 ? 'bg-white text-clinical-blue shadow-xs' : 'text-clinical-charcoal/60 hover:text-clinical-charcoal'}`}
+                                        >
+                                            1x
+                                        </button>
+                                        <button
+                                            onClick={() => setPlaybackSpeed(2)}
+                                            className={`px-3 py-1 rounded-full text-xs font-bold transition-all ${playbackSpeed === 2 ? 'bg-white text-clinical-blue shadow-xs' : 'text-clinical-charcoal/60 hover:text-clinical-charcoal'}`}
+                                        >
+                                            2x
+                                        </button>
+                                    </div>
+                                </div>
                             </div>
                         </div>
 
