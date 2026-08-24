@@ -24,8 +24,8 @@ export const ECGCalibrationModal: React.FC<ECGCalibrationModalProps> = ({ isOpen
     };
 
     return (
-        <div className="fixed inset-0 z-[150] flex items-center justify-center bg-clinical-charcoal/40 backdrop-blur-sm p-4 animate-in fade-in duration-200">
-            <div className="bg-white border border-clinical-charcoal/5 rounded-[2rem] p-8 shadow-2xl max-w-2xl w-full mx-4 animate-in zoom-in-50 fade-in duration-500 ease-spring text-center">
+        <div className="fixed inset-0 z-[150] flex items-center justify-center bg-clinical-charcoal/40 backdrop-blur-sm p-4 animate-in fade-in duration-200" onClick={onClose}>
+            <div className="bg-white border border-clinical-charcoal/5 rounded-[2rem] p-8 shadow-2xl max-w-2xl w-full mx-4 animate-in zoom-in-50 fade-in duration-500 ease-spring text-center" onClick={e => e.stopPropagation()}>
                 <div className="w-16 h-16 rounded-full bg-blue-50 flex items-center justify-center mb-6 text-clinical-blue mx-auto border border-blue-100">
                     <span className="material-symbols-outlined text-3xl">laptop_mac</span>
                 </div>

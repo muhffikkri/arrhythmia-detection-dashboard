@@ -305,7 +305,7 @@ export const EcgViewer: React.FC<EcgViewerProps> = ({ segment, speed = 25, timeO
 
                             {/* Dropdown Menu for Sub-Filters */}
                             {isFilterOn && showFilterMenu && (
-                                <div className="absolute bottom-12 right-0 bg-white border border-clinical-charcoal/10 rounded-[1.5rem] p-4 shadow-xl z-50 min-w-[220px] flex flex-col gap-2.5 animate-in fade-in slide-in-from-bottom-2 duration-200">
+                                <div className="absolute top-full right-0 mt-2 bg-white border border-clinical-charcoal/10 rounded-[1.5rem] p-4 shadow-xl z-[200] min-w-[220px] flex flex-col gap-2.5 animate-in fade-in slide-in-from-top-2 duration-200">
                                     <h4 className="text-[10px] font-bold text-clinical-charcoal/40 uppercase tracking-widest px-1">
                                         Pilih Filter Aktif
                                     </h4>

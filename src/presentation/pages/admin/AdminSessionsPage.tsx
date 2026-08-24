@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { AdminSidebar } from '../../components/layout/AdminSidebar';
 import { useSidebar } from '../../../application/context/SidebarContext';
@@ -11,7 +11,7 @@ import { API_URL } from '../../../config/env';
 
 export const AdminSessionsPage: React.FC = () => {
     const navigate = useNavigate();
-    const { isOpen, toggleSidebar } = useSidebar();
+    const { isOpen, toggleSidebar, isCollapsed } = useSidebar();
     const [sessions, setSessions] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
     const [patientNames, setPatientNames] = useState<Record<string, string>>({});
@@ -1004,11 +1004,11 @@ export const AdminSessionsPage: React.FC = () => {
             <div className="absolute inset-0 ecg-grid opacity-10 pointer-events-none z-0"></div>
             <AdminSidebar />
 
-            <main className={`flex flex-col transition-all duration-300 min-h-screen pb-12 w-full relative z-10 md:ml-[260px] md:w-[calc(100%-260px)] ${isOpen ? '' : 'ml-0'}`}>
+            <main className={`flex flex-col transition-all duration-300 min-h-screen pb-12 w-full relative z-10 ${isOpen ? 'md:ml-[260px] md:w-[calc(100%-260px)]' : 'md:ml-0 md:w-full'}`}>
                 {/* Header */}
                 <header className="sticky top-0 bg-clinical-surface/80 backdrop-blur-xl border-b border-clinical-charcoal/5 z-40 px-4 md:px-6 py-4 flex justify-between items-center w-full transition-all duration-300">
                     <div className="flex items-center gap-3">
-                        <button onClick={toggleSidebar} className="md:hidden flex items-center justify-center p-2 -ml-2 rounded-full hover:bg-white-container text-clinical-charcoal/70 transition-colors outline-none" title="Sembunyikan / Tampilkan Menu Utama">
+                        <button onClick={toggleSidebar} className="flex items-center justify-center p-2 -ml-2 rounded-full hover:bg-clinical-surface text-clinical-charcoal/70 transition-colors outline-none" title="Sembunyikan / Tampilkan Menu Utama">
                             <span className="material-symbols-outlined">menu</span>
                         </button>
                         <div>
@@ -1260,7 +1260,7 @@ export const AdminSessionsPage: React.FC = () => {
                                                     onChange={(e) => handleFrameFileChange(frame.id, 'json', e.target.files?.[0] || null)}
                                                     className="w-full text-xs text-clinical-charcoal/80 file:mr-2 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-[10px] file:font-bold file:bg-clinical-blue/10 file:text-clinical-blue hover:file:bg-clinical-blue/25 file:cursor-pointer"
                                                 />
-                                                {frame.jsonFile && <p className="text-[9px] text-emerald-600 font-bold mt-1">✓ {frame.jsonFile.name}</p>}
+                                                {frame.jsonFile && <p className="text-[9px] text-emerald-600 font-bold mt-1">âœ“ {frame.jsonFile.name}</p>}
                                             </div>
                                             <div>
                                                 <label className="block text-[10px] font-bold text-clinical-charcoal/50 uppercase tracking-wider mb-1">Upload Sinyal EKG (.csv)</label>
@@ -1270,7 +1270,7 @@ export const AdminSessionsPage: React.FC = () => {
                                                     onChange={(e) => handleFrameFileChange(frame.id, 'csv', e.target.files?.[0] || null)}
                                                     className="w-full text-xs text-clinical-charcoal/80 file:mr-2 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-[10px] file:font-bold file:bg-clinical-blue/10 file:text-clinical-blue hover:file:bg-clinical-blue/25 file:cursor-pointer"
                                                 />
-                                                {frame.csvFile && <p className="text-[9px] text-emerald-600 font-bold mt-1">✓ {frame.csvFile.name}</p>}
+                                                {frame.csvFile && <p className="text-[9px] text-emerald-600 font-bold mt-1">âœ“ {frame.csvFile.name}</p>}
                                             </div>
                                         </div>
                                     </div>
@@ -1412,3 +1412,5 @@ export const AdminSessionsPage: React.FC = () => {
         </div>
     );
 };
+
+

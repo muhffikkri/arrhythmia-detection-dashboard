@@ -1,4 +1,4 @@
-import React from 'react';
+﻿import React from 'react';
 
 export type ActionModalType = 'confirm' | 'success' | 'error' | 'warning';
 
@@ -64,7 +64,10 @@ export const ActionModal: React.FC<ActionModalProps> = ({
     };
 
     return (
-        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-charcoal/60 backdrop-blur-sm p-4 animate-in fade-in duration-200">
+        <div
+            className="fixed inset-0 z-[9999] flex items-center justify-center bg-charcoal/60 backdrop-blur-sm p-4 animate-in fade-in duration-200"
+            onClick={!isLoading ? onClose : undefined}
+        >
             <div 
                 className="bg-white rounded-2xl shadow-2xl border border-outline-variant/30 w-full max-w-sm overflow-hidden animate-in zoom-in-50 fade-in duration-500 ease-spring"
                 onClick={(e) => e.stopPropagation()}
@@ -101,3 +104,4 @@ export const ActionModal: React.FC<ActionModalProps> = ({
         </div>
     );
 };
+

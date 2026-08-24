@@ -19,7 +19,7 @@ interface DeviceRecord {
 }
 
 export const AdminDevicesPage: React.FC = () => {
-    const { isOpen, toggleSidebar } = useSidebar();
+    const { isOpen, toggleSidebar, isCollapsed } = useSidebar();
     const { data: devicesData, isLoading: loading, mutate: mutateDevices } = useCachedFetch('/api/admin/devices');
     const devices: DeviceRecord[] = devicesData || [];
     const [selectedDeviceQr, setSelectedDeviceQr] = useState<string | null>(null);
@@ -74,9 +74,9 @@ export const AdminDevicesPage: React.FC = () => {
             <div className="absolute inset-0 ecg-grid opacity-10 pointer-events-none z-0"></div>
             <AdminSidebar />
             
-            <main id="main-content" className={`pb-24 md:pb-12 transition-all duration-300 min-h-screen flex flex-col relative z-10 md:ml-[260px] ${isOpen ? '' : 'ml-0'}`}>
+            <main id="main-content" className={`pb-24 md:pb-12 transition-all duration-300 min-h-screen flex flex-col relative z-10 ${isOpen ? "md:ml-[260px]" : "md:ml-0"} ${isCollapsed ? "md:!ml-[72px]" : ""}`}>
                 <header className="sticky top-0 bg-clinical-surface/80 backdrop-blur-xl border-b border-clinical-charcoal/5 z-40 px-4 md:px-6 py-4 flex items-center gap-4 max-w-container-max mx-auto w-full transition-all duration-300">
-                    <button onClick={toggleSidebar} className="md:hidden flex items-center justify-center p-2 -ml-2 rounded-full hover:bg-white-container text-clinical-charcoal/70 transition-colors outline-none" title="Sembunyikan / Tampilkan Menu Utama">
+                    <button onClick={toggleSidebar} className="flex items-center justify-center p-2 -ml-2 rounded-full hover:bg-clinical-surface text-clinical-charcoal/70 transition-colors outline-none" title="Sembunyikan / Tampilkan Menu Utama">
                         <span className="material-symbols-outlined">menu</span>
                     </button>
                     <div>
@@ -166,8 +166,8 @@ export const AdminDevicesPage: React.FC = () => {
 
             {/* QR Code Modal */}
             {selectedDeviceQr && (
-                <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-charcoal/60 backdrop-blur-sm animate-in fade-in duration-200">
-                    <div className="bg-white w-full max-w-sm rounded-[2rem] p-8 text-center shadow-2xl flex flex-col items-center">
+                <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-charcoal/60 backdrop-blur-sm animate-in fade-in duration-200" onClick={() => setSelectedDeviceQr(null)}>
+                    <div className="bg-white w-full max-w-sm rounded-[2rem] p-8 text-center shadow-2xl flex flex-col items-center" onClick={e => e.stopPropagation()}>
                         <h3 className="text-2xl font-bold text-charcoal mb-2">QR Code Alat</h3>
                         <p className="text-sm text-on-surface-variant mb-6">Minta pasien memindai QR Code ini untuk terhubung dengan alat.</p>
                         
@@ -193,8 +193,8 @@ export const AdminDevicesPage: React.FC = () => {
 
             {/* Registration Modal */}
             {isRegisterModalOpen && (
-                <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-charcoal/60 backdrop-blur-sm animate-in fade-in duration-200">
-                    <div className="bg-white w-full max-w-lg rounded-[2rem] p-8 shadow-2xl flex flex-col">
+                <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-charcoal/60 backdrop-blur-sm animate-in fade-in duration-200" onClick={() => setIsRegisterModalOpen(false)}>
+                    <div className="bg-white w-full max-w-lg rounded-[2rem] p-8 shadow-2xl flex flex-col" onClick={e => e.stopPropagation()}>
                         <h3 className="text-2xl font-bold text-charcoal mb-6 text-center">{editingDeviceId ? 'Edit Alat' : 'Registrasi Alat Baru'}</h3>
                         <form onSubmit={handleRegister} className="flex flex-col gap-4">
                             <div>
@@ -240,3 +240,5 @@ export const AdminDevicesPage: React.FC = () => {
         </div>
     );
 };
+
+

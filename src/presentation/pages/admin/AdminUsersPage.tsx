@@ -30,7 +30,7 @@ interface DeviceRecord {
 
 export const AdminUsersPage: React.FC = () => {
     const navigate = useNavigate();
-    const { isOpen, toggleSidebar } = useSidebar();
+    const { isOpen, toggleSidebar, isCollapsed } = useSidebar();
     const [activeTab, setActiveTab] = useStickyState<'pasien' | 'dokter'>('pasien', 'adminUsersTab');
     const [currentPage, setCurrentPage] = useStickyState(1, 'adminUsersPage');
     const itemsPerPage = 10;
@@ -425,9 +425,9 @@ export const AdminUsersPage: React.FC = () => {
             <div className="absolute inset-0 ecg-grid opacity-10 pointer-events-none z-0"></div>
             <AdminSidebar />
 
-            <main id="main-content" className={`pb-24 md:pb-12 transition-all duration-300 min-h-screen flex flex-col relative z-10 md:ml-[260px] ${isOpen ? '' : 'ml-0'}`}>
+            <main id="main-content" className={`pb-24 md:pb-12 transition-all duration-300 min-h-screen flex flex-col relative z-10 ${isOpen ? "md:ml-[260px]" : "md:ml-0"} ${isCollapsed ? "md:!ml-[72px]" : ""}`}>
                 <header className="sticky top-0 bg-clinical-surface/80 backdrop-blur-xl border-b border-clinical-charcoal/5 z-40 px-4 md:px-6 py-4 flex items-center gap-4 max-w-container-max mx-auto w-full transition-all duration-300">
-                    <button onClick={toggleSidebar} className="md:hidden flex items-center justify-center p-2 -ml-2 rounded-full hover:bg-white-container text-clinical-charcoal/70 transition-colors outline-none" title="Sembunyikan / Tampilkan Menu Utama">
+                    <button onClick={toggleSidebar} className="flex items-center justify-center p-2 -ml-2 rounded-full hover:bg-clinical-surface text-clinical-charcoal/70 transition-colors outline-none" title="Sembunyikan / Tampilkan Menu Utama">
                         <span className="material-symbols-outlined">menu</span>
                     </button>
                     <div>
@@ -530,8 +530,8 @@ export const AdminUsersPage: React.FC = () => {
 
             {/* Add User Modal */}
             {showAddModal && (
-                <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-clinical-charcoal/60 backdrop-blur-sm animate-in fade-in duration-200">
-                    <div className="bg-white rounded-3xl w-full max-w-md shadow-2xl border border-clinical-charcoal/10 overflow-hidden flex flex-col">
+                <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-clinical-charcoal/60 backdrop-blur-sm animate-in fade-in duration-200" onClick={() => setShowAddModal(false)}>
+                    <div className="bg-white rounded-3xl w-full max-w-md shadow-2xl border border-clinical-charcoal/10 overflow-hidden flex flex-col" onClick={e => e.stopPropagation()}>
                         <div className="px-6 py-5 border-b border-clinical-charcoal/5 flex items-center justify-between bg-white/50 backdrop-blur-sm">
                             <h3 className="font-bold font-display text-xl text-clinical-charcoal">Tambah Pengguna Manual</h3>
                             <button onClick={() => setShowAddModal(false)} className="text-clinical-charcoal/50 hover:text-clinical-charcoal transition-colors"><span className="material-symbols-outlined">close</span></button>
@@ -544,7 +544,7 @@ export const AdminUsersPage: React.FC = () => {
                             </div>
                             <div>
                                 <label className="block text-[11px] font-bold text-clinical-charcoal/60 uppercase tracking-widest mb-2">Password (Minimal 6 karakter)</label>
-                                <input type="password" required minLength={6} value={addPassword} onChange={e => setAddPassword(e.target.value)} className="w-full bg-clinical-surface/50 border border-clinical-charcoal/10 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-clinical-blue focus:ring-1 focus:ring-clinical-blue transition-all" placeholder="••••••" />
+                                <input type="password" required minLength={6} value={addPassword} onChange={e => setAddPassword(e.target.value)} className="w-full bg-clinical-surface/50 border border-clinical-charcoal/10 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-clinical-blue focus:ring-1 focus:ring-clinical-blue transition-all" placeholder="â€¢â€¢â€¢â€¢â€¢â€¢" />
                             </div>
                             <div>
                                 <label className="block text-[11px] font-bold text-clinical-charcoal/60 uppercase tracking-widest mb-2">Role</label>
@@ -592,8 +592,8 @@ export const AdminUsersPage: React.FC = () => {
 
             {/* Detail & Sync Modal */}
             {selectedUser && (
-                <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-clinical-charcoal/60 backdrop-blur-sm animate-in fade-in duration-200">
-                    <div className="bg-white rounded-3xl w-full max-w-xl shadow-2xl border border-clinical-charcoal/10 overflow-hidden flex flex-col max-h-[90vh]">
+                <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-clinical-charcoal/60 backdrop-blur-sm animate-in fade-in duration-200" onClick={closeDetailModal}>
+                    <div className="bg-white rounded-3xl w-full max-w-xl shadow-2xl border border-clinical-charcoal/10 overflow-hidden flex flex-col max-h-[90vh]" onClick={e => e.stopPropagation()}>
                         <div className="px-6 py-5 border-b border-clinical-charcoal/5 flex items-center justify-between bg-white/50 backdrop-blur-sm shrink-0">
                             <h3 className="font-bold font-display text-xl text-clinical-charcoal">Detail & Sinkronisasi Pengguna</h3>
                             <button onClick={closeDetailModal} className="text-clinical-charcoal/50 hover:text-clinical-charcoal transition-colors"><span className="material-symbols-outlined">close</span></button>
@@ -705,3 +705,5 @@ export const AdminUsersPage: React.FC = () => {
         </div>
     );
 };
+
+

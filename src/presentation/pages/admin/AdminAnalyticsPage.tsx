@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @fileoverview Halaman UI: Analytics & History Page
  * Berfungsi untuk meninjau ulang rekaman EKG pasien dari masa lalu (Historical Review).
  * Dokter dapat menavigasi segmen 10-detik spesifik menggunakan Timeline Bar.
@@ -43,7 +43,7 @@ export const AdminAnalyticsPage: React.FC = () => {
     const [showPatientSelector, setShowPatientSelector] = useState(!sessionId);
     const [selectedPatientFilter, setSelectedPatientFilter] = useState<string>('ALL');
 
-    const { isOpen, toggleSidebar } = useSidebar();
+    const { isOpen, toggleSidebar, isCollapsed } = useSidebar();
     const { connectedPatients } = useConnection();
 
     const [events, setEvents] = useState<TimelineEvent[]>([]);
@@ -346,12 +346,12 @@ export const AdminAnalyticsPage: React.FC = () => {
             <div className="absolute inset-0 ecg-grid opacity-10 pointer-events-none z-0"></div>
             <AdminSidebar />
             
-            <main className={`flex flex-col transition-all duration-300 min-h-screen pb-12 w-full relative z-10 md:ml-[260px] md:w-[calc(100%-260px)] ${isOpen ? '' : 'ml-0'}`}>
+            <main className={`flex flex-col transition-all duration-300 min-h-screen pb-12 w-full relative z-10 ${isOpen ? 'md:ml-[260px] md:w-[calc(100%-260px)]' : 'md:ml-0 md:w-full'}`}>
             {/* --- HEADER KOMPONEN --- */}
             <header className="sticky top-0 bg-clinical-surface/80 backdrop-blur-xl border-b border-clinical-charcoal/5 z-40 px-4 md:px-6 py-4 flex justify-between items-center max-w-container-max mx-auto w-full transition-all duration-300">
                 
                 <div className="flex items-center gap-3">
-                    <button onClick={toggleSidebar} className="md:hidden flex items-center justify-center p-2 -ml-2 rounded-full hover:bg-white-container text-clinical-charcoal/70 transition-colors outline-none" title="Sembunyikan / Tampilkan Menu Utama">
+                    <button onClick={toggleSidebar} className="flex items-center justify-center p-2 -ml-2 rounded-full hover:bg-clinical-surface text-clinical-charcoal/70 transition-colors outline-none" title="Sembunyikan / Tampilkan Menu Utama">
                         <span className="material-symbols-outlined">menu</span>
                     </button>
                     <div>
@@ -448,7 +448,7 @@ export const AdminAnalyticsPage: React.FC = () => {
                                         </div>
                                         <div>
                                             <h4 className="font-headline-md text-sm font-body-sm text-clinical-charcoal truncate max-w-[200px]">{session.patient_name || 'Pasien Anonim'}</h4>
-                                            <p className="text-xs font-body-sm text-clinical-charcoal/70 font-mono-data mt-0.5">Sesi: {session.id.substring(0, 8)}... • SN: {session.device_id}</p>
+                                            <p className="text-xs font-body-sm text-clinical-charcoal/70 font-mono-data mt-0.5">Sesi: {session.id.substring(0, 8)}... â€¢ SN: {session.device_id}</p>
                                             <p className="text-[10px] text-clinical-charcoal/70 mt-1 font-headline-md">{new Date(session.started_at).toLocaleString('id-ID')}</p>
                                         </div>
                                     </div>
@@ -640,7 +640,7 @@ export const AdminAnalyticsPage: React.FC = () => {
                             </div>
                             <div className="bg-white/10 p-3 rounded-lg border border-white/5">
                                 <p className="text-[9px] text-white/60 uppercase">Confidence</p>
-                                <p className="text-sm font-bold text-brand-red">{aiMetrics?.confidence_percent ? `${aiMetrics.confidence_percent.toFixed(2)}%` : '--'}</p>
+                                <p className={`text-sm font-bold ${aiMetrics?.confidence_percent != null ? (aiMetrics.confidence_percent >= 90 ? "text-green-400" : aiMetrics.confidence_percent >= 70 ? "text-yellow-400" : "text-alert-red") : "text-white/50"}`}>{aiMetrics?.confidence_percent != null ? `${aiMetrics.confidence_percent.toFixed(2)}%` : "--"}</p>
                             </div>
                             <div className="col-span-2 bg-white/10 p-3 rounded-lg border border-white/5 flex justify-between items-center">
                                 <div>
@@ -731,7 +731,7 @@ export const AdminAnalyticsPage: React.FC = () => {
                             </div>
                             <div>
                                 <p className="text-[10px] text-on-surface-variant uppercase font-bold tracking-wider">Temperature</p>
-                                <p className="text-sm font-mono font-semibold text-charcoal">{system.cpu_temperature_c?.toFixed(1) || '--'} °C</p>
+                                <p className="text-sm font-mono font-semibold text-charcoal">{system.cpu_temperature_c?.toFixed(1) || '--'} Â°C</p>
                             </div>
                             <div>
                                 <p className="text-[10px] text-on-surface-variant uppercase font-bold tracking-wider">Uptime</p>
@@ -806,3 +806,4 @@ export const AdminAnalyticsPage: React.FC = () => {
         </div>
     );
 };
+

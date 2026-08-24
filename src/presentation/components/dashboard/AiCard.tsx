@@ -138,8 +138,8 @@ export const AiCard: React.FC<AiCardProps> = ({
         <div className="bg-white rounded-[2rem] p-8 shadow-[0px_20px_40px_rgba(0,0,0,0.04)] border border-clinical-charcoal/5 relative overflow-hidden flex flex-col justify-center min-h-[160px] transition-all duration-700 hover:-translate-y-1 hover:shadow-[0px_30px_60px_rgba(0,0,0,0.08)] group">
             {/* Pop Up Konfirmasi Sebelum Submit */}
             {showConfirmModal && createPortal(
-                <div className="fixed inset-0 z-[100] bg-clinical-charcoal/40 backdrop-blur-sm flex items-center justify-center p-4">
-                    <div className="bg-white rounded-[2rem] p-8 shadow-2xl border border-outline-variant w-full max-w-sm text-center animate-in fade-in zoom-in duration-200">
+                <div className="fixed inset-0 z-[100] bg-clinical-charcoal/40 backdrop-blur-sm flex items-center justify-center p-4" onClick={() => setShowConfirmModal(false)}>
+                    <div className="bg-white rounded-[2rem] p-8 shadow-2xl border border-outline-variant w-full max-w-sm text-center animate-in fade-in zoom-in duration-200" onClick={e => e.stopPropagation()}>
                         <span className="material-symbols-outlined text-clinical-blue text-[48px] mb-4 block">help_clinic</span>
                         <h3 className="text-lg font-headline-lg text-clinical-charcoal mb-3">Konfirmasi Keputusan Medis</h3>
                         <p className="text-sm font-body-sm text-clinical-charcoal/70 mb-8 leading-relaxed">Apakah klasifikasi dan catatan Anda sudah sesuai? Data yang dikonfirmasi akan tercatat secara final di sistem.</p>
@@ -164,8 +164,8 @@ export const AiCard: React.FC<AiCardProps> = ({
 
             {/* Pop Up Navigasi Pasca Submit */}
             {showPostSubmitModal && createPortal(
-                <div className="fixed inset-0 z-[100] bg-clinical-charcoal/40 backdrop-blur-sm flex items-center justify-center p-4">
-                    <div className="bg-white rounded-[2rem] p-8 shadow-2xl border border-outline-variant w-full max-w-sm text-center animate-in fade-in zoom-in duration-200">
+                <div className="fixed inset-0 z-[100] bg-clinical-charcoal/40 backdrop-blur-sm flex items-center justify-center p-4" onClick={() => setShowPostSubmitModal(false)}>
+                    <div className="bg-white rounded-[2rem] p-8 shadow-2xl border border-outline-variant w-full max-w-sm text-center animate-in fade-in zoom-in duration-200" onClick={e => e.stopPropagation()}>
                         <span className="material-symbols-outlined text-signal-green text-[48px] mb-4 block">check_circle</span>
                         <h3 className="text-lg font-headline-lg text-clinical-charcoal mb-3">Sukses Divalidasi</h3>
                         <p className="text-sm font-body-sm text-clinical-charcoal/70 mb-8 leading-relaxed">Hasil tinjauan medis telah berhasil terekam ke dalam database.</p>
@@ -207,8 +207,8 @@ export const AiCard: React.FC<AiCardProps> = ({
 
             {/* Pop Up Hapus Validasi */}
             {showDeleteModal && createPortal(
-                <div className="fixed inset-0 z-[100] bg-clinical-charcoal/40 backdrop-blur-sm flex items-center justify-center p-4">
-                    <div className="bg-white rounded-[2rem] p-8 shadow-2xl border border-outline-variant w-full max-w-sm text-center animate-in fade-in zoom-in duration-200">
+                <div className="fixed inset-0 z-[100] bg-clinical-charcoal/40 backdrop-blur-sm flex items-center justify-center p-4" onClick={() => setShowDeleteModal(false)}>
+                    <div className="bg-white rounded-[2rem] p-8 shadow-2xl border border-outline-variant w-full max-w-sm text-center animate-in fade-in zoom-in duration-200" onClick={e => e.stopPropagation()}>
                         <span className="material-symbols-outlined text-alert-red text-[48px] mb-4 block">delete_forever</span>
                         <h3 className="text-lg font-headline-lg text-clinical-charcoal mb-3">Hapus Validasi?</h3>
                         <p className="text-sm font-body-sm text-clinical-charcoal/70 mb-8 leading-relaxed">Apakah Anda yakin ingin menghapus data validasi pada frame ini? Data keputusan medis sebelumnya akan di-reset dan dihapus.</p>
