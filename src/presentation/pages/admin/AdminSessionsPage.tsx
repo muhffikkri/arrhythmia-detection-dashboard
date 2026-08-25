@@ -92,8 +92,8 @@ export const AdminSessionsPage: React.FC = () => {
     const [newSessionId, setNewSessionId] = useState<string>('');
     const [startedAt, setStartedAt] = useState<string>('');
     const [newDevNote, setNewDevNote] = useState<string>('');
-    const [framesToUpload, setFramesToUpload] = useState<Array<{ id: number, jsonFile: File | null, csvFile: File | null, predFile: File | null }>>([
-        { id: Date.now(), jsonFile: null, csvFile: null, predFile: null }
+    const [framesToUpload, setFramesToUpload] = useState<Array<{ id: number, jsonFile: File | null, csvFile: File | null, predFile: File | null, sysFile: File | null }>>([
+        { id: Date.now(), jsonFile: null, csvFile: null, predFile: null, sysFile: null }
     ]);
     const [isUploading, setIsUploading] = useState<boolean>(false);
     const [uploadProgress, setUploadProgress] = useState<string>('');
@@ -109,7 +109,7 @@ export const AdminSessionsPage: React.FC = () => {
     const [loadingFrames, setLoadingFrames] = useState<boolean>(false);
 
     const addFrameSlot = () => {
-        setFramesToUpload(prev => [...prev, { id: Date.now(), jsonFile: null, csvFile: null, predFile: null }]);
+        setFramesToUpload(prev => [...prev, { id: Date.now(), jsonFile: null, csvFile: null, predFile: null, sysFile: null }]);
     };
 
     const removeFrameSlot = (id: number) => {
@@ -124,7 +124,7 @@ export const AdminSessionsPage: React.FC = () => {
         
         const files = Array.from(e.target.files);
         // Group by base name
-        const pairs = new Map<string, { jsonFile: File | null, csvFile: File | null, predFile: File | null }>();
+        const pairs = new Map<string, { jsonFile: File | null, csvFile: File | null, predFile: File | null, sysFile: File | null }>();
         
         files.forEach(file => {
             const pathSegments = file.webkitRelativePath.split('/');
@@ -135,11 +135,13 @@ export const AdminSessionsPage: React.FC = () => {
                 const baseName = match ? match[1] : filename.substring(0, filename.lastIndexOf('.'));
                 
                 if (!pairs.has(baseName)) {
-                    pairs.set(baseName, { jsonFile: null, csvFile: null, predFile: null });
+                    pairs.set(baseName, { jsonFile: null, csvFile: null, predFile: null, sysFile: null });
                 }
                 const pair = pairs.get(baseName)!;
                 if (filename.endsWith('prediction.json')) {
                     pair.predFile = file;
+                } else if (filename.endsWith('system.json')) {
+                    pair.sysFile = file;
                 } else if (filename.endsWith('.json')) {
                     pair.jsonFile = file;
                 }
@@ -154,14 +156,15 @@ export const AdminSessionsPage: React.FC = () => {
                 id: Date.now() + index,
                 jsonFile: p.jsonFile,
                 csvFile: p.csvFile,
-                predFile: p.predFile
+                predFile: p.predFile,
+                sysFile: p.sysFile
             }));
 
         if (validFrames.length > 0) {
             setFramesToUpload(validFrames);
             alert(`Berhasil mendeteksi ${validFrames.length} frame pasangan (.json, .csv, prediction.json) dari folder!`);
         } else {
-            alert("Tidak ditemukan pasangan 3 file (.json, .csv, prediction.json) yang valid dalam folder tersebut.");
+            alert("Tidak ditemukan pasangan 3 file utama (.json, .csv, prediction.json) yang valid dalam folder tersebut.");
         }
     };
 
@@ -198,7 +201,7 @@ export const AdminSessionsPage: React.FC = () => {
         setStartedAt(localISOTime);
         
         setNewDevNote('');
-        setFramesToUpload([{ id: Date.now(), jsonFile: null, csvFile: null, predFile: null }]);
+        setFramesToUpload([{ id: Date.now(), jsonFile: null, csvFile: null, predFile: null, sysFile: null }]);
         setShowAddModal(true);
     };
 
@@ -314,9 +317,14 @@ export const AdminSessionsPage: React.FC = () => {
                     formData.append("files", new File([frame.predFile], predNewName, { type: frame.predFile.type || 'application/json' }));
                 }
                 
-                if (frame.jsonFile) {
+                if (frame.sysFile) {
                     const sysNewName = `${timestamp}_frame_${idStr}_system.json`;
-                    formData.append("files", new File([frame.jsonFile], sysNewName, { type: frame.jsonFile.type || 'application/json' }));
+                    formData.append("files", new File([frame.sysFile], sysNewName, { type: frame.sysFile.type || 'application/json' }));
+                }
+
+                if (frame.jsonFile) {
+                    const metaNewName = `${timestamp}_frame_${idStr}_mv.json`;
+                    formData.append("files", new File([frame.jsonFile], metaNewName, { type: frame.jsonFile.type || 'application/json' }));
                 }
             });
 
