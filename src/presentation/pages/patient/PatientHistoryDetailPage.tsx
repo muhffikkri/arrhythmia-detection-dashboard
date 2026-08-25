@@ -301,56 +301,7 @@ export const PatientHistoryDetailPage: React.FC = () => {
                                     </div>
                                 </div>
                                 
-                                {/* Download Action Menu */}
-                                <div className="flex items-center gap-2 relative z-[99999]" ref={downloadMenuRef}>
-                                    <button
-                                        onClick={() => setShowDownloadMenu(!showDownloadMenu)}
-                                        className="bg-clinical-surface hover:bg-clinical-charcoal/5 border border-clinical-charcoal/10 px-4 py-2 rounded-full font-bold text-xs flex items-center gap-2 transition-all duration-300 outline-none hover:-translate-y-0.5"
-                                        title="Unduh data EKG untuk analisis offline"
-                                    >
-                                        <span className="material-symbols-outlined text-[16px]">download</span>
-                                        Download EKG Data
-                                        <span className="material-symbols-outlined text-[14px]">
-                                            {showDownloadMenu ? 'expand_less' : 'expand_more'}
-                                        </span>
-                                    </button>
 
-                                    {showDownloadMenu && (
-                                        <div className="absolute right-0 top-11 bg-white border border-clinical-charcoal/10 rounded-[1.5rem] p-3 shadow-xl z-[999] min-w-[240px] flex flex-col gap-2 animate-in fade-in slide-in-from-top-2 duration-200">
-                                            <h4 className="text-[10px] font-bold text-clinical-charcoal/40 uppercase tracking-widest px-2 pt-1">
-                                                Unduh Frame Aktif (10s)
-                                            </h4>
-                                            <button
-                                                onClick={() => { downloadSegmentCSV(); setShowDownloadMenu(false); }}
-                                                className="flex items-center gap-2.5 px-3 py-2 text-left text-xs font-bold text-clinical-charcoal hover:bg-clinical-surface/70 rounded-xl transition-all"
-                                            >
-                                                <span className="material-symbols-outlined text-[16px] text-emerald-600">table_rows</span>
-                                                Unduh CSV (Excel)
-                                            </button>
-                                            <button
-                                                onClick={() => { downloadSegmentJSON(); setShowDownloadMenu(false); }}
-                                                className="flex items-center gap-2.5 px-3 py-2 text-left text-xs font-bold text-clinical-charcoal hover:bg-clinical-surface/70 rounded-xl transition-all"
-                                            >
-                                                <span className="material-symbols-outlined text-[16px] text-blue-600">code</span>
-                                                Unduh Raw JSON
-                                            </button>
-
-                                            <div className="border-t border-clinical-charcoal/5 my-1"></div>
-
-                                            <h4 className="text-[10px] font-bold text-clinical-charcoal/40 uppercase tracking-widest px-2">
-                                                Unduh Seluruh Sesi
-                                            </h4>
-                                            <button
-                                                onClick={() => { downloadSessionJSON(); setShowDownloadMenu(false); }}
-                                                className="flex items-center gap-2.5 px-3 py-2 text-left text-xs font-bold text-clinical-charcoal hover:bg-clinical-surface/70 rounded-xl transition-all"
-                                            >
-                                                <span className="material-symbols-outlined text-[16px] text-purple-600">folder_zip</span>
-                                                Unduh Sesi Lengkap (JSON)
-                                            </button>
-                                        </div>
-                                    )}
-                                </div>
-                                
                             </div>
 
                             {/* Pembungkus Kanvas 7-Lead */}
@@ -388,6 +339,58 @@ export const PatientHistoryDetailPage: React.FC = () => {
                                 </div>
                             )}
 
+                            {/* Download Action Menu (Moved to bottom) */}
+                            <div className="flex justify-end w-full mt-2">
+                                <div className="flex items-center gap-2 relative z-[99999]" ref={downloadMenuRef}>
+                                    <button
+                                        onClick={() => setShowDownloadMenu(!showDownloadMenu)}
+                                        className="bg-clinical-surface hover:bg-clinical-charcoal/5 border border-clinical-charcoal/10 px-4 py-2 rounded-full font-bold text-xs flex items-center gap-2 transition-all duration-300 outline-none hover:-translate-y-0.5 shadow-sm"
+                                        title="Unduh data EKG untuk analisis offline"
+                                    >
+                                        <span className="material-symbols-outlined text-[16px]">download</span>
+                                        Download EKG Data
+                                        <span className="material-symbols-outlined text-[14px]">
+                                            {showDownloadMenu ? 'expand_more' : 'expand_less'}
+                                        </span>
+                                    </button>
+
+                                    {showDownloadMenu && (
+                                        <div className="absolute right-0 bottom-full mb-2 bg-white border border-clinical-charcoal/10 rounded-[1.5rem] p-3 shadow-xl z-[999] min-w-[240px] flex flex-col gap-2 animate-in fade-in slide-in-from-bottom-2 duration-200">
+                                            <h4 className="text-[10px] font-bold text-clinical-charcoal/40 uppercase tracking-widest px-2 pt-1">
+                                                Unduh Frame Aktif (10s)
+                                            </h4>
+                                            <button
+                                                onClick={() => { downloadSegmentCSV(); setShowDownloadMenu(false); }}
+                                                className="flex items-center gap-2.5 px-3 py-2 text-left text-xs font-bold text-clinical-charcoal hover:bg-clinical-surface/70 rounded-xl transition-all"
+                                            >
+                                                <span className="material-symbols-outlined text-[16px] text-emerald-600">table_rows</span>
+                                                Unduh CSV (Excel)
+                                            </button>
+                                            <button
+                                                onClick={() => { downloadSegmentJSON(); setShowDownloadMenu(false); }}
+                                                className="flex items-center gap-2.5 px-3 py-2 text-left text-xs font-bold text-clinical-charcoal hover:bg-clinical-surface/70 rounded-xl transition-all"
+                                            >
+                                                <span className="material-symbols-outlined text-[16px] text-blue-600">code</span>
+                                                Unduh Raw JSON
+                                            </button>
+
+                                            <div className="border-t border-clinical-charcoal/5 my-1"></div>
+
+                                            <h4 className="text-[10px] font-bold text-clinical-charcoal/40 uppercase tracking-widest px-2">
+                                                Unduh Seluruh Sesi
+                                            </h4>
+                                            <button
+                                                onClick={() => { downloadSessionJSON(); setShowDownloadMenu(false); }}
+                                                className="flex items-center gap-2.5 px-3 py-2 text-left text-xs font-bold text-clinical-charcoal hover:bg-clinical-surface/70 rounded-xl transition-all"
+                                            >
+                                                <span className="material-symbols-outlined text-[16px] text-purple-600">folder_zip</span>
+                                                Unduh Sesi Lengkap (JSON)
+                                            </button>
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+                            
                         </section>
 
                         {/* KOLOM KANAN: DETAIL ANALISIS HISTORIS */}
