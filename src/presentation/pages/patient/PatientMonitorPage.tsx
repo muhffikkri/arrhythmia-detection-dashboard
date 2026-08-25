@@ -366,49 +366,6 @@ export const PatientMonitorPage: React.FC = () => {
                         <div className="bg-white rounded-[2rem] px-6 py-4 flex flex-wrap justify-between items-center shadow-[0px_20px_40px_rgba(0,0,0,0.04)] border border-clinical-charcoal/5 gap-4 transition-all duration-700">
                             
                             <div className="flex flex-wrap items-center gap-3 w-full lg:w-auto overflow-x-auto custom-scrollbar pb-2 lg:pb-0">
-                                {/* Filter Toggle */}
-                                <div className="relative z-[9999]">
-                                    <button
-                                        onClick={() => setShowFilterPopup(!showFilterPopup)}
-                                        className={`${isFilterOn || filterConfig.baselineBlocker || filterConfig.hfDenoise || filterConfig.zScoreNorm ? 'bg-blue-50 text-clinical-blue border-blue-100' : 'bg-clinical-surface text-clinical-charcoal/60 border-clinical-charcoal/5'} border px-4 py-1.5 rounded-full font-bold uppercase tracking-wider text-[10px] transition-all duration-300 flex items-center gap-2 outline-none hover:-translate-y-0.5 hover:shadow-sm`}
-                                        title="Konfigurasi Filter Sinyal"
-                                    >
-                                        <span className="material-symbols-outlined text-[16px]">
-                                            {isFilterOn ? 'filter_alt' : 'filter_alt_off'}
-                                        </span>
-                                        <span className="hidden sm:inline">Filter</span>
-                                    </button>
-                                    
-                                    {showFilterPopup && (
-                                        <div className="absolute top-full mt-2 left-0 w-56 bg-white border border-clinical-charcoal/10 rounded-xl shadow-[0_20px_40px_rgba(0,0,0,0.2)] py-3 px-4 z-[9999] flex flex-col gap-3">
-                                            <h4 className="text-[10px] font-bold text-clinical-charcoal/40 uppercase tracking-wider mb-1">Konfigurasi Filter</h4>
-                                            
-                                            <label className="flex items-center justify-between cursor-pointer group">
-                                                <span className="text-xs font-bold text-clinical-charcoal group-hover:text-clinical-blue transition-colors">Baseline Blocker</span>
-                                                <input type="checkbox" checked={filterConfig.baselineBlocker} onChange={() => setFilterConfig(p => ({...p, baselineBlocker: !p.baselineBlocker}))} className="accent-clinical-blue w-4 h-4 rounded" />
-                                            </label>
-                                            
-                                            <label className="flex items-center justify-between cursor-pointer group">
-                                                <span className="text-xs font-bold text-clinical-charcoal group-hover:text-clinical-blue transition-colors">HF Denoise</span>
-                                                <input type="checkbox" checked={filterConfig.hfDenoise} onChange={() => setFilterConfig(p => ({...p, hfDenoise: !p.hfDenoise}))} className="accent-clinical-blue w-4 h-4 rounded" />
-                                            </label>
-                                            
-                                            <label className="flex items-center justify-between cursor-pointer group">
-                                                <span className="text-xs font-bold text-clinical-charcoal group-hover:text-clinical-blue transition-colors">Bandpass 0.5-40Hz</span>
-                                                <input type="checkbox" checked={filterConfig.bandpass} onChange={() => {
-                                                    const newVal = !filterConfig.bandpass;
-                                                    setFilterConfig(p => ({...p, bandpass: newVal}));
-                                                    if (isFilterOn !== newVal) toggleFilter();
-                                                }} className="accent-clinical-blue w-4 h-4 rounded" />
-                                            </label>
-                                            
-                                            <label className="flex items-center justify-between cursor-pointer group">
-                                                <span className="text-xs font-bold text-clinical-charcoal group-hover:text-clinical-blue transition-colors">Z-Score Norm</span>
-                                                <input type="checkbox" checked={filterConfig.zScoreNorm} onChange={() => setFilterConfig(p => ({...p, zScoreNorm: !p.zScoreNorm}))} className="accent-clinical-blue w-4 h-4 rounded" />
-                                            </label>
-                                        </div>
-                                    )}
-                                </div>
                             </div>
 
                             <div className="flex items-center justify-end w-full lg:w-auto">
@@ -463,6 +420,49 @@ export const PatientMonitorPage: React.FC = () => {
                                                 replay
                                             </span>
                                         </button>
+                                        
+                                        {/* Filter Toggle */}
+                                        <div className="relative z-[9999]">
+                                            <button
+                                                onClick={() => setShowFilterPopup(!showFilterPopup)}
+                                                className={`h-10 px-4 rounded-full font-bold uppercase tracking-wider text-[10px] transition-all duration-300 flex items-center justify-center gap-2 outline-none hover:-translate-y-0.5 hover:shadow-sm border ${isFilterOn || filterConfig.baselineBlocker || filterConfig.hfDenoise || filterConfig.zScoreNorm ? 'bg-blue-50 text-clinical-blue border-blue-100' : 'bg-clinical-surface text-clinical-charcoal/60 border-clinical-charcoal/10'}`}
+                                                title="Konfigurasi Filter Sinyal"
+                                            >
+                                                <span className="material-symbols-outlined text-[16px]">
+                                                    {isFilterOn ? 'filter_alt' : 'filter_alt_off'}
+                                                </span>
+                                            </button>
+                                            
+                                            {showFilterPopup && (
+                                                <div className="absolute bottom-full mb-2 left-0 w-56 bg-white border border-clinical-charcoal/10 rounded-xl shadow-[0_20px_40px_rgba(0,0,0,0.2)] py-3 px-4 z-[9999] flex flex-col gap-3 animate-in fade-in slide-in-from-bottom-2 duration-200">
+                                                    <h4 className="text-[10px] font-bold text-clinical-charcoal/40 uppercase tracking-wider mb-1">Konfigurasi Filter</h4>
+                                                    
+                                                    <label className="flex items-center justify-between cursor-pointer group">
+                                                        <span className="text-xs font-bold text-clinical-charcoal group-hover:text-clinical-blue transition-colors">Baseline Blocker</span>
+                                                        <input type="checkbox" checked={filterConfig.baselineBlocker} onChange={() => setFilterConfig(p => ({...p, baselineBlocker: !p.baselineBlocker}))} className="accent-clinical-blue w-4 h-4 rounded" />
+                                                    </label>
+                                                    
+                                                    <label className="flex items-center justify-between cursor-pointer group">
+                                                        <span className="text-xs font-bold text-clinical-charcoal group-hover:text-clinical-blue transition-colors">HF Denoise</span>
+                                                        <input type="checkbox" checked={filterConfig.hfDenoise} onChange={() => setFilterConfig(p => ({...p, hfDenoise: !p.hfDenoise}))} className="accent-clinical-blue w-4 h-4 rounded" />
+                                                    </label>
+                                                    
+                                                    <label className="flex items-center justify-between cursor-pointer group">
+                                                        <span className="text-xs font-bold text-clinical-charcoal group-hover:text-clinical-blue transition-colors">Bandpass 0.5-40Hz</span>
+                                                        <input type="checkbox" checked={filterConfig.bandpass} onChange={() => {
+                                                            const newVal = !filterConfig.bandpass;
+                                                            setFilterConfig(p => ({...p, bandpass: newVal}));
+                                                            if (isFilterOn !== newVal) toggleFilter();
+                                                        }} className="accent-clinical-blue w-4 h-4 rounded" />
+                                                    </label>
+                                                    
+                                                    <label className="flex items-center justify-between cursor-pointer group">
+                                                        <span className="text-xs font-bold text-clinical-charcoal group-hover:text-clinical-blue transition-colors">Z-Score Norm</span>
+                                                        <input type="checkbox" checked={filterConfig.zScoreNorm} onChange={() => setFilterConfig(p => ({...p, zScoreNorm: !p.zScoreNorm}))} className="accent-clinical-blue w-4 h-4 rounded" />
+                                                    </label>
+                                                </div>
+                                            )}
+                                        </div>
                                     </div>
 
                                     <div className="ml-2 flex flex-col justify-center">
