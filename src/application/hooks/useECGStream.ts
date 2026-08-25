@@ -66,6 +66,8 @@ export interface UseECGStreamReturn {
     deviceId: string;
     sessionId: string;
     rawClassification: string | null;
+    isViewingHistory: boolean;
+    resumeRealTimeStream: () => void;
 }
 
 export const useECGStream = (endpoint: string): UseECGStreamReturn => {
@@ -95,6 +97,22 @@ export const useECGStream = (endpoint: string): UseECGStreamReturn => {
     const ptRef = useRef<PanTompkins>(new PanTompkins(250));
     const visualDcBlockerRef = useRef<DCBlocker>(new DCBlocker());
     const mathDcBlockerRef = useRef<DCBlocker>(new DCBlocker());
+
+    // --- VIEWING HISTORY STATE ---
+    const [isViewingHistory, setIsViewingHistory] = useState<boolean>(false);
+    const isViewingHistoryRef = useRef<boolean>(false);
+
+    const setViewingHistory = (val: boolean) => {
+        isViewingHistoryRef.current = val;
+        setIsViewingHistory(val);
+    };
+
+    const resumeRealTimeStream = useCallback(() => {
+        setViewingHistory(false);
+        if (dataRef.current) {
+            dataRef.current.xIndex = TOTAL_POINTS; // reset so live data starts fresh
+        }
+    }, []);
 
     const toggleFilter = useCallback(() => {
         setIsFilterOn(prev => {
@@ -320,10 +338,15 @@ export const useECGStream = (endpoint: string): UseECGStreamReturn => {
                     }
                     if (msg.data_payload) {
                         if (msg.type === 'segment_data') {
+                            setViewingHistory(true);
                             dataRef.current.xIndex = TOTAL_POINTS;
                             dataRef.current.timelineSeconds = (msg.data_payload as any).segment_index * 10;
+                            processDataChunk(msg.data_payload, msg.timestamp, msg.session_id || lastSessionIdRef.current);
+                        } else if (msg.type === 'live_data') {
+                            if (!isViewingHistoryRef.current) {
+                                processDataChunk(msg.data_payload, msg.timestamp, msg.session_id || lastSessionIdRef.current);
+                            }
                         }
-                        processDataChunk(msg.data_payload, msg.timestamp, msg.session_id || lastSessionIdRef.current);
                     }
                 }
                 else if (msg.type === 'status') setIsRecording(false);
@@ -346,6 +369,7 @@ export const useECGStream = (endpoint: string): UseECGStreamReturn => {
         ptRef.current.reset();
         visualDcBlockerRef.current.reset();
         mathDcBlockerRef.current.reset();
+        setViewingHistory(false);
 
         initWebSocket();
         clientRef.current?.connect();
@@ -353,6 +377,7 @@ export const useECGStream = (endpoint: string): UseECGStreamReturn => {
 
     const stopStream = () => {
         setIsRecording(false); clientRef.current?.disconnect();
+        setViewingHistory(false);
     };
 
     const fetchSummary = () => { initWebSocket(); clientRef.current?.connect(); };
@@ -363,6 +388,7 @@ export const useECGStream = (endpoint: string): UseECGStreamReturn => {
     return {
         isRecording, paths, rPeaks, heartRate, clinicalStatus, timeline,
         startStream, stopStream, fetchSummary, fetchSegment,
-        isFilterOn, toggleFilter, system, network, prediction, stressTest, createdAt, receivedAt, deviceId, sessionId, rawClassification
+        isFilterOn, toggleFilter, system, network, prediction, stressTest, createdAt, receivedAt, deviceId, sessionId, rawClassification,
+        isViewingHistory, resumeRealTimeStream
     };
 };

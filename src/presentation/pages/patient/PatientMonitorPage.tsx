@@ -30,7 +30,8 @@ export const PatientMonitorPage: React.FC = () => {
     const {
         isRecording, paths, rPeaks, heartRate, clinicalStatus, timeline,
         startStream, stopStream, fetchSegment, isFilterOn, toggleFilter,
-        prediction, deviceId, sessionId, stressTest, createdAt, rawClassification
+        prediction, deviceId, sessionId, stressTest, createdAt, rawClassification,
+        isViewingHistory, resumeRealTimeStream
     } = useECGStream(WS_URL);
 
     const [currentSegmentIndex, setCurrentSegmentIndex] = useState<number | undefined>(undefined);
@@ -369,6 +370,15 @@ export const PatientMonitorPage: React.FC = () => {
                             </div>
 
                             <div className="flex items-center justify-end w-full lg:w-auto">
+                                {isViewingHistory && isRecording && (
+                                    <button
+                                        onClick={resumeRealTimeStream}
+                                        className="bg-clinical-surface text-clinical-charcoal px-6 py-3 rounded-full font-bold uppercase tracking-widest text-[11px] shadow-sm transition-all duration-500 flex items-center gap-2 outline-none hover:brightness-95 hover:-translate-y-0.5 active:translate-y-0 mr-3 border border-clinical-charcoal/10"
+                                    >
+                                        <span className="material-symbols-outlined text-[18px]">stream</span> 
+                                        <span className="hidden sm:inline">Kembali ke Live</span>
+                                    </button>
+                                )}
                                 <button
                                     disabled={isCommandLoading}
                                     onClick={handleToggleRecord}
