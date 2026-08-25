@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { API_URL } from '../../../config/env';
+import { supabase } from '../../../config/supabaseClient';
 
 export const RegisterPage: React.FC = () => {
   const navigate = useNavigate();
@@ -34,31 +35,28 @@ export const RegisterPage: React.FC = () => {
 
     setIsLoading(true);
     try {
-      // Langsung ke backend Rust SQLite — tidak melalui Supabase
-      const res = await fetch(`${API_URL}/api/auth/register`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          email,
-          password,
-          role,
-          first_name: firstName,
-          last_name: lastName,
-          age: role === 'pasien' ? Number(age) : null,
-          gender: role === 'pasien' ? gender : null,
-        }),
+      const { data, error: signUpError } = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          data: {
+            role: role,
+            first_name: firstName,
+            last_name: lastName,
+            age: role === 'pasien' ? Number(age) : null,
+            gender: role === 'pasien' ? gender : null,
+          }
+        }
       });
 
-      const data = await res.json();
-
-      if (!res.ok || !data.success) {
-        setError(data.message || 'Gagal mendaftarkan akun. Coba lagi.');
+      if (signUpError) {
+        setError(signUpError.message);
         return;
       }
 
       navigate('/auth/login', { state: { registered: true } });
     } catch (err) {
-      setError('Koneksi ke server gagal. Pastikan backend berjalan.');
+      setError('Pendaftaran gagal. Silakan coba lagi.');
     } finally {
       setIsLoading(false);
     }

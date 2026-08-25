@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { API_URL } from '../../../config/env';
+import { supabase } from '../../../config/supabaseClient';
 
 export const LoginPage: React.FC = () => {
   const navigate = useNavigate();
@@ -33,40 +34,43 @@ export const LoginPage: React.FC = () => {
     setIsLoading(true);
 
     try {
-      // Langsung ke backend Rust SQLite — tidak melalui Supabase
-      const res = await fetch(`${API_URL}/api/auth/login`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password }),
+      const { data, error: loginError } = await supabase.auth.signInWithPassword({
+        email,
+        password,
       });
 
-      const data = await res.json();
-
-      if (!res.ok || !data.success) {
-        setError(data.message || 'Email atau password salah.');
+      if (loginError) {
+        setError(loginError.message);
         return;
       }
 
-      // Bersihkan data koneksi lama
+      const session = data.session;
+      const user = data.user;
+
+      if (!session || !user) {
+        setError('Gagal mendapatkan sesi login.');
+        return;
+      }
+
       localStorage.removeItem('connectedPatients');
       localStorage.removeItem('connectedDoctor');
       localStorage.removeItem('mock_patient_profile');
 
-      // Simpan sesi ke localStorage
-      localStorage.setItem('auth_token', data.token);
-      localStorage.setItem('user_id', data.user_id?.toString() || '');
-      localStorage.setItem('user_role', data.role);
+      localStorage.setItem('auth_token', session.access_token);
+      localStorage.setItem('user_id', user.id);
 
-      // Navigasi berdasarkan role
-      if (data.role === 'pasien') {
+      const role = user.user_metadata?.role || 'pasien';
+      localStorage.setItem('user_role', role);
+
+      if (role === 'pasien') {
         navigate('/patient/dashboard', { replace: true });
-      } else if (data.role === 'dokter') {
+      } else if (role === 'dokter') {
         navigate('/doctor/dashboard', { replace: true });
       } else {
         navigate('/admin/dashboard', { replace: true });
       }
     } catch (err) {
-      setError('Koneksi ke server gagal. Pastikan backend berjalan.');
+      setError('Gagal masuk. Silakan coba lagi.');
     } finally {
       setIsLoading(false);
     }
