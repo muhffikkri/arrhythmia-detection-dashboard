@@ -303,28 +303,21 @@ export const AdminSessionsPage: React.FC = () => {
             formData.append("patient_id", selectedPatientId);
             formData.append("device_id", "device01");
 
-            const timestamp = new Date().getTime();
-            framesToUpload.forEach((frame, index) => {
-                const idStr = String(index + 1).padStart(6, '0');
-                
+            framesToUpload.forEach((frame) => {
                 if (frame.csvFile) {
-                    const csvNewName = `${timestamp}_frame_${idStr}_ecg.csv`;
-                    formData.append("files", new File([frame.csvFile], csvNewName, { type: frame.csvFile.type || 'text/csv' }));
+                    formData.append("files", frame.csvFile);
                 }
                 
                 if (frame.predFile) {
-                    const predNewName = `${timestamp}_frame_${idStr}_prediction.json`;
-                    formData.append("files", new File([frame.predFile], predNewName, { type: frame.predFile.type || 'application/json' }));
+                    formData.append("files", frame.predFile);
                 }
                 
                 if (frame.sysFile) {
-                    const sysNewName = `${timestamp}_frame_${idStr}_system.json`;
-                    formData.append("files", new File([frame.sysFile], sysNewName, { type: frame.sysFile.type || 'application/json' }));
+                    formData.append("files", frame.sysFile);
                 }
 
                 if (frame.jsonFile) {
-                    const metaNewName = `${timestamp}_frame_${idStr}_mv.json`;
-                    formData.append("files", new File([frame.jsonFile], metaNewName, { type: frame.jsonFile.type || 'application/json' }));
+                    formData.append("files", frame.jsonFile);
                 }
             });
 
