@@ -330,21 +330,8 @@ export const AdminSessionsPage: React.FC = () => {
                 const frameIndex = sourceMeta.frame_index || (i + 1);
                 const createdAtUtc = metadata.created_at_utc || sourceMeta.created_at_utc || new Date().toISOString();
 
-                const payload = {
-                    ...metadata,
-                    ecg: {
-                        samples: samples
-                    },
-                    raw: {
-                        ch1: samples.map(s => s[0]),
-                        ch2: samples.map(s => s[1]),
-                        ch3: samples.map(s => s[2])
-                    },
-                    prediction: metadata.prediction || {
-                        label: "Normal",
-                        probabilities: { "Normal": 1.0 }
-                    }
-                };
+                // Payload disesuaikan agar sama persis dengan struktur JSON dari file yang diupload (tanpa tambahan ecg/raw)
+                const payload = metadata;
 
                 const frameRecord = {
                     id: measurementId,

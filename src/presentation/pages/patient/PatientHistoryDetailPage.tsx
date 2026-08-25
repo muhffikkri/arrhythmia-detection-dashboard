@@ -302,7 +302,7 @@ export const PatientHistoryDetailPage: React.FC = () => {
                                 </div>
                                 
                                 {/* Download Action Menu */}
-                                <div className="flex items-center gap-2 relative z-[999]" ref={downloadMenuRef}>
+                                <div className="flex items-center gap-2 relative z-[99999]" ref={downloadMenuRef}>
                                     <button
                                         onClick={() => setShowDownloadMenu(!showDownloadMenu)}
                                         className="bg-clinical-surface hover:bg-clinical-charcoal/5 border border-clinical-charcoal/10 px-4 py-2 rounded-full font-bold text-xs flex items-center gap-2 transition-all duration-300 outline-none hover:-translate-y-0.5"
