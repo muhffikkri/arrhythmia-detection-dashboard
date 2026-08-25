@@ -1217,7 +1217,7 @@ export const AdminSessionsPage: React.FC = () => {
                                         className="w-full bg-clinical-surface border border-clinical-charcoal/10 text-clinical-charcoal text-xs font-bold rounded-xl px-4 py-2.5 focus:outline-none focus:ring-1 focus:ring-clinical-blue"
                                     >
                                         {Object.entries(patientNames).map(([id, name]) => (
-                                            <option key={id} value={id}>{name} ({id.substring(0,8)})</option>
+                                            <option key={id} value={id}>{name} ({id})</option>
                                         ))}
                                     </select>
                                 </div>
@@ -1229,7 +1229,7 @@ export const AdminSessionsPage: React.FC = () => {
                                         className="w-full bg-clinical-surface border border-clinical-charcoal/10 text-clinical-charcoal text-xs font-bold rounded-xl px-4 py-2.5 focus:outline-none focus:ring-1 focus:ring-clinical-blue"
                                     >
                                         {Object.entries(doctorNames).map(([id, name]) => (
-                                            <option key={id} value={id}>{name} ({id.substring(0,8)})</option>
+                                            <option key={id} value={id}>{name} ({id})</option>
                                         ))}
                                     </select>
                                 </div>
@@ -1380,7 +1380,7 @@ export const AdminSessionsPage: React.FC = () => {
                                         className="w-full bg-clinical-surface border border-clinical-charcoal/10 text-clinical-charcoal text-xs font-bold rounded-xl px-4 py-2.5 focus:outline-none focus:ring-1 focus:ring-clinical-blue"
                                     >
                                         {Object.entries(patientNames).map(([id, name]) => (
-                                            <option key={id} value={id}>{name} ({id.substring(0,8)})</option>
+                                            <option key={id} value={id}>{name} ({id})</option>
                                         ))}
                                     </select>
                                 </div>
@@ -1392,7 +1392,7 @@ export const AdminSessionsPage: React.FC = () => {
                                         className="w-full bg-clinical-surface border border-clinical-charcoal/10 text-clinical-charcoal text-xs font-bold rounded-xl px-4 py-2.5 focus:outline-none focus:ring-1 focus:ring-clinical-blue"
                                     >
                                         {Object.entries(doctorNames).map(([id, name]) => (
-                                            <option key={id} value={id}>{name} ({id.substring(0,8)})</option>
+                                            <option key={id} value={id}>{name} ({id})</option>
                                         ))}
                                     </select>
                                 </div>
