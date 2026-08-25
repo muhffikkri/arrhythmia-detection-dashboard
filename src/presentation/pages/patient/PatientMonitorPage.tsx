@@ -196,7 +196,7 @@ export const PatientMonitorPage: React.FC = () => {
                 const sessionsArray = data.data || data.sessions || (Array.isArray(data) ? data : []);
                 const activeSessions = sessionsArray.filter((s: any) => !s.ended_at);
                 if (activeSessions.length > 0) {
-                    startStream(); // Only reconnect WebSocket, do not send START command
+                    // startStream(); // Disabled to not automatically start recording
                 }
             })
             .catch(err => console.error("Error fetching sessions for auto-resume:", err));
