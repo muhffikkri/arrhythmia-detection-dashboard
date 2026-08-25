@@ -277,8 +277,13 @@ export const AdminSessionsPage: React.FC = () => {
     };
 
     const handleSaveSession = async () => {
-        if (!selectedPatientId || !selectedDoctorId || !newSessionId.trim() || !startedAt) {
-            alert("Harap lengkapi informasi pasien, dokter, ID sesi, dan waktu mulai!");
+        // Checklist Point 3: Validasi patient_id tidak kosong
+        if (!selectedPatientId || selectedPatientId === 'null' || selectedPatientId === 'undefined') {
+            alert("Pilih pasien terlebih dahulu!");
+            return;
+        }
+        if (!selectedDoctorId) {
+            alert("Pilih dokter terlebih dahulu!");
             return;
         }
 
@@ -293,11 +298,24 @@ export const AdminSessionsPage: React.FC = () => {
         setUploadProgress("Membuat sesi rekaman...");
 
         try {
+            // Auto-generate session ID dan started_at jika belum diset
+            const now = new Date();
+            const sessionId = newSessionId.trim() || (() => {
+                const yy = now.getFullYear();
+                const mm = String(now.getMonth() + 1).padStart(2, '0');
+                const dd = String(now.getDate()).padStart(2, '0');
+                const hh = String(now.getHours()).padStart(2, '0');
+                const min = String(now.getMinutes()).padStart(2, '0');
+                const ss = String(now.getSeconds()).padStart(2, '0');
+                return `session_${dd}${mm}${yy}_${hh}${min}${ss}`;
+            })();
+            const sessionStartedAt = startedAt ? new Date(startedAt).toISOString() : now.toISOString();
+
             const sessionPayload = {
-                id: newSessionId.trim(),
-                patient_id: selectedPatientId,
+                id: sessionId,
+                patient_id: selectedPatientId,  // Checklist Point 2: key harus tepat 'patient_id'
                 doctor_id: selectedDoctorId,
-                started_at: new Date(startedAt).toISOString(),
+                started_at: sessionStartedAt,
                 dev_note: newDevNote.trim() || null,
                 ecg_paper: null
             };
@@ -356,7 +374,7 @@ export const AdminSessionsPage: React.FC = () => {
 
                 const frameRecord = {
                     id: measurementId,
-                    session_id: newSessionId.trim(),
+                    session_id: sessionId,  // pakai sessionId yang sudah di-resolve
                     start_time: (frameIndex - 1) * 10,
                     label: payload.prediction?.label || "Normal",
                     hidden: false,
@@ -383,7 +401,7 @@ export const AdminSessionsPage: React.FC = () => {
 
             mutateSessions();
             setShowAddModal(false);
-            alert(`Sesi ${newSessionId} dan ${framesToUpload.length} frame rekaman berhasil dibuat!`);
+            alert(`Sesi ${sessionId} dan ${framesToUpload.length} frame rekaman berhasil dibuat!`);
         } catch (err: any) {
             console.error("Upload error:", err);
             alert("Kesalahan saat mengunggah: " + err.message);
