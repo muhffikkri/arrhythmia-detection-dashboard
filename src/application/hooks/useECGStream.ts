@@ -267,7 +267,7 @@ export const useECGStream = (endpoint: string, filterConfig: StreamFilterConfig 
     const stopStream = () => { setIsRecording(false); clientRef.current?.disconnect(); setViewingHistory(false); };
     const fetchSummary = () => { initWebSocket(); clientRef.current?.connect(); };
     const fetchSegment = (index: number) => { 
-        if (clientRef.current && clientRef.current.getReadyState() === WebSocket.OPEN) {
+        if (clientRef.current && clientRef.current.isConnected()) {
             clientRef.current.sendCommand({ command: "get_segment", index }); 
         } else {
             const sid = sessionId || lastSessionIdRef.current;

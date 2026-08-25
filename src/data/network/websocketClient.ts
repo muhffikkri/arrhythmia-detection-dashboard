@@ -72,6 +72,10 @@ export class ECGWebSocketClient {
         };
     }
 
+    public isConnected(): boolean {
+        return this.ws !== null && this.ws.readyState === WebSocket.OPEN;
+    }
+
     public sendCommand(command: object): void {
         if (this.ws && this.ws.readyState === WebSocket.OPEN) {
             this.ws.send(JSON.stringify(command));

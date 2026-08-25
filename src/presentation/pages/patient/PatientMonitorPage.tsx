@@ -57,13 +57,6 @@ export const PatientMonitorPage: React.FC = () => {
     const [showAlert, setShowAlert] = useState<boolean>(false);
     
     // Filter Popup State
-    const [showFilterPopup, setShowFilterPopup] = useState<boolean>(false);
-    const [filterConfig, setFilterConfig] = useState({
-        baselineBlocker: true,
-        hfDenoise: true,
-        bandpass: true,
-        zScoreNorm: false
-    });
 
     // Animasi Playback
     const [isPlaying, setIsPlaying] = useState<boolean>(false);
