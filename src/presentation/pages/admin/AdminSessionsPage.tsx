@@ -276,14 +276,12 @@ export const AdminSessionsPage: React.FC = () => {
         return samples;
     };
 
-    const handleSaveSession = async () => {
+    const handleSaveSession = async (e?: React.MouseEvent) => {
+        if (e && e.preventDefault) e.preventDefault();
+
         // Checklist Point 3: Validasi patient_id tidak kosong
         if (!selectedPatientId || selectedPatientId === 'null' || selectedPatientId === 'undefined') {
             alert("Pilih pasien terlebih dahulu!");
-            return;
-        }
-        if (!selectedDoctorId) {
-            alert("Pilih dokter terlebih dahulu!");
             return;
         }
 
@@ -295,113 +293,67 @@ export const AdminSessionsPage: React.FC = () => {
         }
 
         setIsUploading(true);
-        setUploadProgress("Membuat sesi rekaman...");
+        setUploadProgress("Menyiapkan file upload...");
 
         try {
-            // Auto-generate session ID dan started_at jika belum diset
-            const now = new Date();
-            const sessionId = newSessionId.trim() || (() => {
-                const yy = now.getFullYear();
-                const mm = String(now.getMonth() + 1).padStart(2, '0');
-                const dd = String(now.getDate()).padStart(2, '0');
-                const hh = String(now.getHours()).padStart(2, '0');
-                const min = String(now.getMinutes()).padStart(2, '0');
-                const ss = String(now.getSeconds()).padStart(2, '0');
-                return `session_${dd}${mm}${yy}_${hh}${min}${ss}`;
-            })();
-            const sessionStartedAt = startedAt ? new Date(startedAt).toISOString() : now.toISOString();
+            const formData = new FormData();
+            formData.append("patient_id", selectedPatientId);
+            formData.append("device_id", "device01");
 
-            const sessionPayload = {
-                id: sessionId,
-                patient_id: selectedPatientId,  // Checklist Point 2: key harus tepat 'patient_id'
-                doctor_id: selectedDoctorId,
-                started_at: sessionStartedAt,
-                dev_note: newDevNote.trim() || null,
-                ecg_paper: null
-            };
+            const timestamp = new Date().getTime();
+            framesToUpload.forEach((frame, index) => {
+                const idStr = String(index + 1).padStart(6, '0');
+                
+                if (frame.csvFile) {
+                    const csvNewName = `${timestamp}_frame_${idStr}_ecg.csv`;
+                    formData.append("files", new File([frame.csvFile], csvNewName, { type: frame.csvFile.type || 'text/csv' }));
+                }
+                
+                if (frame.predFile) {
+                    const predNewName = `${timestamp}_frame_${idStr}_prediction.json`;
+                    formData.append("files", new File([frame.predFile], predNewName, { type: frame.predFile.type || 'application/json' }));
+                }
+                
+                if (frame.jsonFile) {
+                    const sysNewName = `${timestamp}_frame_${idStr}_system.json`;
+                    formData.append("files", new File([frame.jsonFile], sysNewName, { type: frame.jsonFile.type || 'application/json' }));
+                }
+            });
 
-            if (isSupabaseConfigured) {
-                const { error: sessionError } = await supabase.from('sessions').upsert(sessionPayload);
-                if (sessionError) {
-                    throw new Error("Gagal menyimpan sesi di Supabase: " + sessionError.message);
-                }
-            } else {
-                const res = await fetchWithAuth('/api/sessions', {
-                    method: 'POST',
-                    body: JSON.stringify(sessionPayload)
-                });
-                if (!res.ok) {
-                    console.warn("Backend REST API /api/sessions gagal atau belum diimplementasikan. Melanjutkan ke SQLite...");
-                }
+            setUploadProgress("Mengunggah ke server...");
+            
+            // Get token for auth if needed
+            const token = localStorage.getItem('supabase.auth.token');
+            const headers: Record<string, string> = {};
+            if (token) {
+                try {
+                    const parsed = JSON.parse(token);
+                    if (parsed.access_token) {
+                        headers['Authorization'] = `Bearer ${parsed.access_token}`;
+                    }
+                } catch (e) { }
             }
 
-            for (let i = 0; i < framesToUpload.length; i++) {
-                const frame = framesToUpload[i];
-                setUploadProgress(`Memproses frame ${i + 1} dari ${framesToUpload.length}...`);
+            const response = await fetch('/api/sessions/upload', {
+                method: 'POST',
+                headers: headers,
+                body: formData
+            });
 
-                const jsonText = await readAsText(frame.jsonFile!);
-                const csvText = await readAsText(frame.csvFile!);
-                const predText = await readAsText(frame.predFile!);
-
-                const metadata = JSON.parse(jsonText);
-                const samples = parseECGCSV(csvText);
-                const predData = JSON.parse(predText);
-
-                if (samples.length === 0) {
-                    throw new Error(`Berkas CSV untuk frame ${i + 1} kosong atau tidak valid.`);
+            if (!response.ok) {
+                let errorMsg = `HTTP Error ${response.status}`;
+                try {
+                    const errData = await response.json();
+                    errorMsg = errData.message || errData.error || errorMsg;
+                } catch (e) {
+                    if (response.status === 413) errorMsg = "Ukuran file terlalu besar (Payload Too Large).";
                 }
-
-                const sourceMeta = metadata.source_metadata || {};
-                const measurementId = sourceMeta.measurement_id || crypto.randomUUID();
-                const deviceId = sourceMeta.device_id || "device01";
-                const frameIndex = sourceMeta.frame_index || (i + 1);
-                const createdAtUtc = metadata.created_at_utc || sourceMeta.created_at_utc || new Date().toISOString();
-
-                // Merge prediction data into metadata
-                metadata.prediction = {
-                    label: predData.prediction,
-                    confidence_percent: predData.confidence_percent,
-                    probabilities: predData.probabilities,
-                    latency_ms: predData.latency_ms,
-                    runtime: predData.runtime,
-                    warning: predData.warning,
-                    error: predData.error,
-                    input_validation_status: predData.input_validation_status
-                };
-
-                // Payload disesuaikan agar sama persis dengan struktur JSON dari file yang diupload (tanpa tambahan ecg/raw)
-                const payload = metadata;
-
-                const frameRecord = {
-                    id: measurementId,
-                    session_id: sessionId,  // pakai sessionId yang sudah di-resolve
-                    start_time: (frameIndex - 1) * 10,
-                    label: payload.prediction?.label || "Normal",
-                    hidden: false,
-                    payload: payload,
-                    device_id: deviceId,
-                    created_at: createdAtUtc
-                };
-
-                if (isSupabaseConfigured) {
-                    const { error: frameError } = await supabase.from('frame_records').insert(frameRecord);
-                    if (frameError) {
-                        throw new Error(`Gagal menyimpan frame ${i + 1} di Supabase: ${frameError.message}`);
-                    }
-                } else {
-                    const res = await fetchWithAuth('/api/records', {
-                        method: 'POST',
-                        body: JSON.stringify(frameRecord)
-                    });
-                    if (!res.ok) {
-                        console.warn(`Backend REST API /api/records gagal atau belum diimplementasikan untuk frame ${i + 1}.`);
-                    }
-                }
+                throw new Error(errorMsg);
             }
 
             mutateSessions();
             setShowAddModal(false);
-            alert(`Sesi ${sessionId} dan ${framesToUpload.length} frame rekaman berhasil dibuat!`);
+            alert(`Berhasil mengunggah ${framesToUpload.length} frame rekaman EKG!`);
         } catch (err: any) {
             console.error("Upload error:", err);
             alert("Kesalahan saat mengunggah: " + err.message);
