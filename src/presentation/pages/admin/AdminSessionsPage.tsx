@@ -92,8 +92,8 @@ export const AdminSessionsPage: React.FC = () => {
     const [newSessionId, setNewSessionId] = useState<string>('');
     const [startedAt, setStartedAt] = useState<string>('');
     const [newDevNote, setNewDevNote] = useState<string>('');
-    const [framesToUpload, setFramesToUpload] = useState<Array<{ id: number, jsonFile: File | null, csvFile: File | null }>>([
-        { id: 1, jsonFile: null, csvFile: null }
+    const [framesToUpload, setFramesToUpload] = useState<Array<{ id: number, jsonFile: File | null, csvFile: File | null, predFile: File | null }>>([
+        { id: Date.now(), jsonFile: null, csvFile: null, predFile: null }
     ]);
     const [isUploading, setIsUploading] = useState<boolean>(false);
     const [uploadProgress, setUploadProgress] = useState<string>('');
@@ -109,7 +109,7 @@ export const AdminSessionsPage: React.FC = () => {
     const [loadingFrames, setLoadingFrames] = useState<boolean>(false);
 
     const addFrameSlot = () => {
-        setFramesToUpload(prev => [...prev, { id: Date.now(), jsonFile: null, csvFile: null }]);
+        setFramesToUpload(prev => [...prev, { id: Date.now(), jsonFile: null, csvFile: null, predFile: null }]);
     };
 
     const removeFrameSlot = (id: number) => {
@@ -124,46 +124,53 @@ export const AdminSessionsPage: React.FC = () => {
         
         const files = Array.from(e.target.files);
         // Group by base name
-        const pairs = new Map<string, { jsonFile: File | null, csvFile: File | null }>();
+        const pairs = new Map<string, { jsonFile: File | null, csvFile: File | null, predFile: File | null }>();
         
         files.forEach(file => {
             const pathSegments = file.webkitRelativePath.split('/');
             const filename = pathSegments[pathSegments.length - 1];
             
             if (filename.endsWith('.json') || filename.endsWith('.csv')) {
-                const baseName = filename.substring(0, filename.lastIndexOf('.'));
+                const match = filename.match(/^(frame_\d+)/);
+                const baseName = match ? match[1] : filename.substring(0, filename.lastIndexOf('.'));
+                
                 if (!pairs.has(baseName)) {
-                    pairs.set(baseName, { jsonFile: null, csvFile: null });
+                    pairs.set(baseName, { jsonFile: null, csvFile: null, predFile: null });
                 }
                 const pair = pairs.get(baseName)!;
-                if (filename.endsWith('.json')) pair.jsonFile = file;
+                if (filename.endsWith('prediction.json')) {
+                    pair.predFile = file;
+                } else if (filename.endsWith('.json')) {
+                    pair.jsonFile = file;
+                }
                 if (filename.endsWith('.csv')) pair.csvFile = file;
             }
         });
 
-        // Filter valid pairs
+        // Filter valid frames
         const validFrames = Array.from(pairs.values())
-            .filter(p => p.jsonFile !== null && p.csvFile !== null)
+            .filter(p => p.jsonFile !== null && p.csvFile !== null && p.predFile !== null)
             .map((p, index) => ({
                 id: Date.now() + index,
                 jsonFile: p.jsonFile,
-                csvFile: p.csvFile
+                csvFile: p.csvFile,
+                predFile: p.predFile
             }));
 
         if (validFrames.length > 0) {
             setFramesToUpload(validFrames);
-            alert(`Berhasil mendeteksi ${validFrames.length} frame pasangan (.json & .csv) dari folder!`);
+            alert(`Berhasil mendeteksi ${validFrames.length} frame pasangan (.json, .csv, prediction.json) dari folder!`);
         } else {
-            alert("Tidak ditemukan pasangan file .json dan .csv yang valid dalam folder tersebut.");
+            alert("Tidak ditemukan pasangan 3 file (.json, .csv, prediction.json) yang valid dalam folder tersebut.");
         }
     };
 
-    const handleFrameFileChange = (id: number, type: 'json' | 'csv', file: File | null) => {
+    const handleFrameFileChange = (id: number, type: 'json' | 'csv' | 'pred', file: File | null) => {
         setFramesToUpload(prev => prev.map(f => {
             if (f.id === id) {
                 return {
                     ...f,
-                    [type === 'json' ? 'jsonFile' : 'csvFile']: file
+                    [type === 'json' ? 'jsonFile' : type === 'csv' ? 'csvFile' : 'predFile']: file
                 };
             }
             return f;
@@ -191,7 +198,7 @@ export const AdminSessionsPage: React.FC = () => {
         setStartedAt(localISOTime);
         
         setNewDevNote('');
-        setFramesToUpload([{ id: Date.now(), jsonFile: null, csvFile: null }]);
+        setFramesToUpload([{ id: Date.now(), jsonFile: null, csvFile: null, predFile: null }]);
         setShowAddModal(true);
     };
 
@@ -276,8 +283,8 @@ export const AdminSessionsPage: React.FC = () => {
         }
 
         for (const frame of framesToUpload) {
-            if (!frame.jsonFile || !frame.csvFile) {
-                alert("Harap pilih berkas .json (metadata) dan .csv (sinyal EKG) untuk setiap frame!");
+            if (!frame.jsonFile || !frame.csvFile || !frame.predFile) {
+                alert("Harap pilih berkas Metadata (.json), Sinyal (.csv), dan Prediksi (prediction.json) untuk setiap frame!");
                 return;
             }
         }
@@ -316,9 +323,11 @@ export const AdminSessionsPage: React.FC = () => {
 
                 const jsonText = await readAsText(frame.jsonFile!);
                 const csvText = await readAsText(frame.csvFile!);
+                const predText = await readAsText(frame.predFile!);
 
                 const metadata = JSON.parse(jsonText);
                 const samples = parseECGCSV(csvText);
+                const predData = JSON.parse(predText);
 
                 if (samples.length === 0) {
                     throw new Error(`Berkas CSV untuk frame ${i + 1} kosong atau tidak valid.`);
@@ -329,6 +338,18 @@ export const AdminSessionsPage: React.FC = () => {
                 const deviceId = sourceMeta.device_id || "device01";
                 const frameIndex = sourceMeta.frame_index || (i + 1);
                 const createdAtUtc = metadata.created_at_utc || sourceMeta.created_at_utc || new Date().toISOString();
+
+                // Merge prediction data into metadata
+                metadata.prediction = {
+                    label: predData.prediction,
+                    confidence_percent: predData.confidence_percent,
+                    probabilities: predData.probabilities,
+                    latency_ms: predData.latency_ms,
+                    runtime: predData.runtime,
+                    warning: predData.warning,
+                    error: predData.error,
+                    input_validation_status: predData.input_validation_status
+                };
 
                 // Payload disesuaikan agar sama persis dengan struktur JSON dari file yang diupload (tanpa tambahan ecg/raw)
                 const payload = metadata;
@@ -1298,7 +1319,7 @@ export const AdminSessionsPage: React.FC = () => {
                                                 </button>
                                             )}
                                         </div>
-                                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                                             <div>
                                                 <label className="block text-[10px] font-bold text-clinical-charcoal/50 uppercase tracking-wider mb-1">Upload Metadata (.json)</label>
                                                 <input
@@ -1307,7 +1328,7 @@ export const AdminSessionsPage: React.FC = () => {
                                                     onChange={(e) => handleFrameFileChange(frame.id, 'json', e.target.files?.[0] || null)}
                                                     className="w-full text-xs text-clinical-charcoal/80 file:mr-2 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-[10px] file:font-bold file:bg-clinical-blue/10 file:text-clinical-blue hover:file:bg-clinical-blue/25 file:cursor-pointer"
                                                 />
-                                                {frame.jsonFile && <p className="text-[9px] text-emerald-600 font-bold mt-1">âœ“ {frame.jsonFile.name}</p>}
+                                                {frame.jsonFile && <p className="text-[9px] text-emerald-600 font-bold mt-1">✓ {frame.jsonFile.name}</p>}
                                             </div>
                                             <div>
                                                 <label className="block text-[10px] font-bold text-clinical-charcoal/50 uppercase tracking-wider mb-1">Upload Sinyal EKG (.csv)</label>
@@ -1317,7 +1338,17 @@ export const AdminSessionsPage: React.FC = () => {
                                                     onChange={(e) => handleFrameFileChange(frame.id, 'csv', e.target.files?.[0] || null)}
                                                     className="w-full text-xs text-clinical-charcoal/80 file:mr-2 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-[10px] file:font-bold file:bg-clinical-blue/10 file:text-clinical-blue hover:file:bg-clinical-blue/25 file:cursor-pointer"
                                                 />
-                                                {frame.csvFile && <p className="text-[9px] text-emerald-600 font-bold mt-1">âœ“ {frame.csvFile.name}</p>}
+                                                {frame.csvFile && <p className="text-[9px] text-emerald-600 font-bold mt-1">✓ {frame.csvFile.name}</p>}
+                                            </div>
+                                            <div>
+                                                <label className="block text-[10px] font-bold text-clinical-charcoal/50 uppercase tracking-wider mb-1">Upload Prediksi (.json)</label>
+                                                <input
+                                                    type="file"
+                                                    accept=".json"
+                                                    onChange={(e) => handleFrameFileChange(frame.id, 'pred', e.target.files?.[0] || null)}
+                                                    className="w-full text-xs text-clinical-charcoal/80 file:mr-2 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-[10px] file:font-bold file:bg-clinical-blue/10 file:text-clinical-blue hover:file:bg-clinical-blue/25 file:cursor-pointer"
+                                                />
+                                                {frame.predFile && <p className="text-[9px] text-emerald-600 font-bold mt-1">✓ {frame.predFile.name}</p>}
                                             </div>
                                         </div>
                                     </div>
