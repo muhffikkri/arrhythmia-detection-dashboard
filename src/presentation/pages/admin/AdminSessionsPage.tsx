@@ -1235,27 +1235,7 @@ export const AdminSessionsPage: React.FC = () => {
                                 </div>
                             </div>
 
-                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                                <div>
-                                    <label className="block text-xs font-bold text-clinical-charcoal/70 uppercase tracking-wider mb-1.5">Session ID</label>
-                                    <input
-                                        type="text"
-                                        value={newSessionId}
-                                        onChange={(e) => setNewSessionId(e.target.value)}
-                                        className="w-full bg-clinical-surface border border-clinical-charcoal/10 text-clinical-charcoal text-xs font-mono font-bold rounded-xl px-4 py-2.5 focus:outline-none focus:ring-1 focus:ring-clinical-blue"
-                                        placeholder="session_ddmmyy_hhmmss"
-                                    />
-                                </div>
-                                <div>
-                                    <label className="block text-xs font-bold text-clinical-charcoal/70 uppercase tracking-wider mb-1.5">Waktu Mulai</label>
-                                    <input
-                                        type="datetime-local"
-                                        value={startedAt}
-                                        onChange={(e) => setStartedAt(e.target.value)}
-                                        className="w-full bg-clinical-surface border border-clinical-charcoal/10 text-clinical-charcoal text-xs font-bold rounded-xl px-4 py-2.5 focus:outline-none focus:ring-1 focus:ring-clinical-blue"
-                                    />
-                                </div>
-                            </div>
+
 
                             <div>
                                 <label className="block text-xs font-bold text-clinical-charcoal/70 uppercase tracking-wider mb-1.5">Catatan Sesi (Opsional)</label>
@@ -1418,15 +1398,7 @@ export const AdminSessionsPage: React.FC = () => {
                                 </div>
                             </div>
 
-                            <div>
-                                <label className="block text-xs font-bold text-clinical-charcoal/70 uppercase tracking-wider mb-1.5">Waktu Mulai</label>
-                                <input
-                                    type="datetime-local"
-                                    value={editStartedAt}
-                                    onChange={(e) => setEditStartedAt(e.target.value)}
-                                    className="w-full bg-clinical-surface border border-clinical-charcoal/10 text-clinical-charcoal text-xs font-bold rounded-xl px-4 py-2.5 focus:outline-none focus:ring-1 focus:ring-clinical-blue"
-                                />
-                            </div>
+
 
                             <div>
                                 <label className="block text-xs font-bold text-clinical-charcoal/70 uppercase tracking-wider mb-1.5">Catatan Sesi</label>
