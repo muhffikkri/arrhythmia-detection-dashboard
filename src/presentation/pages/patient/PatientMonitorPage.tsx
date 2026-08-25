@@ -26,13 +26,20 @@ interface DeviceRecord {
 }
 
 export const PatientMonitorPage: React.FC = () => {
-    // Destructure isFilterOn dan toggleFilter dari useECGStream
+    const [showFilterPopup, setShowFilterPopup] = useState<boolean>(false);
+    const [filterConfig, setFilterConfig] = useState({
+        baselineBlocker: true,
+        hfDenoise: true,
+        bandpass: true,
+        zScoreNorm: false
+    });
+
     const {
         isRecording, paths, rPeaks, heartRate, clinicalStatus, timeline,
-        startStream, stopStream, fetchSegment, isFilterOn, toggleFilter,
+        startStream, stopStream, fetchSegment,
         prediction, deviceId, sessionId, stressTest, createdAt, rawClassification,
         isViewingHistory, resumeRealTimeStream
-    } = useECGStream(WS_URL);
+    } = useECGStream(WS_URL, filterConfig);
 
     const [currentSegmentIndex, setCurrentSegmentIndex] = useState<number | undefined>(undefined);
 
@@ -435,11 +442,11 @@ export const PatientMonitorPage: React.FC = () => {
                                         <div className="relative z-[9999]">
                                             <button
                                                 onClick={() => setShowFilterPopup(!showFilterPopup)}
-                                                className={`h-10 px-4 rounded-full font-bold uppercase tracking-wider text-[10px] transition-all duration-300 flex items-center justify-center gap-2 outline-none hover:-translate-y-0.5 hover:shadow-sm border ${isFilterOn || filterConfig.baselineBlocker || filterConfig.hfDenoise || filterConfig.zScoreNorm ? 'bg-blue-50 text-clinical-blue border-blue-100' : 'bg-clinical-surface text-clinical-charcoal/60 border-clinical-charcoal/10'}`}
+                                                className={`h-10 px-4 rounded-full font-bold uppercase tracking-wider text-[10px] transition-all duration-300 flex items-center justify-center gap-2 outline-none hover:-translate-y-0.5 hover:shadow-sm border ${filterConfig.baselineBlocker || filterConfig.hfDenoise || filterConfig.zScoreNorm ? 'bg-blue-50 text-clinical-blue border-blue-100' : 'bg-clinical-surface text-clinical-charcoal/60 border-clinical-charcoal/10'}`}
                                                 title="Konfigurasi Filter Sinyal"
                                             >
                                                 <span className="material-symbols-outlined text-[16px]">
-                                                    {isFilterOn ? 'filter_alt' : 'filter_alt_off'}
+                                                    {filterConfig.baselineBlocker || filterConfig.hfDenoise || filterConfig.zScoreNorm ? 'filter_alt' : 'filter_alt_off'}
                                                 </span>
                                             </button>
                                             
@@ -460,9 +467,7 @@ export const PatientMonitorPage: React.FC = () => {
                                                     <label className="flex items-center justify-between cursor-pointer group">
                                                         <span className="text-xs font-bold text-clinical-charcoal group-hover:text-clinical-blue transition-colors">Bandpass 0.5-40Hz</span>
                                                         <input type="checkbox" checked={filterConfig.bandpass} onChange={() => {
-                                                            const newVal = !filterConfig.bandpass;
-                                                            setFilterConfig(p => ({...p, bandpass: newVal}));
-                                                            if (isFilterOn !== newVal) toggleFilter();
+                                                            setFilterConfig(p => ({...p, bandpass: !p.bandpass}));
                                                         }} className="accent-clinical-blue w-4 h-4 rounded" />
                                                     </label>
                                                     

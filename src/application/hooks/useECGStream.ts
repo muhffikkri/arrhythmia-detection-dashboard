@@ -13,11 +13,10 @@ import { API_URL } from '../../config/env';
 import { ECGWebSocketClient } from '../../data/network/websocketClient';
 import { PanTompkins } from '../../core/algorithms/panTompkins';
 import { DCBlocker } from '../../core/algorithms/dcBlocker';
+import { MovingAverageFilter, IIRFilter } from '../../core/algorithms/ecgFilters';
 import { evaluateIrregularity, generateClinicalExplanation } from '../../core/clinical/ruleBasedEngine';
-import { processECGSamples } from '../../core/algorithms/ecgPipeline';
 import { calculateEinthovenPoint } from '../../core/algorithms/einthoven';
 import { calculateSingleRRInterval, calculateRRMetrics } from '../../core/algorithms/peakToPeak';
-
 
 import type { ClinicalExplanation } from '../../core/clinical/ruleBasedEngine';
 import type { ECGPaths, RPeakMarker, TimelineEvent, ServerMessage, ECGDataPayload, DeviceSystem, DeviceNetwork, DevicePrediction, DeviceStressTest } from '../../core/types/ecgTypes';
@@ -44,6 +43,12 @@ type SamplePoint = {
     yV1: number;
 };
 
+export interface StreamFilterConfig {
+    baselineBlocker: boolean;
+    hfDenoise: boolean;
+    zScoreNorm: boolean;
+}
+
 export interface UseECGStreamReturn {
     isRecording: boolean;
     paths: ECGPaths;
@@ -55,8 +60,6 @@ export interface UseECGStreamReturn {
     stopStream: () => void;
     fetchSummary: () => void;
     fetchSegment: (index: number) => void;
-    isFilterOn: boolean;
-    toggleFilter: () => void;
     system: DeviceSystem | null;
     network: DeviceNetwork | null;
     prediction: DevicePrediction | null;
@@ -70,7 +73,7 @@ export interface UseECGStreamReturn {
     resumeRealTimeStream: () => void;
 }
 
-export const useECGStream = (endpoint: string): UseECGStreamReturn => {
+export const useECGStream = (endpoint: string, filterConfig: StreamFilterConfig = { baselineBlocker: true, hfDenoise: false, zScoreNorm: false }): UseECGStreamReturn => {
     const [isRecording, setIsRecording] = useState<boolean>(false);
     const [paths, setPaths] = useState<ECGPaths>({ I: [], II: [], III: [], aVR: [], aVL: [], aVF: [], V1: [] });
     const [rPeaks, setRPeaks] = useState<RPeakMarker[]>([]);
@@ -78,7 +81,6 @@ export const useECGStream = (endpoint: string): UseECGStreamReturn => {
     const [clinicalStatus, setClinicalStatus] = useState<ClinicalExplanation | null>(null);
     const [timeline, setTimeline] = useState<TimelineEvent[]>([]);
 
-    // --- STATE EDGE AI METRICS & DEVICE ---
     const [system, setSystem] = useState<DeviceSystem | null>(null);
     const [network, setNetwork] = useState<DeviceNetwork | null>(null);
     const [prediction, setPrediction] = useState<DevicePrediction | null>(null);
@@ -89,16 +91,20 @@ export const useECGStream = (endpoint: string): UseECGStreamReturn => {
     const [sessionId, setSessionId] = useState<string>("MENUNGGU SESI...");
     const [rawClassification, setRawClassification] = useState<string | null>(null);
 
-    // --- MANAJEMEN FILTER STATE ---
-    const [isFilterOn, setIsFilterOn] = useState<boolean>(true);
-    const filterStateRef = useRef<boolean>(true);
-
     const clientRef = useRef<ECGWebSocketClient | null>(null);
     const ptRef = useRef<PanTompkins>(new PanTompkins(250));
     const visualDcBlockerRef = useRef<DCBlocker>(new DCBlocker());
     const mathDcBlockerRef = useRef<DCBlocker>(new DCBlocker());
+    const lpIRef = useRef(new MovingAverageFilter(5));
+    const lpIIRef = useRef(new MovingAverageFilter(5));
+    const lpIIIRef = useRef(new MovingAverageFilter(5));
+    const bpIRef = useRef(new IIRFilter());
+    const bpIIRef = useRef(new IIRFilter());
+    const bpIIIRef = useRef(new IIRFilter());
+    
+    const filterConfigRef = useRef(filterConfig);
+    useEffect(() => { filterConfigRef.current = filterConfig; }, [filterConfig]);
 
-    // --- VIEWING HISTORY STATE ---
     const [isViewingHistory, setIsViewingHistory] = useState<boolean>(false);
     const isViewingHistoryRef = useRef<boolean>(false);
 
@@ -110,19 +116,8 @@ export const useECGStream = (endpoint: string): UseECGStreamReturn => {
     const resumeRealTimeStream = useCallback(() => {
         setViewingHistory(false);
         if (dataRef.current) {
-            dataRef.current.xIndex = TOTAL_POINTS; // reset so live data starts fresh
+            dataRef.current.xIndex = TOTAL_POINTS;
         }
-    }, []);
-
-    const toggleFilter = useCallback(() => {
-        setIsFilterOn(prev => {
-            const newState = !prev;
-            filterStateRef.current = newState;
-            if (newState && visualDcBlockerRef.current) {
-                visualDcBlockerRef.current.reset();
-            }
-            return newState;
-        });
     }, []);
 
     const dataRef = useRef({
@@ -132,7 +127,7 @@ export const useECGStream = (endpoint: string): UseECGStreamReturn => {
         rrIntervals: [] as number[],
         timelineSeconds: 0,
         currentRPeaks: [] as RPeakMarker[],
-        recentSamples: [] as SamplePoint[] // Look-Back Buffer untuk akurasi puncak
+        recentSamples: [] as SamplePoint[]
     });
 
     const preRegisteredFramesRef = useRef<Set<string>>(new Set());
@@ -140,21 +135,16 @@ export const useECGStream = (endpoint: string): UseECGStreamReturn => {
     const lastSessionIdRef = useRef<string | null>(null);
 
     const processDataChunk = useCallback((payload: ECGDataPayload, timestamp?: string, currentSessionId?: string | null) => {
-        const { raw, classification_result, anomaly_indices, prediction_details, system: sysData, network: netData, stress_test } = payload;
-
+        const { raw, classification_result, prediction_details, system: sysData, network: netData, stress_test } = payload;
         const isNormal = classification_result?.toUpperCase() === 'NORMAL' || classification_result?.toUpperCase() === 'NORM';
         const isAnomaly = !isNormal;
 
         if (classification_result) setRawClassification(classification_result);
-
         if (prediction_details) setPrediction(prediction_details);
         if (sysData) setSystem(sysData);
         if (netData) setNetwork(netData);
         if (stress_test) setStressTest(stress_test);
-        if (timestamp) {
-            setCreatedAt(timestamp);
-            setReceivedAt(new Date().toISOString());
-        }
+        if (timestamp) { setCreatedAt(timestamp); setReceivedAt(new Date().toISOString()); }
 
         let { xIndex, currentPaths, peakBuffer, rrIntervals, timelineSeconds, currentRPeaks, recentSamples } = dataRef.current;
         const ch1 = raw.ch1; const ch2 = raw.ch2; const ch3 = raw.ch3;
@@ -164,50 +154,27 @@ export const useECGStream = (endpoint: string): UseECGStreamReturn => {
                 xIndex = 0; timelineSeconds += 10;
                 currentPaths = { I: [], II: [], III: [], aVR: [], aVL: [], aVF: [], V1: [] };
                 peakBuffer = []; rrIntervals = []; currentRPeaks = []; recentSamples = [];
-                // JALUR MATEMATIS KONTINU: ptRef dan mathDcBlockerRef tidak direset
-                visualDcBlockerRef.current.reset(); // JALUR VISUAL: Reset agar selalu dimulai tepat dari 0
+                visualDcBlockerRef.current.reset();
+                lpIRef.current.reset(); lpIIRef.current.reset(); lpIIIRef.current.reset();
+                bpIRef.current.reset(); bpIIRef.current.reset(); bpIIIRef.current.reset();
             }
 
-            if (xIndex === 0) {
-                const currentIntervalStr = `${formatTime(timelineSeconds)} - ${formatTime(timelineSeconds + 10)}`;
-                if (!preRegisteredFramesRef.current.has(currentIntervalStr)) {
-                    preRegisteredFramesRef.current.add(currentIntervalStr);
-                    const frameId = `fra${Date.now()}${Math.floor(Math.random() * 1000)}`;
-
-                    fetchWithAuth(`/api/frames`, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({
-                            id: frameId,
-                            time_interval: currentIntervalStr,
-                            session_id: currentSessionId || null
-                        })
-                    }).catch(e => console.error("Gagal preregister frame:", e));
-
-                    if (!currentSessionId) {
-                        unlinkedFramesRef.current.push(frameId);
-                    }
-                }
-            }
-
-            const rawI = ch1[i];
-            const rawII = ch2[i];
-            const rawIII = ch3[i];
-
+            const rawI = ch1[i]; const rawII = ch2[i]; const rawIII = ch3[i];
             let visualI = rawI, visualII = rawII, visualIII = rawIII;
+            const config = filterConfigRef.current;
 
-            if (filterStateRef.current) {
-                const vCleaned = visualDcBlockerRef.current.process(rawI, rawII);
-                visualI = vCleaned.cleanI;
-                visualII = vCleaned.cleanII;
-                visualIII = vCleaned.cleanIII;
+            if (config.baselineBlocker) {
+                const vCleaned = visualDcBlockerRef.current.process(visualI, visualII);
+                visualI = vCleaned.cleanI; visualII = vCleaned.cleanII; visualIII = vCleaned.cleanIII;
+            }
+            if (config.hfDenoise) {
+                visualI = lpIRef.current.process(visualI);
+                visualII = lpIIRef.current.process(visualII);
+                visualIII = lpIIIRef.current.process(visualIII);
             }
 
             const calculated = calculateEinthovenPoint(visualI, visualII);
-
             const currentX = Number((xIndex * X_STEP).toFixed(2));
-
-            // Kalkulasi koordinat Y untuk seluruh 7 saluran (Skala Medis Standar: 1mV = 80px, Center = 240px)
             const yI = 240 - visualI * 80;
             const yII = 240 - visualII * 80;
             const yIII = 240 - visualIII * 80;
@@ -224,81 +191,37 @@ export const useECGStream = (endpoint: string): UseECGStreamReturn => {
             currentPaths.aVF.push(`${currentX},${yaVF.toFixed(2)}`);
             currentPaths.V1.push(`${currentX},${yV1.toFixed(2)}`);
 
-            // Memasukkan titik saat ini ke dalam memori Look-Back Buffer
             recentSamples.push({ xIndex, x: currentX, yI, yII, yIII, yaVR, yaVL, yaVF, yV1 });
-            // Menjaga memori maksimal 50 sampel terakhir (setara 200ms)
             if (recentSamples.length > 50) recentSamples.shift();
 
-            // JALUR MATEMATIS KONTINU
             const mCleaned = mathDcBlockerRef.current.process(rawI, rawII);
             const absoluteXIndex = (timelineSeconds / 10) * TOTAL_POINTS + xIndex;
-
-            // Eksekusi Pendeteksi Puncak QRS
             const isPeak = ptRef.current.detectRealTime(mCleaned.cleanII, absoluteXIndex);
 
             if (isPeak && recentSamples.length > 0) {
-                // Algoritma Pan-Tompkins memiliki keterlambatan (delay) secara natural.
-                // Kita mencari puncak absolut (Maxima) dari buffer sampel masa lalu.
                 let truePeak = recentSamples[0];
                 for (let j = 1; j < recentSamples.length; j++) {
-                    // Minima di koordinat pixel Y berarti Maxima di tegangan mV (puncak teratas)
-                    if (recentSamples[j].yII < truePeak.yII) {
-                        truePeak = recentSamples[j];
-                    }
+                    if (recentSamples[j].yII < truePeak.yII) truePeak = recentSamples[j];
                 }
-
-                const marker: RPeakMarker = {
-                    x: truePeak.x,
-                    y: truePeak.yII, // Referensi default
-                    yI: truePeak.yI,
-                    yII: truePeak.yII,
-                    yIII: truePeak.yIII,
-                    yaVR: truePeak.yaVR,
-                    yaVL: truePeak.yaVL,
-                    yaVF: truePeak.yaVF,
-                    yV1: truePeak.yV1
-                };
-
+                const marker: RPeakMarker = { x: truePeak.x, y: truePeak.yII, yI: truePeak.yI, yII: truePeak.yII, yIII: truePeak.yIII, yaVR: truePeak.yaVR, yaVL: truePeak.yaVL, yaVF: truePeak.yaVF, yV1: truePeak.yV1 };
                 if (peakBuffer.length > 0) {
                     const prev = peakBuffer[peakBuffer.length - 1];
-                    // Kalkulasi jarak menggunakan index historis yang sudah terkoreksi
                     const secDist = calculateSingleRRInterval(prev.index, truePeak.xIndex, 250);
-
                     const metrics = calculateRRMetrics(secDist);
-                    marker.bpm = metrics.bpm;
-                    marker.boxesText = metrics.boxesText;
-
-                    rrIntervals.push(secDist);
-                    marker.rrText = `${secDist}s`;
-                    marker.prevX = prev.x;
-                    
-                    // NEW: Update BPM seketika secara Real-Time tanpa menunggu frame selesai!
+                    marker.bpm = metrics.bpm; marker.boxesText = metrics.boxesText;
+                    rrIntervals.push(secDist); marker.rrText = `${secDist}s`; marker.prevX = prev.x;
                     setHeartRate(metrics.bpm);
                 }
-
-                currentRPeaks.push(marker);
-                peakBuffer.push({ x: truePeak.x, index: truePeak.xIndex });
+                currentRPeaks.push(marker); peakBuffer.push({ x: truePeak.x, index: truePeak.xIndex });
             }
             xIndex++;
-
-            // MENCATAT TIMELINE TEPAT DI UJUNG FRAME (Penyelesaian Masalah 9 dari 10 Frame)
             if (xIndex === TOTAL_POINTS) {
                 const evalResult = evaluateIrregularity(rrIntervals);
                 const explanation = generateClinicalExplanation(classification_result || "UNKNOWN", isAnomaly, evalResult);
                 setClinicalStatus(explanation);
-                setHeartRate(prevHR => {
-                    if (evalResult.hr > 0) return evalResult.hr;
-                    if (payload.validation?.hr) return payload.validation.hr;
-                    if (payload.heart_rate) return payload.heart_rate;
-                    return prevHR !== '--' ? prevHR : '--';
-                });
-                setTimeline(prev => [...prev, {
-                    index: timelineSeconds / 10, timeStr: formatTime(timelineSeconds),
-                    isAnomaly, classResult: classification_result || "UNKNOWN"
-                }]);
+                setTimeline(prev => [...prev, { index: timelineSeconds / 10, timeStr: formatTime(timelineSeconds), isAnomaly, classResult: classification_result || "UNKNOWN" }]);
             }
         }
-
         dataRef.current = { xIndex, currentPaths, peakBuffer, rrIntervals, timelineSeconds, currentRPeaks, recentSamples };
         setPaths({ ...currentPaths }); setRPeaks([...currentRPeaks]);
     }, []);
@@ -311,45 +234,23 @@ export const useECGStream = (endpoint: string): UseECGStreamReturn => {
                     const summaries = msg.data.map(seg => {
                         const classRes = (seg as any).class_result;
                         const isNormal = classRes?.toUpperCase() === 'NORMAL' || classRes?.toUpperCase() === 'NORM';
-                        return {
-                            index: (seg as any).index, timeStr: formatTime((seg as any).index * 10),
-                            isAnomaly: !isNormal, classResult: classRes
-                        };
+                        return { index: (seg as any).index, timeStr: formatTime((seg as any).index * 10), isAnomaly: !isNormal, classResult: classRes };
                     });
                     setTimeline(summaries);
-                }
-                else if (msg.type === 'live_data' || msg.type === 'segment_data') {
+                } else if (msg.type === 'live_data' || msg.type === 'segment_data') {
                     if (msg.device_id) setDeviceId(msg.device_id);
-                    if (msg.session_id) {
-                        setSessionId(msg.session_id);
-                        lastSessionIdRef.current = msg.session_id;
-
-                        // Link frames that were created before session_id was available
-                        if (unlinkedFramesRef.current.length > 0) {
-                            unlinkedFramesRef.current.forEach(frameId => {
-                                fetchWithAuth(`/api/frames/${frameId}/session`, {
-                                    method: 'PUT',
-                                    headers: { 'Content-Type': 'application/json' },
-                                    body: JSON.stringify({ session_id: msg.session_id })
-                                }).catch(e => console.error("Gagal link session ke frame:", e));
-                            });
-                            unlinkedFramesRef.current = [];
-                        }
-                    }
+                    if (msg.session_id) { setSessionId(msg.session_id); lastSessionIdRef.current = msg.session_id; }
                     if (msg.data_payload) {
                         if (msg.type === 'segment_data') {
                             setViewingHistory(true);
                             dataRef.current.xIndex = TOTAL_POINTS;
                             dataRef.current.timelineSeconds = (msg.data_payload as any).segment_index * 10;
                             processDataChunk(msg.data_payload, msg.timestamp, msg.session_id || lastSessionIdRef.current);
-                        } else if (msg.type === 'live_data') {
-                            if (!isViewingHistoryRef.current) {
-                                processDataChunk(msg.data_payload, msg.timestamp, msg.session_id || lastSessionIdRef.current);
-                            }
+                        } else if (msg.type === 'live_data' && !isViewingHistoryRef.current) {
+                            processDataChunk(msg.data_payload, msg.timestamp, msg.session_id || lastSessionIdRef.current);
                         }
                     }
-                }
-                else if (msg.type === 'status') setIsRecording(false);
+                } else if (msg.type === 'status') setIsRecording(false);
             };
             clientRef.current.onClose = () => setIsRecording(false);
         }
@@ -358,37 +259,45 @@ export const useECGStream = (endpoint: string): UseECGStreamReturn => {
     const startStream = () => {
         if (isRecording) return;
         setIsRecording(true); setTimeline([]); setClinicalStatus(null); setHeartRate('--'); setRawClassification(null);
-
-        dataRef.current = {
-            xIndex: 0, currentPaths: { I: [], II: [], III: [], aVR: [], aVL: [], aVF: [], V1: [] },
-            peakBuffer: [], rrIntervals: [], timelineSeconds: 0, currentRPeaks: [], recentSamples: []
-        };
-        preRegisteredFramesRef.current.clear();
-        unlinkedFramesRef.current = [];
-        lastSessionIdRef.current = null;
-        ptRef.current.reset();
-        visualDcBlockerRef.current.reset();
-        mathDcBlockerRef.current.reset();
-        setViewingHistory(false);
-
-        initWebSocket();
-        clientRef.current?.connect();
+        dataRef.current = { xIndex: 0, currentPaths: { I: [], II: [], III: [], aVR: [], aVL: [], aVF: [], V1: [] }, peakBuffer: [], rrIntervals: [], timelineSeconds: 0, currentRPeaks: [], recentSamples: [] };
+        ptRef.current.reset(); visualDcBlockerRef.current.reset(); mathDcBlockerRef.current.reset(); setViewingHistory(false);
+        initWebSocket(); clientRef.current?.connect();
     };
 
-    const stopStream = () => {
-        setIsRecording(false); clientRef.current?.disconnect();
-        setViewingHistory(false);
-    };
-
+    const stopStream = () => { setIsRecording(false); clientRef.current?.disconnect(); setViewingHistory(false); };
     const fetchSummary = () => { initWebSocket(); clientRef.current?.connect(); };
-    const fetchSegment = (index: number) => { clientRef.current?.sendCommand({ command: "get_segment", index }); };
+    const fetchSegment = (index: number) => { 
+        if (clientRef.current && clientRef.current.getReadyState() === WebSocket.OPEN) {
+            clientRef.current.sendCommand({ command: "get_segment", index }); 
+        } else {
+            const sid = sessionId || lastSessionIdRef.current;
+            if (sid) {
+                fetchWithAuth(`/api/records/${sid}`)
+                    .then(res => res.json())
+                    .then(data => {
+                        if (data && data.length > 0) {
+                            // Filter payloads to only show one recording session (handles merged mockup files)
+                            const targetSessionId = data[data.length - 1].session_id;
+                            const filteredData = targetSessionId ? data.filter((p: any) => p.session_id === targetSessionId) : data;
+                            const target = filteredData[index];
+                            if (target) {
+                                setViewingHistory(true);
+                                dataRef.current.xIndex = 0;
+                                dataRef.current.timelineSeconds = index * 10;
+                                processDataChunk(target, target.created_at || new Date().toISOString(), sid);
+                            }
+                        }
+                    }).catch(console.error);
+            }
+        }
+    };
 
     useEffect(() => { return () => { clientRef.current?.disconnect(); }; }, []);
 
     return {
         isRecording, paths, rPeaks, heartRate, clinicalStatus, timeline,
         startStream, stopStream, fetchSummary, fetchSegment,
-        isFilterOn, toggleFilter, system, network, prediction, stressTest, createdAt, receivedAt, deviceId, sessionId, rawClassification,
+        system, network, prediction, stressTest, createdAt, receivedAt, deviceId, sessionId, rawClassification,
         isViewingHistory, resumeRealTimeStream
     };
 };
