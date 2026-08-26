@@ -10,6 +10,8 @@ import type { ECGPaths, TimelineEvent } from '../../../core/types/ecgTypes';
 import { calculateEinthovenPoint } from '../../../core/algorithms/einthoven';
 import { PanTompkins } from '../../../core/algorithms/panTompkins';
 import { DCBlocker } from '../../../core/algorithms/dcBlocker';
+import { MovingAverageFilter, IIRFilter } from '../../../core/algorithms/ecgFilters';
+import { calculateBatchRRIntervals, calculateHeartRate } from '../../../core/algorithms/peakToPeak';
 import { evaluateIrregularity } from '../../../core/clinical/ruleBasedEngine';
 import type { ClinicalExplanation } from '../../../core/clinical/ruleBasedEngine';
 import { useTranslation } from '../../../application/hooks/useTranslation';
@@ -17,6 +19,66 @@ import { useECGScale } from '../../../application/hooks/useECGScale';
 import { API_URL } from '../../../config/env';
 import { fetchWithAuth } from '../../../config/api';
 import { supabase, isSupabaseConfigured } from '../../../config/supabaseClient';
+
+const HISTORY_FILTER_CONFIG = {
+    baselineBlocker: true,
+    hfDenoise: true,
+    bandpass: true,
+    zScoreNorm: false,
+};
+
+const calculateHistoryBpmFromPayload = (payload: any, config = HISTORY_FILTER_CONFIG) => {
+    const raw = payload.raw || {};
+    const ch1 = Array.isArray(raw.ch1) && raw.ch1.length > 0 ? raw.ch1 : (Array.isArray(payload.ecg?.samples) ? payload.ecg.samples.map((sample: any) => Array.isArray(sample) ? sample[0] ?? 0 : sample ?? 0) : []);
+    const ch2 = Array.isArray(raw.ch2) && raw.ch2.length > 0 ? raw.ch2 : [];
+    const ch3 = Array.isArray(raw.ch3) && raw.ch3.length > 0 ? raw.ch3 : [];
+
+    if (ch1.length === 0 || ch2.length === 0) {
+        return { bpm: 0, rrIntervals: [] as number[] };
+    }
+
+    const detector = new PanTompkins(250);
+    const dcBlocker = new DCBlocker();
+    const movingAvgI = new MovingAverageFilter(5);
+    const movingAvgII = new MovingAverageFilter(5);
+    const movingAvgIII = new MovingAverageFilter(5);
+    const iirI = new IIRFilter();
+    const iirII = new IIRFilter();
+    const iirIII = new IIRFilter();
+    const peakIndices: number[] = [];
+
+    for (let i = 0; i < ch1.length; i++) {
+        let signalI = Array.isArray(ch1[i]) ? (ch1[i][0] ?? 0) : (ch1[i] ?? 0);
+        let signalII = Array.isArray(ch2[i]) ? (ch2[i][0] ?? 0) : (ch2[i] ?? 0);
+        let signalIII = Array.isArray(ch3[i]) ? (ch3[i][0] ?? 0) : (ch3[i] ?? 0);
+
+        if (config.baselineBlocker) {
+            const cleaned = dcBlocker.process(signalI, signalII);
+            signalI = cleaned.cleanI;
+            signalII = cleaned.cleanII;
+            signalIII = cleaned.cleanIII;
+        }
+
+        if (config.hfDenoise) {
+            signalI = movingAvgI.process(signalI);
+            signalII = movingAvgII.process(signalII);
+            signalIII = movingAvgIII.process(signalIII);
+        }
+
+        if (config.bandpass) {
+            signalI = iirI.process(signalI);
+            signalII = iirII.process(signalII);
+            signalIII = iirIII.process(signalIII);
+        }
+
+        if (detector.detectRealTime(signalII, i)) {
+            peakIndices.push(i);
+        }
+    }
+
+    const rrIntervals = calculateBatchRRIntervals(peakIndices, 250);
+    return { bpm: calculateHeartRate(rrIntervals), rrIntervals };
+};
 
 interface PatientProfile {
     patient: {
@@ -149,11 +211,6 @@ export const PatientHistoryDetailPage: React.FC = () => {
                 const loadedEvents: TimelineEvent[] = [];
                 const loadedSegments: Record<number, any> = {};
 
-                const pt = new PanTompkins(250);
-                const globalDcBlocker = new DCBlocker(); // Jalur Matematis: Kontinu
-                let lastPeakIndex = -1;
-                let absoluteIndexOffset = 0;
-
                 const labelMap = new Map();
                 const hiddenMap = new Map();
                 if (frameRecords) {
@@ -188,40 +245,11 @@ export const PatientHistoryDetailPage: React.FC = () => {
                         classResult
                     });
 
-                    let xIndex = 0;
-                    const TOTAL_POINTS = 2500;
-                    const X_STEP = 2000 / TOTAL_POINTS;
-                    const samples = payload.ecg?.samples || payload.raw?.ch1 || [];
-                    const ch2 = payload.raw?.ch2 || [];
-                    const ch3 = payload.raw?.ch3 || [];
-
-                    const rrIntervals: number[] = [];
-                    for (let j = 0; j < samples.length; j++) {
-                        let finalI, finalII, finalIII;
-                        if (Array.isArray(samples[j])) {
-                            finalI = samples[j][0] || 0;
-                            finalII = samples[j][1] || 0;
-                            finalIII = samples[j][2] || 0;
-                        } else {
-                            finalI = samples[j] || 0;
-                            finalII = ch2[j] || 0;
-                            finalIII = ch3[j] || 0;
-                        }
-
-                        // JALUR MATEMATIS (KONTINU): Hitung DC Blocker kontinu lalu umpankan ke PanTompkins
-                        const mathCleaned = globalDcBlocker.process(finalI, finalII);
-                        let absoluteJ = absoluteIndexOffset + j;
-                        if (pt.detectRealTime(mathCleaned.cleanII, absoluteJ)) {
-                            if (lastPeakIndex !== -1) {
-                                rrIntervals.push((absoluteJ - lastPeakIndex) / 250);
-                            }
-                            lastPeakIndex = absoluteJ;
-                        }
-                    }
-                    absoluteIndexOffset += samples.length;
+                    const stableResult = calculateHistoryBpmFromPayload(payload, HISTORY_FILTER_CONFIG);
+                    const rrIntervals = stableResult.rrIntervals;
+                    const calculatedHR = stableResult.bpm > 0 ? stableResult.bpm : (payload.validation?.hr || payload.heart_rate || (i > 0 ? loadedSegments[i-1].heartRate : "--"));
 
                     const evalResult = evaluateIrregularity(rrIntervals);
-                    const calculatedHR = evalResult.hr > 0 ? evalResult.hr : (payload.validation?.hr || payload.heart_rate || (i > 0 ? loadedSegments[i-1].heartRate : "--"));
 
                         loadedSegments[i] = {
                             payload, // Store the raw payload so EcgViewer can parse it lazily
