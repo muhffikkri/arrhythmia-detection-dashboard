@@ -16,7 +16,7 @@ import { DCBlocker } from '../../core/algorithms/dcBlocker';
 import { MovingAverageFilter, IIRFilter } from '../../core/algorithms/ecgFilters';
 import { evaluateIrregularity, generateClinicalExplanation } from '../../core/clinical/ruleBasedEngine';
 import { calculateEinthovenPoint } from '../../core/algorithms/einthoven';
-import { calculateSingleRRInterval, calculateRRMetrics } from '../../core/algorithms/peakToPeak';
+import { calculateSingleRRInterval, calculateRRMetrics, calculateBatchRRIntervals, calculateHeartRate } from '../../core/algorithms/peakToPeak';
 
 import type { ClinicalExplanation } from '../../core/clinical/ruleBasedEngine';
 import type { ECGPaths, RPeakMarker, TimelineEvent, ServerMessage, ECGDataPayload, DeviceSystem, DeviceNetwork, DevicePrediction, DeviceStressTest } from '../../core/types/ecgTypes';
@@ -46,8 +46,67 @@ type SamplePoint = {
 export interface StreamFilterConfig {
     baselineBlocker: boolean;
     hfDenoise: boolean;
+    bandpass: boolean;
     zScoreNorm: boolean;
 }
+
+type FrameRawSamples = {
+    ch1: number[];
+    ch2: number[];
+    ch3: number[];
+};
+
+const calculateStableHeartRateFromFrame = (
+    rawFrame: FrameRawSamples,
+    config: StreamFilterConfig
+): { bpm: number; rrIntervals: number[] } => {
+    if (rawFrame.ch1.length === 0 || rawFrame.ch2.length === 0) {
+        return { bpm: 0, rrIntervals: [] };
+    }
+
+    const detector = new PanTompkins(250);
+    const dcBlocker = new DCBlocker();
+    const lpI = new MovingAverageFilter(5);
+    const lpII = new MovingAverageFilter(5);
+    const lpIII = new MovingAverageFilter(5);
+    const bpI = new IIRFilter();
+    const bpII = new IIRFilter();
+    const bpIII = new IIRFilter();
+    const peakIndices: number[] = [];
+
+    for (let i = 0; i < rawFrame.ch1.length; i++) {
+        let signalI = rawFrame.ch1[i];
+        let signalII = rawFrame.ch2[i];
+        let signalIII = rawFrame.ch3.length > i ? rawFrame.ch3[i] : signalII - signalI;
+
+        if (config.baselineBlocker) {
+            const cleaned = dcBlocker.process(signalI, signalII);
+            signalI = cleaned.cleanI;
+            signalII = cleaned.cleanII;
+            signalIII = cleaned.cleanIII;
+        }
+
+        if (config.hfDenoise) {
+            signalI = lpI.process(signalI);
+            signalII = lpII.process(signalII);
+            signalIII = lpIII.process(signalIII);
+        }
+
+        if (config.bandpass) {
+            signalI = bpI.process(signalI);
+            signalII = bpII.process(signalII);
+            signalIII = bpIII.process(signalIII);
+        }
+
+        if (detector.detectRealTime(signalII, i)) {
+            peakIndices.push(i);
+        }
+    }
+
+    const rrIntervals = calculateBatchRRIntervals(peakIndices, 250);
+    const bpm = calculateHeartRate(rrIntervals);
+    return { bpm, rrIntervals };
+};
 
 export interface UseECGStreamReturn {
     isRecording: boolean;
@@ -73,7 +132,7 @@ export interface UseECGStreamReturn {
     resumeRealTimeStream: () => void;
 }
 
-export const useECGStream = (endpoint: string, filterConfig: StreamFilterConfig = { baselineBlocker: true, hfDenoise: false, zScoreNorm: false }): UseECGStreamReturn => {
+export const useECGStream = (endpoint: string, filterConfig: StreamFilterConfig = { baselineBlocker: true, hfDenoise: false, bandpass: false, zScoreNorm: false }): UseECGStreamReturn => {
     const [isRecording, setIsRecording] = useState<boolean>(false);
     const [paths, setPaths] = useState<ECGPaths>({ I: [], II: [], III: [], aVR: [], aVL: [], aVF: [], V1: [] });
     const [rPeaks, setRPeaks] = useState<RPeakMarker[]>([]);
@@ -101,6 +160,12 @@ export const useECGStream = (endpoint: string, filterConfig: StreamFilterConfig 
     const bpIRef = useRef(new IIRFilter());
     const bpIIRef = useRef(new IIRFilter());
     const bpIIIRef = useRef(new IIRFilter());
+    const mathLpIRef = useRef(new MovingAverageFilter(5));
+    const mathLpIIRef = useRef(new MovingAverageFilter(5));
+    const mathLpIIIRef = useRef(new MovingAverageFilter(5));
+    const mathBpIRef = useRef(new IIRFilter());
+    const mathBpIIRef = useRef(new IIRFilter());
+    const mathBpIIIRef = useRef(new IIRFilter());
     
     const filterConfigRef = useRef(filterConfig);
     useEffect(() => { filterConfigRef.current = filterConfig; }, [filterConfig]);
@@ -127,7 +192,8 @@ export const useECGStream = (endpoint: string, filterConfig: StreamFilterConfig 
         rrIntervals: [] as number[],
         timelineSeconds: 0,
         currentRPeaks: [] as RPeakMarker[],
-        recentSamples: [] as SamplePoint[]
+        recentSamples: [] as SamplePoint[],
+        frameRawSamples: { ch1: [], ch2: [], ch3: [] } as FrameRawSamples
     });
 
     const preRegisteredFramesRef = useRef<Set<string>>(new Set());
@@ -146,7 +212,7 @@ export const useECGStream = (endpoint: string, filterConfig: StreamFilterConfig 
         if (stress_test) setStressTest(stress_test);
         if (timestamp) { setCreatedAt(timestamp); setReceivedAt(new Date().toISOString()); }
 
-        let { xIndex, currentPaths, peakBuffer, rrIntervals, timelineSeconds, currentRPeaks, recentSamples } = dataRef.current;
+        let { xIndex, currentPaths, peakBuffer, rrIntervals, timelineSeconds, currentRPeaks, recentSamples, frameRawSamples } = dataRef.current;
         const ch1 = raw.ch1; const ch2 = raw.ch2; const ch3 = raw.ch3;
 
         for (let i = 0; i < ch1.length; i++) {
@@ -154,12 +220,20 @@ export const useECGStream = (endpoint: string, filterConfig: StreamFilterConfig 
                 xIndex = 0; timelineSeconds += 10;
                 currentPaths = { I: [], II: [], III: [], aVR: [], aVL: [], aVF: [], V1: [] };
                 peakBuffer = []; rrIntervals = []; currentRPeaks = []; recentSamples = [];
+                frameRawSamples = { ch1: [], ch2: [], ch3: [] };
                 visualDcBlockerRef.current.reset();
                 lpIRef.current.reset(); lpIIRef.current.reset(); lpIIIRef.current.reset();
                 bpIRef.current.reset(); bpIIRef.current.reset(); bpIIIRef.current.reset();
+                mathDcBlockerRef.current.reset();
+                mathLpIRef.current.reset(); mathLpIIRef.current.reset(); mathLpIIIRef.current.reset();
+                mathBpIRef.current.reset(); mathBpIIRef.current.reset(); mathBpIIIRef.current.reset();
+                ptRef.current.reset();
             }
 
             const rawI = ch1[i]; const rawII = ch2[i]; const rawIII = ch3[i];
+            frameRawSamples.ch1.push(rawI);
+            frameRawSamples.ch2.push(rawII);
+            frameRawSamples.ch3.push(rawIII);
             let visualI = rawI, visualII = rawII, visualIII = rawIII;
             const config = filterConfigRef.current;
 
@@ -171,6 +245,11 @@ export const useECGStream = (endpoint: string, filterConfig: StreamFilterConfig 
                 visualI = lpIRef.current.process(visualI);
                 visualII = lpIIRef.current.process(visualII);
                 visualIII = lpIIIRef.current.process(visualIII);
+            }
+            if (config.bandpass) {
+                visualI = bpIRef.current.process(visualI);
+                visualII = bpIIRef.current.process(visualII);
+                visualIII = bpIIIRef.current.process(visualIII);
             }
 
             const calculated = calculateEinthovenPoint(visualI, visualII);
@@ -194,9 +273,27 @@ export const useECGStream = (endpoint: string, filterConfig: StreamFilterConfig 
             recentSamples.push({ xIndex, x: currentX, yI, yII, yIII, yaVR, yaVL, yaVF, yV1 });
             if (recentSamples.length > 50) recentSamples.shift();
 
-            const mCleaned = mathDcBlockerRef.current.process(rawI, rawII);
+            let mathI = rawI;
+            let mathII = rawII;
+            let mathIII = rawIII;
+            if (config.baselineBlocker) {
+                const mCleaned = mathDcBlockerRef.current.process(mathI, mathII);
+                mathI = mCleaned.cleanI;
+                mathII = mCleaned.cleanII;
+                mathIII = mCleaned.cleanIII;
+            }
+            if (config.hfDenoise) {
+                mathI = mathLpIRef.current.process(mathI);
+                mathII = mathLpIIRef.current.process(mathII);
+                mathIII = mathLpIIIRef.current.process(mathIII);
+            }
+            if (config.bandpass) {
+                mathI = mathBpIRef.current.process(mathI);
+                mathII = mathBpIIRef.current.process(mathII);
+                mathIII = mathBpIIIRef.current.process(mathIII);
+            }
             const absoluteXIndex = (timelineSeconds / 10) * TOTAL_POINTS + xIndex;
-            const isPeak = ptRef.current.detectRealTime(mCleaned.cleanII, absoluteXIndex);
+            const isPeak = ptRef.current.detectRealTime(mathII, absoluteXIndex);
 
             if (isPeak && recentSamples.length > 0) {
                 let truePeak = recentSamples[0];
@@ -210,19 +307,21 @@ export const useECGStream = (endpoint: string, filterConfig: StreamFilterConfig 
                     const metrics = calculateRRMetrics(secDist);
                     marker.bpm = metrics.bpm; marker.boxesText = metrics.boxesText;
                     rrIntervals.push(secDist); marker.rrText = `${secDist}s`; marker.prevX = prev.x;
-                    setHeartRate(metrics.bpm);
                 }
                 currentRPeaks.push(marker); peakBuffer.push({ x: truePeak.x, index: truePeak.xIndex });
             }
             xIndex++;
             if (xIndex === TOTAL_POINTS) {
-                const evalResult = evaluateIrregularity(rrIntervals);
+                const stableResult = calculateStableHeartRateFromFrame(frameRawSamples, config);
+                const stableIntervals = stableResult.rrIntervals.length > 0 ? stableResult.rrIntervals : rrIntervals;
+                setHeartRate(stableResult.bpm > 0 ? stableResult.bpm : '--');
+                const evalResult = evaluateIrregularity(stableIntervals);
                 const explanation = generateClinicalExplanation(classification_result || "UNKNOWN", isAnomaly, evalResult);
                 setClinicalStatus(explanation);
                 setTimeline(prev => [...prev, { index: timelineSeconds / 10, timeStr: formatTime(timelineSeconds), isAnomaly, classResult: classification_result || "UNKNOWN" }]);
             }
         }
-        dataRef.current = { xIndex, currentPaths, peakBuffer, rrIntervals, timelineSeconds, currentRPeaks, recentSamples };
+        dataRef.current = { xIndex, currentPaths, peakBuffer, rrIntervals, timelineSeconds, currentRPeaks, recentSamples, frameRawSamples };
         setPaths({ ...currentPaths }); setRPeaks([...currentRPeaks]);
     }, []);
 
@@ -259,8 +358,15 @@ export const useECGStream = (endpoint: string, filterConfig: StreamFilterConfig 
     const startStream = () => {
         if (isRecording) return;
         setIsRecording(true); setTimeline([]); setClinicalStatus(null); setHeartRate('--'); setRawClassification(null);
-        dataRef.current = { xIndex: 0, currentPaths: { I: [], II: [], III: [], aVR: [], aVL: [], aVF: [], V1: [] }, peakBuffer: [], rrIntervals: [], timelineSeconds: 0, currentRPeaks: [], recentSamples: [] };
-        ptRef.current.reset(); visualDcBlockerRef.current.reset(); mathDcBlockerRef.current.reset(); setViewingHistory(false);
+        dataRef.current = { xIndex: 0, currentPaths: { I: [], II: [], III: [], aVR: [], aVL: [], aVF: [], V1: [] }, peakBuffer: [], rrIntervals: [], timelineSeconds: 0, currentRPeaks: [], recentSamples: [], frameRawSamples: { ch1: [], ch2: [], ch3: [] } };
+        ptRef.current.reset();
+        visualDcBlockerRef.current.reset();
+        mathDcBlockerRef.current.reset();
+        lpIRef.current.reset(); lpIIRef.current.reset(); lpIIIRef.current.reset();
+        bpIRef.current.reset(); bpIIRef.current.reset(); bpIIIRef.current.reset();
+        mathLpIRef.current.reset(); mathLpIIRef.current.reset(); mathLpIIIRef.current.reset();
+        mathBpIRef.current.reset(); mathBpIIRef.current.reset(); mathBpIIIRef.current.reset();
+        setViewingHistory(false);
         initWebSocket(); clientRef.current?.connect();
     };
 
