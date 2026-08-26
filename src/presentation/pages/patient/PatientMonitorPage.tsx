@@ -435,11 +435,11 @@ export const PatientMonitorPage: React.FC = () => {
                                         <div className="relative z-[9999]">
                                             <button
                                                 onClick={() => setShowFilterPopup(!showFilterPopup)}
-                                                className={`h-10 px-4 rounded-full font-bold uppercase tracking-wider text-[10px] transition-all duration-300 flex items-center justify-center gap-2 outline-none hover:-translate-y-0.5 hover:shadow-sm border ${filterConfig.baselineBlocker || filterConfig.hfDenoise || filterConfig.zScoreNorm ? 'bg-blue-50 text-clinical-blue border-blue-100' : 'bg-clinical-surface text-clinical-charcoal/60 border-clinical-charcoal/10'}`}
+                                                className={`h-10 px-4 rounded-full font-bold uppercase tracking-wider text-[10px] transition-all duration-300 flex items-center justify-center gap-2 outline-none hover:-translate-y-0.5 hover:shadow-sm border ${filterConfig.baselineBlocker || filterConfig.hfDenoise || filterConfig.bandpass || filterConfig.zScoreNorm ? 'bg-blue-50 text-clinical-blue border-blue-100' : 'bg-clinical-surface text-clinical-charcoal/60 border-clinical-charcoal/10'}`}
                                                 title="Konfigurasi Filter Sinyal"
                                             >
                                                 <span className="material-symbols-outlined text-[16px]">
-                                                    {filterConfig.baselineBlocker || filterConfig.hfDenoise || filterConfig.zScoreNorm ? 'filter_alt' : 'filter_alt_off'}
+                                                    {filterConfig.baselineBlocker || filterConfig.hfDenoise || filterConfig.bandpass || filterConfig.zScoreNorm ? 'filter_alt' : 'filter_alt_off'}
                                                 </span>
                                             </button>
                                             
