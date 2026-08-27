@@ -42,6 +42,7 @@ export const ECGCanvas: React.FC<ECGCanvasProps> = ({
     const [pointerY, setPointerY] = useState<number | null>(null);
 
     const canvasWidth = 10 * paperSpeed * 8;
+    const xScale = paperSpeed / 25;
     const lead2Stroke = '#001F54';
 
     const handlePointerMove = (e: React.MouseEvent | React.TouchEvent) => {
@@ -170,7 +171,7 @@ export const ECGCanvas: React.FC<ECGCanvasProps> = ({
                         onMouseEnter={() => setPointerX(0)} onMouseLeave={hidePointer} onTouchStart={() => setPointerX(0)} onTouchEnd={hidePointer}
                     >
                         {/* SATU CANVAS RAKSASA (GRID + GELOMBANG EKG TERINTEGRASI) */}
-                        <svg className="absolute top-0 left-0 pointer-events-none z-10 overflow-visible" width={canvasWidth} height={2880} viewBox={`0 0 ${canvasWidth} 2880`} xmlns="http://www.w3.org/2000/svg">
+                        <svg data-testid="ecg-svg" data-paper-speed={paperSpeed} className="absolute top-0 left-0 pointer-events-none z-10 overflow-visible" width={canvasWidth} height={2880} viewBox={`0 0 ${canvasWidth} 2880`} xmlns="http://www.w3.org/2000/svg">
                             {/* Layer 1: Definisi & Latar Belakang Grid */}
                             <defs>
                                 <pattern id="smallGrid" width="8" height="8" patternUnits="userSpaceOnUse"><path d="M 8 0 L 0 0 0 8" fill="none" stroke="#FFD1DC" strokeWidth="0.5" /></pattern>
@@ -183,37 +184,37 @@ export const ECGCanvas: React.FC<ECGCanvasProps> = ({
 
                             {/* Layer 2: Saluran Gelombang (Digeser otomatis dengan transform-translate) */}
                             {/* 1. Lead I */}
-                            <g transform="translate(0, 0)">
-                                <path d={paths.I.length > 0 ? `M${paths.I.join(' L')}` : ""} fill="none" stroke="#001F54" strokeWidth="1.5" strokeLinejoin="round" />
+                            <g transform={`translate(0, 0) scale(${xScale}, 1)`}>
+                                <path data-testid="ecg-path-I" d={paths.I.length > 0 ? `M${paths.I.join(' L')}` : ""} fill="none" stroke="#001F54" strokeWidth="1.5" strokeLinejoin="round" />
                                 {renderMarkers('yI')}
                             </g>
 
                             {/* 2. Lead II */}
-                            <g transform="translate(0, 480)">
+                            <g transform={`translate(0, 480) scale(${xScale}, 1)`}>
                                 <path d={paths.II.length > 0 ? `M${paths.II.join(' L')}` : ""} fill="none" stroke={lead2Stroke} strokeWidth="1.5" strokeLinejoin="round" />
                                 {renderMarkers('yII', true)}
                             </g>
 
                             {/* 3. Lead III */}
-                            <g transform="translate(0, 960)">
+                            <g transform={`translate(0, 960) scale(${xScale}, 1)`}>
                                 <path d={paths.III.length > 0 ? `M${paths.III.join(' L')}` : ""} fill="none" stroke="#001F54" strokeWidth="1.5" strokeLinejoin="round" />
                                 {renderMarkers('yIII')}
                             </g>
 
                             {/* 4. aVR (Menggunakan matriks skala matematika murni untuk pembalikan) */}
-                            <g transform="translate(0, 1920) scale(1, -1)">
+                            <g transform={`translate(0, 1920) scale(${xScale}, -1)`}>
                                 <path d={paths.aVR.length > 0 ? `M${paths.aVR.join(' L')}` : ""} fill="none" stroke="#001F54" strokeWidth="1.5" strokeLinejoin="round" />
                                 {renderMarkers('yaVR')}
                             </g>
 
                             {/* 5. aVL */}
-                            <g transform="translate(0, 1920)">
+                            <g transform={`translate(0, 1920) scale(${xScale}, 1)`}>
                                 <path d={paths.aVL.length > 0 ? `M${paths.aVL.join(' L')}` : ""} fill="none" stroke="#001F54" strokeWidth="1.5" strokeLinejoin="round" />
                                 {renderMarkers('yaVL')}
                             </g>
 
                             {/* 6. aVF */}
-                            <g transform="translate(0, 2400)">
+                            <g transform={`translate(0, 2400) scale(${xScale}, 1)`}>
                                 <path d={paths.aVF.length > 0 ? `M${paths.aVF.join(' L')}` : ""} fill="none" stroke="#001F54" strokeWidth="1.5" strokeLinejoin="round" />
                                 {renderMarkers('yaVF')}
                             </g>

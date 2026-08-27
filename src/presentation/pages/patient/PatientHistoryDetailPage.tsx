@@ -1,476 +1,413 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { Link, useNavigate, useParams } from 'react-router-dom';
-import { PatientHeader } from '../../components/layout/PatientHeader';
-import { EcgViewer } from '../../components/dashboard/EcgViewer';
-import { TimelineBar } from '../../components/shared/TimelineBar';
-import { VitalCard } from '../../components/dashboard/VitalCard';
-import { AiCard } from '../../components/dashboard/AiCard';
-import { DeviceCard } from '../../components/dashboard/DeviceCard';
-import type { ECGPaths, TimelineEvent } from '../../../core/types/ecgTypes';
-import { calculateEinthovenPoint } from '../../../core/algorithms/einthoven';
-import { PanTompkins } from '../../../core/algorithms/panTompkins';
-import { DCBlocker } from '../../../core/algorithms/dcBlocker';
-import { MovingAverageFilter, IIRFilter } from '../../../core/algorithms/ecgFilters';
-import { calculateBatchRRIntervals, calculateHeartRate } from '../../../core/algorithms/peakToPeak';
-import { evaluateIrregularity } from '../../../core/clinical/ruleBasedEngine';
-import type { ClinicalExplanation } from '../../../core/clinical/ruleBasedEngine';
-import { useTranslation } from '../../../application/hooks/useTranslation';
-import { useECGScale } from '../../../application/hooks/useECGScale';
-import { API_URL } from '../../../config/env';
-import { fetchWithAuth } from '../../../config/api';
-import { supabase, isSupabaseConfigured } from '../../../config/supabaseClient';
+import React, { useState, useEffect, useRef } from "react";
+import { Link, useNavigate, useParams } from "react-router-dom";
+import { PatientHeader } from "../../components/layout/PatientHeader";
+import { EcgViewer } from "../../components/dashboard/EcgViewer";
+import { TimelineBar } from "../../components/shared/TimelineBar";
+import { VitalCard } from "../../components/dashboard/VitalCard";
+import { AiCard } from "../../components/dashboard/AiCard";
+import { DeviceCard } from "../../components/dashboard/DeviceCard";
+import type { ECGPaths, TimelineEvent } from "../../../core/types/ecgTypes";
+import { calculateEinthovenPoint } from "../../../core/algorithms/einthoven";
+import { FILTERS_CLINICAL_DEFAULT, calculateFrameHeartRate, extractRawFromPayload } from "../../../core/algorithms/ecgFrameProcessor";
+import { evaluateIrregularity } from "../../../core/clinical/ruleBasedEngine";
+import type { ClinicalExplanation } from "../../../core/clinical/ruleBasedEngine";
+import { useTranslation } from "../../../application/hooks/useTranslation";
+import { useECGScale } from "../../../application/hooks/useECGScale";
+import { API_URL } from "../../../config/env";
+import { fetchWithAuth } from "../../../config/api";
+import { supabase, isSupabaseConfigured } from "../../../config/supabaseClient";
 
-const HISTORY_FILTER_CONFIG = {
-    baselineBlocker: true,
-    hfDenoise: true,
-    bandpass: true,
-    zScoreNorm: false,
-};
+const HISTORY_FILTER_CONFIG = FILTERS_CLINICAL_DEFAULT;
 
 const calculateHistoryBpmFromPayload = (payload: any, config = HISTORY_FILTER_CONFIG) => {
-    const raw = payload.raw || {};
-    const ch1 = Array.isArray(raw.ch1) && raw.ch1.length > 0 ? raw.ch1 : (Array.isArray(payload.ecg?.samples) ? payload.ecg.samples.map((sample: any) => Array.isArray(sample) ? sample[0] ?? 0 : sample ?? 0) : []);
-    const ch2 = Array.isArray(raw.ch2) && raw.ch2.length > 0 ? raw.ch2 : [];
-    const ch3 = Array.isArray(raw.ch3) && raw.ch3.length > 0 ? raw.ch3 : [];
-
-    if (ch1.length === 0 || ch2.length === 0) {
-        return { bpm: 0, rrIntervals: [] as number[] };
-    }
-
-    const detector = new PanTompkins(250);
-    const dcBlocker = new DCBlocker();
-    const movingAvgI = new MovingAverageFilter(5);
-    const movingAvgII = new MovingAverageFilter(5);
-    const movingAvgIII = new MovingAverageFilter(5);
-    const iirI = new IIRFilter();
-    const iirII = new IIRFilter();
-    const iirIII = new IIRFilter();
-    const peakIndices: number[] = [];
-
-    for (let i = 0; i < ch1.length; i++) {
-        let signalI = Array.isArray(ch1[i]) ? (ch1[i][0] ?? 0) : (ch1[i] ?? 0);
-        let signalII = Array.isArray(ch2[i]) ? (ch2[i][0] ?? 0) : (ch2[i] ?? 0);
-        let signalIII = Array.isArray(ch3[i]) ? (ch3[i][0] ?? 0) : (ch3[i] ?? 0);
-
-        if (config.baselineBlocker) {
-            const cleaned = dcBlocker.process(signalI, signalII);
-            signalI = cleaned.cleanI;
-            signalII = cleaned.cleanII;
-            signalIII = cleaned.cleanIII;
-        }
-
-        if (config.hfDenoise) {
-            signalI = movingAvgI.process(signalI);
-            signalII = movingAvgII.process(signalII);
-            signalIII = movingAvgIII.process(signalIII);
-        }
-
-        if (config.bandpass) {
-            signalI = iirI.process(signalI);
-            signalII = iirII.process(signalII);
-            signalIII = iirIII.process(signalIII);
-        }
-
-        if (detector.detectRealTime(signalII, i)) {
-            peakIndices.push(i);
-        }
-    }
-
-    const rrIntervals = calculateBatchRRIntervals(peakIndices, 250);
-    return { bpm: calculateHeartRate(rrIntervals), rrIntervals };
+  return calculateFrameHeartRate(extractRawFromPayload(payload), config);
 };
 
 interface PatientProfile {
-    patient: {
-        first_name: string;
-        last_name: string;
-        profile_photo: string | null;
-    }
+  patient: {
+    first_name: string;
+    last_name: string;
+    profile_photo: string | null;
+  };
 }
 
 export const PatientHistoryDetailPage: React.FC = () => {
-    const navigate = useNavigate();
-    const { sessionId } = useParams<{ sessionId: string }>();
-    const [profile, setProfile] = useState<PatientProfile | null>(null);
-    const { t } = useTranslation();
+  const navigate = useNavigate();
+  const { sessionId } = useParams<{ sessionId: string }>();
+  const [profile, setProfile] = useState<PatientProfile | null>(null);
+  const { t } = useTranslation();
 
-    // Analytics states
-    const [speed, setSpeed] = useState<25 | 50>(25);
-    const [selectedIdx, setSelectedIdx] = useState<number>(0);
-    const [isLoading, setIsLoading] = useState<boolean>(true);
-    const [events, setEvents] = useState<TimelineEvent[]>([]);
-    const [segments, setSegments] = useState<Record<number, any>>({});
-    
-    // Download menu states
-    const [showDownloadMenu, setShowDownloadMenu] = useState<boolean>(false);
-    const downloadMenuRef = useRef<HTMLDivElement>(null);
+  // Analytics states
+  const [speed, setSpeed] = useState<25 | 50>(25);
+  const [selectedIdx, setSelectedIdx] = useState<number>(0);
+  const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [events, setEvents] = useState<TimelineEvent[]>([]);
+  const [segments, setSegments] = useState<Record<number, any>>({});
 
-    const downloadSegmentJSON = () => {
-        if (!currentSegment) return;
-        const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(currentSegment.payload, null, 2));
-        const downloadAnchorNode = document.createElement('a');
-        downloadAnchorNode.setAttribute("href", dataStr);
-        downloadAnchorNode.setAttribute("download", `ecg_segment_${sessionId}_frame_${selectedIdx}.json`);
-        document.body.appendChild(downloadAnchorNode);
-        downloadAnchorNode.click();
-        downloadAnchorNode.remove();
+  // Download menu states
+  const [showDownloadMenu, setShowDownloadMenu] = useState<boolean>(false);
+  const downloadMenuRef = useRef<HTMLDivElement>(null);
+
+  const downloadSegmentJSON = () => {
+    if (!currentSegment) return;
+    const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(currentSegment.payload, null, 2));
+    const downloadAnchorNode = document.createElement("a");
+    downloadAnchorNode.setAttribute("href", dataStr);
+    downloadAnchorNode.setAttribute("download", `ecg_segment_${sessionId}_frame_${selectedIdx}.json`);
+    document.body.appendChild(downloadAnchorNode);
+    downloadAnchorNode.click();
+    downloadAnchorNode.remove();
+  };
+
+  const downloadSegmentCSV = () => {
+    if (!currentSegment) return;
+    const payload = currentSegment.payload;
+    const samples = payload.ecg?.samples || payload.raw?.ch1 || [];
+    const ch2 = payload.raw?.ch2 || [];
+
+    let csvContent = "Timestamp (s),Lead I (mV),Lead II (mV),Lead III (mV)\n";
+    for (let j = 0; j < samples.length; j++) {
+      const time = (selectedIdx * 10 + j * 0.004).toFixed(3);
+      let valI = 0,
+        valII = 0;
+      if (Array.isArray(samples[j])) {
+        valI = samples[j][0] || 0;
+        valII = samples[j][1] || 0;
+      } else {
+        valI = samples[j] || 0;
+        valII = ch2[j] || 0;
+      }
+      const valIII = valII - valI;
+      csvContent += `${time},${valI.toFixed(4)},${valII.toFixed(4)},${valIII.toFixed(4)}\n`;
+    }
+
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.setAttribute("href", url);
+    link.setAttribute("download", `ecg_segment_${sessionId}_frame_${selectedIdx}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+  };
+
+  const downloadSessionJSON = () => {
+    if (!segments || Object.keys(segments).length === 0) return;
+    const orderedPayloads = Object.keys(segments)
+      .map(Number)
+      .sort((a, b) => a - b)
+      .map((idx) => segments[idx].payload);
+
+    const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(orderedPayloads, null, 2));
+    const downloadAnchorNode = document.createElement("a");
+    downloadAnchorNode.setAttribute("href", dataStr);
+    downloadAnchorNode.setAttribute("download", `ecg_session_${sessionId}_full.json`);
+    document.body.appendChild(downloadAnchorNode);
+    downloadAnchorNode.click();
+    downloadAnchorNode.remove();
+  };
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (downloadMenuRef.current && !downloadMenuRef.current.contains(event.target as Node)) {
+        setShowDownloadMenu(false);
+      }
     };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, []);
 
-    const downloadSegmentCSV = () => {
-        if (!currentSegment) return;
-        const payload = currentSegment.payload;
-        const samples = payload.ecg?.samples || payload.raw?.ch1 || [];
-        const ch2 = payload.raw?.ch2 || [];
+  const { scale } = useECGScale();
+  const getInitials = (firstName: string, lastName: string) => {
+    if (!firstName && !lastName) return "";
+    return `${(firstName || "").charAt(0)}${(lastName || "").charAt(0)}`.toUpperCase();
+  };
 
-        let csvContent = "Timestamp (s),Lead I (mV),Lead II (mV),Lead III (mV)\n";
-        for (let j = 0; j < samples.length; j++) {
-            const time = (selectedIdx * 10 + j * 0.004).toFixed(3);
-            let valI = 0, valII = 0;
-            if (Array.isArray(samples[j])) {
-                valI = samples[j][0] || 0;
-                valII = samples[j][1] || 0;
-            } else {
-                valI = samples[j] || 0;
-                valII = ch2[j] || 0;
-            }
-            const valIII = valII - valI;
-            csvContent += `${time},${valI.toFixed(4)},${valII.toFixed(4)},${valIII.toFixed(4)}\n`;
+  useEffect(() => {
+    const userId = localStorage.getItem("user_id") || "1";
+    fetchWithAuth(`/api/patients/${userId}`)
+      .then((res) => res.json())
+      .then((data) => setProfile(data))
+      .catch(console.error);
+
+    setIsLoading(true);
+    setIsLoading(true);
+    const frameRecordsPromise = isSupabaseConfigured
+      ? supabase
+          .from("frame_records")
+          .select("start_time, label, hidden")
+          .eq("session_id", sessionId)
+          .then(({ data }) => data || [])
+      : Promise.resolve([]);
+
+    Promise.all([fetchWithAuth(`/api/records/${sessionId}`).then((res) => res.json()), frameRecordsPromise])
+      .then(([rawData, frameRecords]) => {
+        let data = rawData;
+        if (data && data.length > 0) {
+          // Filter payloads to only show one recording session (handles merged mockup files)
+          const targetSessionId = data[data.length - 1].session_id;
+          if (targetSessionId) {
+            data = data.filter((p: any) => p.session_id === targetSessionId);
+          }
         }
 
-        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-        const url = URL.createObjectURL(blob);
-        const link = document.createElement("a");
-        link.setAttribute("href", url);
-        link.setAttribute("download", `ecg_segment_${sessionId}_frame_${selectedIdx}.csv`);
-        document.body.appendChild(link);
-        link.click();
-        link.remove();
-    };
+        const loadedEvents: TimelineEvent[] = [];
+        const loadedSegments: Record<number, any> = {};
 
-    const downloadSessionJSON = () => {
-        if (!segments || Object.keys(segments).length === 0) return;
-        const orderedPayloads = Object.keys(segments)
-            .map(Number)
-            .sort((a, b) => a - b)
-            .map(idx => segments[idx].payload);
+        const labelMap = new Map();
+        const hiddenMap = new Map();
+        if (frameRecords) {
+          frameRecords.forEach((fr) => {
+            labelMap.set(fr.start_time, fr.label);
+            hiddenMap.set(fr.start_time, fr.hidden);
+          });
+        }
 
-        const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(orderedPayloads, null, 2));
-        const downloadAnchorNode = document.createElement('a');
-        downloadAnchorNode.setAttribute("href", dataStr);
-        downloadAnchorNode.setAttribute("download", `ecg_session_${sessionId}_full.json`);
-        document.body.appendChild(downloadAnchorNode);
-        downloadAnchorNode.click();
-        downloadAnchorNode.remove();
-    };
+        // Filter data to exclude hidden frames
+        const validData = data.filter((payload: any, originalIndex: number) => {
+          const startTime = originalIndex * 10;
+          return !hiddenMap.get(startTime);
+        });
 
-    useEffect(() => {
-        const handleClickOutside = (event: MouseEvent) => {
-            if (downloadMenuRef.current && !downloadMenuRef.current.contains(event.target as Node)) {
-                setShowDownloadMenu(false);
-            }
-        };
-        document.addEventListener('mousedown', handleClickOutside);
-        return () => {
-            document.removeEventListener('mousedown', handleClickOutside);
-        };
-    }, []);
-    
-    const { scale } = useECGScale();
-    const getInitials = (firstName: string, lastName: string) => {
-        if (!firstName && !lastName) return '';
-        return `${(firstName || '').charAt(0)}${(lastName || '').charAt(0)}`.toUpperCase();
-    };
+        validData.forEach((payload: any, i: number) => {
+          const originalIndex = data.indexOf(payload);
+          const startTime = originalIndex * 10;
+          const dbLabel = labelMap.get(startTime);
 
-    useEffect(() => {
-        const userId = localStorage.getItem('user_id') || '1';
-        fetchWithAuth(`/api/patients/${userId}`)
-            .then(res => res.json())
-            .then(data => setProfile(data))
-            .catch(console.error);
+          const isDbLabelAnomaly = dbLabel && dbLabel !== "Normal" && dbLabel !== "NORM" && dbLabel !== "NSR";
+          const isPayloadAnomaly = (payload.anomaly_indices && payload.anomaly_indices.length > 0) || (payload.prediction?.label && payload.prediction.label !== "Normal" && payload.prediction.label !== "NORM") || false;
 
-        setIsLoading(true);
-        setIsLoading(true);
-        const frameRecordsPromise = isSupabaseConfigured
-            ? supabase.from('frame_records').select('start_time, label, hidden').eq('session_id', sessionId).then(({ data }) => data || [])
-            : Promise.resolve([]);
+          const isAnomaly = dbLabel ? isDbLabelAnomaly : isPayloadAnomaly;
+          const classResult = dbLabel || payload.prediction?.label || payload.prediction_details?.label || payload.classification_result || "NORM";
 
-        Promise.all([
-            fetchWithAuth(`/api/records/${sessionId}`).then(res => res.json()),
-            frameRecordsPromise
-        ])
-            .then(([rawData, frameRecords]) => {
-                let data = rawData;
-                if (data && data.length > 0) {
-                    // Filter payloads to only show one recording session (handles merged mockup files)
-                    const targetSessionId = data[data.length - 1].session_id;
-                    if (targetSessionId) {
-                        data = data.filter((p: any) => p.session_id === targetSessionId);
-                    }
-                }
+          loadedEvents.push({
+            index: i,
+            timeStr: `${Math.floor(i / 6)
+              .toString()
+              .padStart(2, "0")}:${((i % 6) * 10).toString().padStart(2, "0")}`,
+            isAnomaly,
+            classResult,
+          });
 
-                const loadedEvents: TimelineEvent[] = [];
-                const loadedSegments: Record<number, any> = {};
+          const stableResult = calculateHistoryBpmFromPayload(payload, HISTORY_FILTER_CONFIG);
+          const rrIntervals = stableResult.rrIntervals;
+          const calculatedHR = stableResult.bpm > 0 ? stableResult.bpm : payload.validation?.hr || payload.heart_rate || (i > 0 ? loadedSegments[i - 1].heartRate : "--");
 
-                const labelMap = new Map();
-                const hiddenMap = new Map();
-                if (frameRecords) {
-                    frameRecords.forEach(fr => {
-                        labelMap.set(fr.start_time, fr.label);
-                        hiddenMap.set(fr.start_time, fr.hidden);
-                    });
-                }
+          const evalResult = evaluateIrregularity(rrIntervals);
 
-                // Filter data to exclude hidden frames
-                const validData = data.filter((payload: any, originalIndex: number) => {
-                    const startTime = originalIndex * 10;
-                    return !hiddenMap.get(startTime);
-                });
+          loadedSegments[i] = {
+            payload, // Store the raw payload so EcgViewer can parse it lazily
+            rPeaks: [],
+            isAnomaly,
+            diagnosis: isAnomaly ? "Anomali Terdeteksi pada rekaman." : "Normal Sinus Rhythm. Variasi stabil.",
+            heartRate: calculatedHR,
+            frameId: payload.message_id || payload.frame_id || "---",
+            deviceId: payload.device_id || "---",
+            createdAt: payload.created_at || "---",
+            aiProbabilities: payload.prediction?.probabilities || payload.prediction_details?.probabilities || null,
+            aiMetrics: {
+              latency_ms: payload.prediction?.latency_ms || null,
+              runtime: payload.prediction?.runtime || "---",
+            },
+            stressTest: payload.stress_test || null,
+            system: payload.system || null,
+            network: payload.network || null,
+          };
+        });
 
-                validData.forEach((payload: any, i: number) => {
-                    const originalIndex = data.indexOf(payload);
-                    const startTime = originalIndex * 10;
-                    const dbLabel = labelMap.get(startTime);
-                    
-                    const isDbLabelAnomaly = dbLabel && dbLabel !== "Normal" && dbLabel !== "NORM" && dbLabel !== "NSR";
-                    const isPayloadAnomaly = (payload.anomaly_indices && payload.anomaly_indices.length > 0) ||
-                        (payload.prediction?.label && payload.prediction.label !== "Normal" && payload.prediction.label !== "NORM") || false;
-                    
-                    const isAnomaly = dbLabel ? isDbLabelAnomaly : isPayloadAnomaly;
-                    const classResult = dbLabel || payload.prediction?.label || payload.classification_result || "NORM";
+        setEvents(loadedEvents);
+        setSegments(loadedSegments);
+        setIsLoading(false);
+      })
+      .catch((err) => {
+        console.error("Error fetching mock records:", err);
+        setIsLoading(false);
+      });
+  }, [sessionId]);
 
-                    loadedEvents.push({
-                        index: i,
-                        timeStr: `${Math.floor(i / 6).toString().padStart(2, '0')}:${((i % 6) * 10).toString().padStart(2, '0')}`,
-                        isAnomaly,
-                        classResult
-                    });
+  const patientName = profile ? `${profile.patient.first_name} ${profile.patient.last_name}` : t("profile.loading");
 
-                    const stableResult = calculateHistoryBpmFromPayload(payload, HISTORY_FILTER_CONFIG);
-                    const rrIntervals = stableResult.rrIntervals;
-                    const calculatedHR = stableResult.bpm > 0 ? stableResult.bpm : (payload.validation?.hr || payload.heart_rate || (i > 0 ? loadedSegments[i-1].heartRate : "--"));
+  const currentSegment = segments[selectedIdx];
+  const currentEvent = events.find((e) => e.index === selectedIdx);
 
-                    const evalResult = evaluateIrregularity(rrIntervals);
-
-                        loadedSegments[i] = {
-                            payload, // Store the raw payload so EcgViewer can parse it lazily
-                            rPeaks: [],
-                            isAnomaly,
-                            diagnosis: isAnomaly ? "Anomali Terdeteksi pada rekaman." : "Normal Sinus Rhythm. Variasi stabil.",
-                            heartRate: calculatedHR,
-                        frameId: payload.message_id || payload.frame_id || "---",
-                        deviceId: payload.device_id || "---",
-                        createdAt: payload.created_at || "---",
-                        aiProbabilities: payload.prediction?.probabilities || null,
-                        aiMetrics: {
-                            latency_ms: payload.prediction?.latency_ms || null,
-                            runtime: payload.prediction?.runtime || "---"
-                        },
-                        stressTest: payload.stress_test || null,
-                        system: payload.system || null,
-                        network: payload.network || null,
-                    };
-                });
-
-                setEvents(loadedEvents);
-                setSegments(loadedSegments);
-                setIsLoading(false);
-            })
-            .catch(err => {
-                console.error("Error fetching mock records:", err);
-                setIsLoading(false);
-            });
-    }, [sessionId]);
-
-    const patientName = profile ? `${profile.patient.first_name} ${profile.patient.last_name}` : t('profile.loading');
-
-    const currentSegment = segments[selectedIdx];
-    const currentEvent = events.find(e => e.index === selectedIdx);
-
-    const clinicalStatus: ClinicalExplanation | null = currentSegment ? {
+  const clinicalStatus: ClinicalExplanation | null = currentSegment
+    ? {
         isAnomaly: currentSegment.isAnomaly,
-        fullExplanation: `${currentSegment.isAnomaly ? 'Anomali Terdeteksi' : 'Normal'} - ${currentEvent?.classResult}. ${currentSegment.diagnosis}`,
-        severity: currentSegment.isAnomaly ? "CRITICAL" : "NORMAL"
-    } : null;
+        fullExplanation: `${currentSegment.isAnomaly ? "Anomali Terdeteksi" : "Normal"} - ${currentEvent?.classResult}. ${currentSegment.diagnosis}`,
+        severity: currentSegment.isAnomaly ? "CRITICAL" : "NORMAL",
+      }
+    : null;
 
-    const heartRate = currentSegment?.heartRate || "--";
-    const stressTest = currentSegment?.stressTest || null;
-    let createdAt = currentSegment?.createdAt || new Date().toISOString();
-    const aiProbabilities = currentSegment?.aiProbabilities || null;
-    const deviceId = currentSegment?.deviceId || "---";
-    const aiMetrics = currentSegment?.aiMetrics || null;
+  const heartRate = currentSegment?.heartRate || "--";
+  const stressTest = currentSegment?.stressTest || null;
+  let createdAt = currentSegment?.createdAt || new Date().toISOString();
+  const aiProbabilities = currentSegment?.aiProbabilities || null;
+  const deviceId = currentSegment?.deviceId || "---";
+  const aiMetrics = currentSegment?.aiMetrics || null;
 
-    return (
-        <div className="bg-clinical-surface/30 text-clinical-charcoal min-h-screen w-full flex flex-col transition-colors duration-700 relative">
-            <div className="absolute inset-0 ecg-grid opacity-[0.15] z-0 pointer-events-none"></div>
+  return (
+    <div className="bg-clinical-surface/30 text-clinical-charcoal min-h-screen w-full flex flex-col transition-colors duration-700 relative">
+      <div className="absolute inset-0 ecg-grid opacity-[0.15] z-0 pointer-events-none"></div>
 
-            <div className="relative z-10 flex flex-col flex-1">
-                {/* Top Navigation Bar */}
-                <PatientHeader />
+      <div className="relative z-10 flex flex-col flex-1">
+        {/* Top Navigation Bar */}
+        <PatientHeader />
 
+        {/* Main Canvas Content */}
+        <main className="flex-1 w-full max-w-container-max mx-auto px-margin-mobile md:px-margin-desktop py-8">
+          <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
+            {/* KOLOM KIRI: GRAFIK & TIMELINE */}
+            <section className="lg:col-span-3 flex flex-col gap-6">
+              {/* Control Bar */}
+              <div className="bg-white border border-clinical-charcoal/5 rounded-[2rem] px-6 py-3 flex flex-wrap justify-between items-center shadow-[0px_20px_40px_rgba(0,0,0,0.04)] gap-4 transition-all duration-700 hover:shadow-[0px_30px_60px_rgba(0,0,0,0.08)] hover:-translate-y-1">
+                <div className="flex items-center gap-4">
+                  <div className="bg-clinical-blue/10 p-2.5 rounded-full text-clinical-blue">
+                    <span className="material-symbols-outlined block text-[24px]">schedule</span>
+                  </div>
+                  <div>
+                    <p className="text-[10px] font-bold text-clinical-charcoal/60 uppercase tracking-widest">{t("history.recordingTime")}</p>
+                    <p className="text-sm font-bold text-clinical-charcoal mt-0.5">{currentEvent ? `${currentEvent.timeStr} - ${events[selectedIdx + 1]?.timeStr || t("history.end")}` : "--"}</p>
+                  </div>
+                </div>
+              </div>
 
-                {/* Main Canvas Content */}
-                <main className="flex-1 w-full max-w-container-max mx-auto px-margin-mobile md:px-margin-desktop py-8">
-                    <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
-
-                        {/* KOLOM KIRI: GRAFIK & TIMELINE */}
-                        <section className="lg:col-span-3 flex flex-col gap-6">
-
-                            {/* Control Bar */}
-                            <div className="bg-white border border-clinical-charcoal/5 rounded-[2rem] px-6 py-3 flex flex-wrap justify-between items-center shadow-[0px_20px_40px_rgba(0,0,0,0.04)] gap-4 transition-all duration-700 hover:shadow-[0px_30px_60px_rgba(0,0,0,0.08)] hover:-translate-y-1">
-                                <div className="flex items-center gap-4">
-                                    <div className="bg-clinical-blue/10 p-2.5 rounded-full text-clinical-blue">
-                                        <span className="material-symbols-outlined block text-[24px]">schedule</span>
-                                    </div>
-                                    <div>
-                                        <p className="text-[10px] font-bold text-clinical-charcoal/60 uppercase tracking-widest">{t('history.recordingTime')}</p>
-                                        <p className="text-sm font-bold text-clinical-charcoal mt-0.5">
-                                            {currentEvent ? `${currentEvent.timeStr} - ${events[selectedIdx + 1]?.timeStr || t('history.end')}` : '--'}
-                                        </p>
-                                    </div>
-                                </div>
-                                
-
-                            </div>
-
-                            {/* Pembungkus Kanvas 7-Lead */}
-                            <div className="relative flex-1 min-h-[400px]">
-                                <div className="absolute inset-0 z-0 bg-white border border-clinical-blue/20 rounded-[2rem] overflow-y-auto overflow-x-hidden shadow-[0px_20px_40px_rgba(0,0,0,0.04)] flex flex-col">
-                                    <EcgViewer 
-                                        segment={currentSegment}
-                                        speed={speed} 
-                                        classResult={currentEvent?.classResult} 
-                                        timeOffset={selectedIdx * 10}
-                                    />
-                                    {isLoading && (
-                                    <div className="absolute inset-0 flex flex-col items-center justify-center bg-white/60 backdrop-blur-md z-50 transition-all duration-300">
-                                        <span className="material-symbols-outlined text-clinical-blue text-4xl animate-spin">sync</span>
-                                        <p className="mt-3 text-sm font-bold text-clinical-charcoal">{t('history.loadingSegment')}</p>
-                                    </div>
-                                    )}
-                                </div>
-                            </div>
-
-                            {/* Timeline Multi-Aritmia */}
-                            {events.length > 0 && (
-                                <div className="flex-shrink-0">
-                                    <TimelineBar
-                                        events={events}
-                                        currentIdx={selectedIdx}
-                                        onSegmentSelect={(idx: number) => {
-                                            setIsLoading(true);
-                                            setTimeout(() => {
-                                                setSelectedIdx(idx);
-                                                setIsLoading(false);
-                                            }, 300);
-                                        }}
-                                    />
-                                </div>
-                            )}
-
-                            {/* Download Action Menu (Moved to bottom) */}
-                            <div className="flex justify-end w-full mt-2">
-                                <div className="flex items-center gap-2 relative z-[99999]" ref={downloadMenuRef}>
-                                    <button
-                                        onClick={() => setShowDownloadMenu(!showDownloadMenu)}
-                                        className="bg-clinical-surface hover:bg-clinical-charcoal/5 border border-clinical-charcoal/10 px-4 py-2 rounded-full font-bold text-xs flex items-center gap-2 transition-all duration-300 outline-none hover:-translate-y-0.5 shadow-sm"
-                                        title="Unduh data EKG untuk analisis offline"
-                                    >
-                                        <span className="material-symbols-outlined text-[16px]">download</span>
-                                        Download EKG Data
-                                        <span className="material-symbols-outlined text-[14px]">
-                                            {showDownloadMenu ? 'expand_more' : 'expand_less'}
-                                        </span>
-                                    </button>
-
-                                    {showDownloadMenu && (
-                                        <div className="absolute right-0 bottom-full mb-2 bg-white border border-clinical-charcoal/10 rounded-[1.5rem] p-3 shadow-xl z-[999] min-w-[240px] flex flex-col gap-2 animate-in fade-in slide-in-from-bottom-2 duration-200">
-                                            <h4 className="text-[10px] font-bold text-clinical-charcoal/40 uppercase tracking-widest px-2 pt-1">
-                                                Unduh Frame Aktif (10s)
-                                            </h4>
-                                            <button
-                                                onClick={() => { downloadSegmentCSV(); setShowDownloadMenu(false); }}
-                                                className="flex items-center gap-2.5 px-3 py-2 text-left text-xs font-bold text-clinical-charcoal hover:bg-clinical-surface/70 rounded-xl transition-all"
-                                            >
-                                                <span className="material-symbols-outlined text-[16px] text-emerald-600">table_rows</span>
-                                                Unduh CSV (Excel)
-                                            </button>
-                                            <button
-                                                onClick={() => { downloadSegmentJSON(); setShowDownloadMenu(false); }}
-                                                className="flex items-center gap-2.5 px-3 py-2 text-left text-xs font-bold text-clinical-charcoal hover:bg-clinical-surface/70 rounded-xl transition-all"
-                                            >
-                                                <span className="material-symbols-outlined text-[16px] text-blue-600">code</span>
-                                                Unduh Raw JSON
-                                            </button>
-
-                                            <div className="border-t border-clinical-charcoal/5 my-1"></div>
-
-                                            <h4 className="text-[10px] font-bold text-clinical-charcoal/40 uppercase tracking-widest px-2">
-                                                Unduh Seluruh Sesi
-                                            </h4>
-                                            <button
-                                                onClick={() => { downloadSessionJSON(); setShowDownloadMenu(false); }}
-                                                className="flex items-center gap-2.5 px-3 py-2 text-left text-xs font-bold text-clinical-charcoal hover:bg-clinical-surface/70 rounded-xl transition-all"
-                                            >
-                                                <span className="material-symbols-outlined text-[16px] text-purple-600">folder_zip</span>
-                                                Unduh Sesi Lengkap (JSON)
-                                            </button>
-                                        </div>
-                                    )}
-                                </div>
-                            </div>
-                            
-                        </section>
-
-                        {/* KOLOM KANAN: DETAIL ANALISIS HISTORIS */}
-                        <aside className="lg:col-span-1 flex flex-col gap-5 h-fit">
-                            <VitalCard heartRate={heartRate} clinicalStatus={clinicalStatus} stressTest={stressTest} createdAt={createdAt} hideTechnicalDetails={true} />
-
-                            {/* Kesimpulan Analisis (Patient Friendly) */}
-                            <div className="bg-white border border-clinical-charcoal/5 rounded-[2rem] p-6 shadow-[0px_20px_40px_rgba(0,0,0,0.04)] transition-all duration-700 hover:shadow-[0px_30px_60px_rgba(0,0,0,0.08)] hover:-translate-y-1">
-                                <div className="flex items-center gap-2 mb-4">
-                                    <span className="material-symbols-outlined text-clinical-blue text-[20px]">psychiatry</span>
-                                    <h3 className="font-bold text-clinical-charcoal text-sm">{t('history.conclusion')}</h3>
-                                </div>
-
-                                {!clinicalStatus ? (
-                                    <p className="text-sm text-clinical-charcoal/60 italic">{t('history.processing')}</p>
-                                ) : clinicalStatus.severity === 'NORMAL' ? (
-                                    <div className="space-y-3">
-                                        <p className="text-sm text-clinical-charcoal leading-relaxed">
-                                            {t('history.normalDesc')}<strong className="text-status-green">{t('history.normalStatus')}</strong>{t('history.normalDesc2')}
-                                        </p>
-                                        <p className="text-sm text-clinical-charcoal leading-relaxed mt-2 bg-green-50 p-3 rounded-lg border border-green-100">
-                                            {t('history.normalTip')}
-                                        </p>
-                                    </div>
-                                ) : (
-                                    <div className="space-y-3">
-                                        <div className="bg-red-50 p-3 rounded-lg border border-red-100 mb-2">
-                                            <p className="text-sm text-clinical-red font-bold flex items-center gap-2">
-                                                <span className="material-symbols-outlined text-[18px]">warning</span>
-                                                {t('history.anomalyDetected')}
-                                            </p>
-                                        </div>
-                                        <p className="text-sm text-clinical-charcoal leading-relaxed">
-                                            {t('history.anomalyDesc1')}<strong className="text-clinical-red">{currentEvent?.classResult || 'Aritmia'}</strong>{t('history.anomalyDesc2')}
-                                        </p>
-                                        <div className="bg-yellow-50 p-3 rounded-lg border border-yellow-200 mt-2">
-                                            <p className="text-sm text-clinical-charcoal leading-relaxed font-bold">
-                                                {t('history.anomalyTip')}
-                                            </p>
-                                        </div>
-                                    </div>
-                                )}
-                            </div>
-                        </aside>
-
+              {/* Pembungkus Kanvas 7-Lead */}
+              <div className="relative flex-1 min-h-[400px]">
+                <div className="absolute inset-0 z-0 bg-white border border-clinical-blue/20 rounded-[2rem] overflow-y-auto overflow-x-hidden shadow-[0px_20px_40px_rgba(0,0,0,0.04)] flex flex-col">
+                  <EcgViewer segment={currentSegment} speed={speed} classResult={currentEvent?.classResult} timeOffset={selectedIdx * 10} />
+                  {isLoading && (
+                    <div className="absolute inset-0 flex flex-col items-center justify-center bg-white/60 backdrop-blur-md z-50 transition-all duration-300">
+                      <span className="material-symbols-outlined text-clinical-blue text-4xl animate-spin">sync</span>
+                      <p className="mt-3 text-sm font-bold text-clinical-charcoal">{t("history.loadingSegment")}</p>
                     </div>
-                </main>
+                  )}
+                </div>
+              </div>
 
-                {/* Bottom Navigation Shell (Sembunyikan sepenuhnya sesuai permintaan pengguna) */}
-                <nav className="hidden fixed bottom-0 left-0 w-full flex justify-around items-center h-20 bg-white border-t border-clinical-charcoal/10 z-50">
-                </nav>
-            </div>
-        </div>
-    );
+              {/* Timeline Multi-Aritmia */}
+              {events.length > 0 && (
+                <div className="flex-shrink-0">
+                  <TimelineBar
+                    events={events}
+                    currentIdx={selectedIdx}
+                    onSegmentSelect={(idx: number) => {
+                      setIsLoading(true);
+                      setTimeout(() => {
+                        setSelectedIdx(idx);
+                        setIsLoading(false);
+                      }, 300);
+                    }}
+                  />
+                </div>
+              )}
+
+              {/* Download Action Menu (Moved to bottom) */}
+              <div className="flex justify-end w-full mt-2">
+                <div className="flex items-center gap-2 relative z-[99999]" ref={downloadMenuRef}>
+                  <button
+                    onClick={() => setShowDownloadMenu(!showDownloadMenu)}
+                    className="bg-clinical-surface hover:bg-clinical-charcoal/5 border border-clinical-charcoal/10 px-4 py-2 rounded-full font-bold text-xs flex items-center gap-2 transition-all duration-300 outline-none hover:-translate-y-0.5 shadow-sm"
+                    title="Unduh data EKG untuk analisis offline"
+                  >
+                    <span className="material-symbols-outlined text-[16px]">download</span>
+                    Download EKG Data
+                    <span className="material-symbols-outlined text-[14px]">{showDownloadMenu ? "expand_more" : "expand_less"}</span>
+                  </button>
+
+                  {showDownloadMenu && (
+                    <div className="absolute right-0 bottom-full mb-2 bg-white border border-clinical-charcoal/10 rounded-[1.5rem] p-3 shadow-xl z-[999] min-w-[240px] flex flex-col gap-2 animate-in fade-in slide-in-from-bottom-2 duration-200">
+                      <h4 className="text-[10px] font-bold text-clinical-charcoal/40 uppercase tracking-widest px-2 pt-1">Unduh Frame Aktif (10s)</h4>
+                      <button
+                        onClick={() => {
+                          downloadSegmentCSV();
+                          setShowDownloadMenu(false);
+                        }}
+                        className="flex items-center gap-2.5 px-3 py-2 text-left text-xs font-bold text-clinical-charcoal hover:bg-clinical-surface/70 rounded-xl transition-all"
+                      >
+                        <span className="material-symbols-outlined text-[16px] text-emerald-600">table_rows</span>
+                        Unduh CSV (Excel)
+                      </button>
+                      <button
+                        onClick={() => {
+                          downloadSegmentJSON();
+                          setShowDownloadMenu(false);
+                        }}
+                        className="flex items-center gap-2.5 px-3 py-2 text-left text-xs font-bold text-clinical-charcoal hover:bg-clinical-surface/70 rounded-xl transition-all"
+                      >
+                        <span className="material-symbols-outlined text-[16px] text-blue-600">code</span>
+                        Unduh Raw JSON
+                      </button>
+
+                      <div className="border-t border-clinical-charcoal/5 my-1"></div>
+
+                      <h4 className="text-[10px] font-bold text-clinical-charcoal/40 uppercase tracking-widest px-2">Unduh Seluruh Sesi</h4>
+                      <button
+                        onClick={() => {
+                          downloadSessionJSON();
+                          setShowDownloadMenu(false);
+                        }}
+                        className="flex items-center gap-2.5 px-3 py-2 text-left text-xs font-bold text-clinical-charcoal hover:bg-clinical-surface/70 rounded-xl transition-all"
+                      >
+                        <span className="material-symbols-outlined text-[16px] text-purple-600">folder_zip</span>
+                        Unduh Sesi Lengkap (JSON)
+                      </button>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </section>
+
+            {/* KOLOM KANAN: DETAIL ANALISIS HISTORIS */}
+            <aside className="lg:col-span-1 flex flex-col gap-5 h-fit">
+              <VitalCard heartRate={heartRate} clinicalStatus={clinicalStatus} stressTest={stressTest} createdAt={createdAt} hideTechnicalDetails={true} />
+              <AiCard rawClassification={currentEvent?.classResult || null} />
+
+              {/* Kesimpulan Analisis (Patient Friendly) */}
+              <div className="bg-white border border-clinical-charcoal/5 rounded-[2rem] p-6 shadow-[0px_20px_40px_rgba(0,0,0,0.04)] transition-all duration-700 hover:shadow-[0px_30px_60px_rgba(0,0,0,0.08)] hover:-translate-y-1">
+                <div className="flex items-center gap-2 mb-4">
+                  <span className="material-symbols-outlined text-clinical-blue text-[20px]">psychiatry</span>
+                  <h3 className="font-bold text-clinical-charcoal text-sm">{t("history.conclusion")}</h3>
+                </div>
+
+                {!clinicalStatus ? (
+                  <p className="text-sm text-clinical-charcoal/60 italic">{t("history.processing")}</p>
+                ) : clinicalStatus.severity === "NORMAL" ? (
+                  <div className="space-y-3">
+                    <p className="text-sm text-clinical-charcoal leading-relaxed">
+                      {t("history.normalDesc")}
+                      <strong className="text-status-green">{t("history.normalStatus")}</strong>
+                      {t("history.normalDesc2")}
+                    </p>
+                    <p className="text-sm text-clinical-charcoal leading-relaxed mt-2 bg-green-50 p-3 rounded-lg border border-green-100">{t("history.normalTip")}</p>
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    <div className="bg-red-50 p-3 rounded-lg border border-red-100 mb-2">
+                      <p className="text-sm text-clinical-red font-bold flex items-center gap-2">
+                        <span className="material-symbols-outlined text-[18px]">warning</span>
+                        {t("history.anomalyDetected")}
+                      </p>
+                    </div>
+                    <p className="text-sm text-clinical-charcoal leading-relaxed">
+                      {t("history.anomalyDesc1")}
+                      <strong className="text-clinical-red">{currentEvent?.classResult || "Aritmia"}</strong>
+                      {t("history.anomalyDesc2")}
+                    </p>
+                    <div className="bg-yellow-50 p-3 rounded-lg border border-yellow-200 mt-2">
+                      <p className="text-sm text-clinical-charcoal leading-relaxed font-bold">{t("history.anomalyTip")}</p>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </aside>
+          </div>
+        </main>
+
+        {/* Bottom Navigation Shell (Sembunyikan sepenuhnya sesuai permintaan pengguna) */}
+        <nav className="hidden fixed bottom-0 left-0 w-full flex justify-around items-center h-20 bg-white border-t border-clinical-charcoal/10 z-50"></nav>
+      </div>
+    </div>
+  );
 };

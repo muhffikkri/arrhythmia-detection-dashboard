@@ -18,7 +18,7 @@ export const VitalCard: React.FC<VitalCardProps> = ({ heartRate, clinicalStatus,
                 <div>
                     <p className="text-[12px] font-bold text-clinical-charcoal/60 uppercase tracking-[0.2em] mb-2">Heart Rate</p>
                     <h2 className={`text-6xl font-bold font-display leading-none mt-1 transition-colors duration-700 ${clinicalStatus?.severity === 'CRITICAL' ? 'text-clinical-red' : 'text-clinical-charcoal group-hover:text-clinical-blue'}`}>
-                        <span>{heartRate}</span> <span className="text-xl font-bold tracking-normal ml-1 text-clinical-charcoal/50">BPM</span>
+                        <span data-testid="heart-rate-value">{heartRate}</span> <span className="text-xl font-bold tracking-normal ml-1 text-clinical-charcoal/50">BPM</span>
                     </h2>
                 </div>
                 <div className={`px-4 py-2 rounded-full font-bold text-[11px] border flex items-center gap-2 transition-all shadow-sm ${
