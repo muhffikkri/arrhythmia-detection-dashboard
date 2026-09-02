@@ -19,6 +19,7 @@ import { DeviceCard } from "../../components/dashboard/DeviceCard";
 import { API_URL, WS_URL } from "../../../config/env";
 import { fetchWithAuth } from "../../../config/api";
 import { ActionModal } from "../../components/shared/ActionModal";
+import { ScreenCalibrationModal } from "../../components/shared/ScreenCalibrationModal";
 
 interface DeviceRecord {
   id: string;
@@ -52,6 +53,12 @@ export const PatientMonitorPage: React.FC = () => {
   const [playbackSpeed, setPlaybackSpeed] = useState<number>(1);
   const playbackSpeedRef = useRef<number>(1);
   const [showAlert, setShowAlert] = useState<boolean>(false);
+  const [showScreenCalibration, setShowScreenCalibration] = useState(false);
+  const [pixelsPerMm, setPixelsPerMm] = useState(() => {
+    const saved = localStorage.getItem("ecg_pixels_per_mm");
+    const parsed = saved ? Number(saved) : 3.7795;
+    return Number.isFinite(parsed) && parsed > 0 ? parsed : 3.7795;
+  });
 
   // Filter Popup State
 
@@ -159,7 +166,6 @@ export const PatientMonitorPage: React.FC = () => {
 
   // Gain override untuk 5, 10, 20
   const [gain, setGain] = useState<number>(10);
-  const scale = gain / 10;
 
   useEffect(() => {
     const isNormal = rawClassification?.toUpperCase() === "NORMAL" || rawClassification?.toUpperCase() === "NORM";
@@ -388,7 +394,7 @@ export const PatientMonitorPage: React.FC = () => {
 
             <div className="relative flex-1 min-h-[560px] md:min-h-[600px] group flex flex-col bg-white border border-clinical-charcoal/5 rounded-[2rem] shadow-[0px_20px_40px_rgba(0,0,0,0.04)] transition-all duration-700 hover:shadow-[0px_30px_60px_rgba(0,0,0,0.08)] hover:-translate-y-1 overflow-hidden">
               <div className="relative flex-1 overflow-y-auto overflow-x-hidden">
-                <ECGCanvas paths={slicedPaths} rPeaks={slicedRPeaks} speed={speed} paperSpeed={speed} isAnomaly={clinicalStatus?.isAnomaly} classResult={aiClassResult} scale={scale} />
+                <ECGCanvas paths={slicedPaths} rPeaks={slicedRPeaks} speed={speed} paperSpeed={speed} gain={gain} pixelsPerMm={pixelsPerMm} isAnomaly={clinicalStatus?.isAnomaly} classResult={aiClassResult} />
               </div>
 
               {/* Playback Control Bar */}
@@ -450,6 +456,13 @@ export const PatientMonitorPage: React.FC = () => {
                         </div>
                       )}
                     </div>
+                    <button
+                      onClick={() => setShowScreenCalibration(true)}
+                      className="flex items-center justify-center bg-clinical-surface border border-clinical-charcoal/10 text-clinical-charcoal hover:bg-clinical-surface/80 active:scale-95 transition-all rounded-full w-10 h-10 shadow-xs outline-none"
+                      title="Kalibrasi ukuran fisik layar"
+                    >
+                      <span className="material-symbols-outlined text-[18px]">straighten</span>
+                    </button>
                   </div>
 
                   <div className="ml-2 flex flex-col justify-center">
@@ -565,6 +578,7 @@ export const PatientMonitorPage: React.FC = () => {
       </div>
 
       <ActionModal isOpen={actionModal.isOpen} type={actionModal.type} title={actionModal.title} message={actionModal.message} onConfirm={actionModal.onConfirm} onClose={closeActionModal} isLoading={isCommandLoading} />
+      <ScreenCalibrationModal isOpen={showScreenCalibration} onClose={() => setShowScreenCalibration(false)} onSave={setPixelsPerMm} />
     </div>
   );
 };

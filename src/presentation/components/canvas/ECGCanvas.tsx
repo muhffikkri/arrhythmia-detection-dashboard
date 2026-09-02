@@ -79,10 +79,23 @@ export const ECGCanvas: React.FC<ECGCanvasProps> = ({ paths, rPeaks, isAnomaly =
     .padStart(2, "0");
   const boxIndex = (absoluteSecs / 0.04).toFixed(1);
 
-  // Render Calibration Pulse: 1mV (80 logical Y units) for 0.2s (5mm = 40 logical X units)
-  // Starting at Y=240 (center). Pulse goes up (Y decreases by 80), right by 40, down to 240.
+  // Reference pulse: 1 mV high and half a second of paper distance at 25 mm/s.
+  // This gives the calibration sheet's 12.5 mm at 25 mm/s and 25 mm at 50 mm/s.
+  const calibrationPulseWidth = 100;
+  const calibrationPulseHeight = 80;
   const renderCalibrationPulse = () => {
-    return <path d="M 0 240 L 5 240 L 5 160 L 45 160 L 45 240 L 50 240" fill="none" stroke="#001F54" strokeWidth="1.5" strokeLinejoin="round" vectorEffect="non-scaling-stroke" />;
+    return (
+      <path
+        data-testid="calibration-pulse"
+        d={`M 0 240 L 5 240 L 5 ${240 - calibrationPulseHeight} L ${calibrationPulseWidth - 5} ${240 - calibrationPulseHeight} L ${calibrationPulseWidth - 5} 240 L ${calibrationPulseWidth} 240`}
+        fill="none"
+        stroke="#001F54"
+        strokeWidth="1.5"
+        strokeLinejoin="round"
+        vectorEffect="non-scaling-stroke"
+        transform={`translate(0, 240) scale(${xScale}, ${yGain}) translate(0, -240)`}
+      />
+    );
   };
 
   // Fungsi helper dinamis untuk merender marker di dalam koordinat grup SVG
@@ -124,7 +137,7 @@ export const ECGCanvas: React.FC<ECGCanvasProps> = ({ paths, rPeaks, isAnomaly =
 
         <div className="relative flex flex-row">
           {/* Y-Axis Skala Garis Tepi (Kiri) */}
-          <div className="sticky left-0 w-16 h-[2880px] flex-shrink-0 bg-white/95 backdrop-blur z-30 shadow-[2px_0_5px_rgba(0,0,0,0.03)] relative" style={{ height: `${physicalHeight}px` }}>
+          <div className="sticky left-0 w-16 h-[2880px] flex-shrink-0 bg-white/95 backdrop-blur z-30 shadow-[2px_0_5px_rgba(0,0,0,0.03)]" style={{ height: `${physicalHeight}px` }}>
             {Array.from({ length: 6 }).map((_, idx) => (
               <div key={idx} className="absolute w-full" style={{ top: `${idx * 60 * pixelsPerMm}px`, height: `${60 * pixelsPerMm}px` }}>
                 <span className="absolute top-[0px] left-1 md:left-1.5 text-[9px] font-mono-data font-bold text-red-600 leading-none -translate-y-1/2">±3.0mV</span>
@@ -153,6 +166,12 @@ export const ECGCanvas: React.FC<ECGCanvasProps> = ({ paths, rPeaks, isAnomaly =
             <svg
               data-testid="ecg-svg"
               data-paper-speed={paperSpeed}
+              data-gain={gain}
+              data-pixels-per-mm={pixelsPerMm}
+              data-grid-small-logical="8"
+              data-grid-large-logical="40"
+              data-calibration-pulse-width-logical={calibrationPulseWidth * xScale}
+              data-calibration-pulse-height-logical={calibrationPulseHeight * yGain}
               className="absolute top-0 left-0 pointer-events-none z-10 overflow-visible"
               width={logicalCanvasWidth}
               height={2880}

@@ -33,7 +33,9 @@ export const ScreenCalibrationModal: React.FC<ScreenCalibrationModalProps> = ({ 
   };
 
   // Width of the box in CSS pixels = physical width (mm) * pixelsPerMm
-  const boxWidthPx = targetLengthCm * 10 * pixelsPerMm;
+  const targetLengthMm = targetLengthCm * 10;
+  const boxWidthPx = targetLengthMm * pixelsPerMm;
+  const rulerTicks = Array.from({ length: targetLengthMm + 1 }, (_, index) => index);
 
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-charcoal/40 backdrop-blur-sm">
@@ -83,23 +85,25 @@ export const ScreenCalibrationModal: React.FC<ScreenCalibrationModalProps> = ({ 
             </div>
           </div>
 
-          {/* Visualizer */}
-          <div className="flex flex-col items-center justify-center p-8 bg-slate-50 rounded-2xl border border-slate-200 min-h-[160px] overflow-x-auto custom-scrollbar">
-            <div className="relative flex flex-col items-center">
-              <div className="text-xs font-mono font-bold text-slate-400 mb-2">Tempelkan penggaris/kartu ke layar Anda</div>
-              <div className="bg-medical-teal rounded-sm shadow-sm transition-all duration-75 relative flex items-center justify-center" style={{ width: `${boxWidthPx}px`, height: "54px" }}>
-                {/* Ruler ticks */}
-                <div className="absolute top-0 left-0 w-full h-2 flex justify-between">
-                  <div className="w-[1px] h-full bg-white/50"></div>
-                  <div className="w-[1px] h-full bg-white/50"></div>
+          {/* Visual ruler */}
+          <div className="flex flex-col gap-4 p-6 bg-slate-50 rounded-2xl border border-slate-200 overflow-x-auto custom-scrollbar">
+            <div className="flex justify-between items-center gap-4">
+              <span className="text-xs font-mono font-bold text-slate-500 whitespace-nowrap">Tempelkan penggaris fisik pada garis ini</span>
+              <span className="text-xs font-mono font-bold text-medical-teal whitespace-nowrap">{targetLengthMm} mm</span>
+            </div>
+            <div data-testid="screen-ruler" data-mm-length={targetLengthMm} data-pixels-per-mm={pixelsPerMm} className="relative h-16 shrink-0" style={{ width: `${boxWidthPx}px` }}>
+              <div className="absolute left-0 right-0 top-7 h-0.5 bg-medical-teal"></div>
+              {rulerTicks.map((millimeter) => (
+                <div key={millimeter} className="absolute top-0 h-10 border-l border-medical-teal/70" style={{ left: `${millimeter * pixelsPerMm}px` }}>
+                  {millimeter % 5 === 0 && <span className="absolute top-10 -translate-x-1/2 text-[9px] font-mono text-slate-500">{millimeter}</span>}
                 </div>
-                <div className="absolute bottom-0 left-0 w-full h-2 flex justify-between">
-                  <div className="w-[1px] h-full bg-white/50"></div>
-                  <div className="w-[1px] h-full bg-white/50"></div>
-                </div>
-
-                <span className="text-white font-mono font-bold text-sm select-none">{targetLengthCm} cm</span>
-              </div>
+              ))}
+            </div>
+            <div className="flex items-center gap-3 text-xs text-slate-600">
+              <span className="inline-block border border-medical-teal bg-white" style={{ width: `${pixelsPerMm}px`, height: `${pixelsPerMm}px`, minWidth: `${pixelsPerMm}px`, minHeight: `${pixelsPerMm}px` }}></span>
+              <span>
+                Kotak kecil grid = <strong>1 mm</strong> ({pixelsPerMm.toFixed(3)} px)
+              </span>
             </div>
           </div>
 
@@ -109,14 +113,27 @@ export const ScreenCalibrationModal: React.FC<ScreenCalibrationModalProps> = ({ 
               <label className="font-semibold text-slate-700 text-sm">Sesuaikan Skala (Pixels per mm)</label>
               <span className="text-xs font-mono text-slate-500 bg-slate-100 px-2 py-1 rounded">{pixelsPerMm.toFixed(4)} px/mm</span>
             </div>
+            <input
+              aria-label="Pixels per mm"
+              type="number"
+              min="1"
+              max="12"
+              step="0.001"
+              value={pixelsPerMm}
+              onChange={(e) => {
+                const value = Number(e.target.value);
+                if (Number.isFinite(value) && value >= 1 && value <= 12) setPixelsPerMm(value);
+              }}
+              className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm font-mono text-slate-700 focus:border-medical-teal focus:outline-none"
+            />
             <div className="flex gap-4 items-center">
               <button onClick={() => setPixelsPerMm((p) => Math.max(1, p - 0.1))} className="w-8 h-8 flex items-center justify-center bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-full font-bold">
                 -
               </button>
               <input
                 type="range"
-                min="2"
-                max="6"
+                min="1"
+                max="12"
                 step="0.001"
                 value={pixelsPerMm}
                 onChange={(e) => setPixelsPerMm(parseFloat(e.target.value))}
