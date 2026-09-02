@@ -7,6 +7,7 @@ import { API_URL } from '../../../config/env';
 import { fetchWithAuth } from '../../../config/api';
 import { useCachedFetch } from '../../../application/hooks/useCachedFetch';
 import { supabase } from '../../../config/supabaseClient';
+import { useRecordingStatus } from '../../../application/hooks/useRecordingStatus';
 
 interface PatientProfile {
   patient: {
@@ -47,7 +48,7 @@ export const PatientDashboardPage: React.FC = () => {
   const [error, setError] = useState<string | null>(profileError?.message || null);
   
   const [syncedDeviceId, setSyncedDeviceId] = useState<string | null>(localStorage.getItem('synced_device_id'));
-  const [localRecordingStopped, setLocalRecordingStopped] = useState(localStorage.getItem('web_recording_stopped') === 'true');
+  const { isRecording } = useRecordingStatus(userId);
 
   useEffect(() => {
     if (profile?.patient?.device_id) {
@@ -64,9 +65,6 @@ export const PatientDashboardPage: React.FC = () => {
     window.addEventListener('patient_profile_updated', handleUpdate);
     return () => window.removeEventListener('patient_profile_updated', handleUpdate);
   }, [mutateProfile]);
-
-  const activeSession = sessions.find((s: any) => !s.ended_at);
-  const isRecording = !!activeSession && !localRecordingStopped;
 
   useEffect(() => {
     if (doctorData) {

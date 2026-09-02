@@ -75,8 +75,10 @@ export interface UseECGStreamReturn {
   resumeRealTimeStream: () => void;
 }
 
-export const useECGStream = (endpoint: string, filterConfig: StreamFilterConfig = { baselineBlocker: true, hfDenoise: false, bandpass: false, zScoreNorm: false }): UseECGStreamReturn => {
-  const [isRecording, setIsRecording] = useState<boolean>(false);
+import { useRecordingStatus } from "./useRecordingStatus";
+
+export const useECGStream = (endpoint: string, patientId: string, filterConfig: StreamFilterConfig = { baselineBlocker: true, hfDenoise: false, bandpass: false, zScoreNorm: false }): UseECGStreamReturn => {
+  const { isRecording, setIsRecording } = useRecordingStatus(patientId);
   const [paths, setPaths] = useState<ECGPaths>({ I: [], II: [], III: [], aVR: [], aVL: [], aVF: [], V1: [] });
   const [rPeaks, setRPeaks] = useState<RPeakMarker[]>([]);
   const [heartRate, setHeartRate] = useState<number | string>("--");
@@ -304,26 +306,34 @@ export const useECGStream = (endpoint: string, filterConfig: StreamFilterConfig 
     }
   }, [endpoint, processLiveChunk]);
 
+  useEffect(() => {
+    if (isRecording) {
+      if (!clientRef.current?.isConnected()) {
+        setTimeline([]);
+        setClinicalStatus(null);
+        setHeartRate("--");
+        setRawClassification(null);
+        liveRef.current = { xIndex: 0, currentPaths: { I: [], II: [], III: [], aVR: [], aVL: [], aVF: [], V1: [] }, timelineSeconds: 0, frameRawSamples: emptyFrameRawSamples() };
+        liveSnapshotRef.current = null;
+        historicalRawRef.current = null;
+        setViewingHistory(false);
+        initWebSocket();
+        clientRef.current?.connect();
+      }
+    } else {
+      clientRef.current?.disconnect();
+      setViewingHistory(false);
+      historicalRawRef.current = null;
+    }
+  }, [isRecording, initWebSocket]);
+
   const startStream = () => {
     if (isRecording) return;
     setIsRecording(true);
-    setTimeline([]);
-    setClinicalStatus(null);
-    setHeartRate("--");
-    setRawClassification(null);
-    liveRef.current = { xIndex: 0, currentPaths: { I: [], II: [], III: [], aVR: [], aVL: [], aVF: [], V1: [] }, timelineSeconds: 0, frameRawSamples: emptyFrameRawSamples() };
-    liveSnapshotRef.current = null;
-    historicalRawRef.current = null;
-    setViewingHistory(false);
-    initWebSocket();
-    clientRef.current?.connect();
   };
 
   const stopStream = () => {
     setIsRecording(false);
-    clientRef.current?.disconnect();
-    setViewingHistory(false);
-    historicalRawRef.current = null;
   };
 
   const fetchSummary = () => {

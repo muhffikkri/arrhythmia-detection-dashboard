@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { LogoutModal } from '../../components/shared/LogoutModal';
 import { PatientHeader } from '../../components/layout/PatientHeader';
@@ -82,8 +82,7 @@ export const PatientProfilePage: React.FC = () => {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                    first_name: formData.first_name,
-                    last_name: formData.last_name,
+                    name: `${formData.first_name} ${formData.last_name}`.trim(),
                     date_of_birth: formData.date_of_birth,
                     gender: formData.gender,
                     profile_photo: formData.profile_photo || null

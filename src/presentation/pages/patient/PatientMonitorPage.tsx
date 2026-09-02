@@ -34,8 +34,10 @@ export const PatientMonitorPage: React.FC = () => {
     zScoreNorm: false,
   });
 
+  const selectedPatientId = localStorage.getItem("user_id") || "1";
+
   const { isRecording, paths, rPeaks, heartRate, clinicalStatus, timeline, startStream, stopStream, fetchSegment, prediction, deviceId, sessionId, stressTest, createdAt, rawClassification, isViewingHistory, resumeRealTimeStream } =
-    useECGStream(WS_URL, filterConfig);
+    useECGStream(WS_URL, selectedPatientId, filterConfig);
 
   const [currentSegmentIndex, setCurrentSegmentIndex] = useState<number | undefined>(undefined);
 
@@ -43,8 +45,6 @@ export const PatientMonitorPage: React.FC = () => {
     setCurrentSegmentIndex(index);
     fetchSegment(index);
   };
-
-  const selectedPatientId = localStorage.getItem("user_id") || "1";
   const aiProbabilities = prediction?.probabilities || null;
   const aiMetrics = { latency_ms: prediction?.latency_ms, runtime: prediction?.runtime };
 
