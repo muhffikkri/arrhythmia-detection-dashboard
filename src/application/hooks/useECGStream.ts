@@ -77,7 +77,9 @@ export interface UseECGStreamReturn {
 
 import { useRecordingStatus } from "./useRecordingStatus";
 
-export const useECGStream = (endpoint: string, patientId: string, filterConfig: StreamFilterConfig = { baselineBlocker: true, hfDenoise: false, bandpass: false, zScoreNorm: false }): UseECGStreamReturn => {
+export const useECGStream = (endpoint: string, patientIdOrFilter: string | StreamFilterConfig, filterConfigArg: StreamFilterConfig = { baselineBlocker: true, hfDenoise: false, bandpass: false, zScoreNorm: false }): UseECGStreamReturn => {
+  const patientId = typeof patientIdOrFilter === "string" ? patientIdOrFilter : localStorage.getItem("user_id") || "1";
+  const filterConfig = typeof patientIdOrFilter === "string" ? filterConfigArg : patientIdOrFilter;
   const { isRecording, setIsRecording } = useRecordingStatus(patientId);
   const [paths, setPaths] = useState<ECGPaths>({ I: [], II: [], III: [], aVR: [], aVL: [], aVF: [], V1: [] });
   const [rPeaks, setRPeaks] = useState<RPeakMarker[]>([]);
