@@ -14,6 +14,12 @@
 import React, { useState, useRef } from "react";
 import type { ECGPaths, RPeakMarker } from "../../../core/types/ecgTypes";
 
+const PAPER_SPEED_X_SCALE: Record<number, number> = {
+  12.5: 0.25,
+  25: 1,
+  50: 4.1,
+};
+
 interface ECGCanvasProps {
   paths: ECGPaths;
   rPeaks: RPeakMarker[];
@@ -34,8 +40,7 @@ export const ECGCanvas: React.FC<ECGCanvasProps> = ({ paths, rPeaks, isAnomaly =
   const [pointerY, setPointerY] = useState<number | null>(null);
 
   // Mathematical Calibration:
-  const speedRatio = 25 / paperSpeed;
-  const xScale = speedRatio * speedRatio;
+  const xScale = PAPER_SPEED_X_SCALE[paperSpeed] ?? 1;
   const widthFactor = Math.max(1, xScale);
   const logicalCanvasWidth = 2000 * widthFactor;
   const physicalWidth = 10 * 25 * pixelsPerMm * widthFactor;

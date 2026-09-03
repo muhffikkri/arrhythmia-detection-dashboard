@@ -92,7 +92,7 @@ describe("PatientMonitorPage integration", () => {
     expect(screen.getByTitle("20 mm/mV (2x)").className).toContain("text-clinical-blue");
 
     fireEvent.click(screen.getByRole("button", { name: "50" }));
-    expect(document.querySelector('[data-testid="ecg-svg"]')?.getAttribute("width")).toBe("2000");
+    expect(document.querySelector('[data-testid="ecg-svg"]')?.getAttribute("width")).toBe("8200");
 
     fireEvent.click(screen.getByRole("button", { name: "2x" }));
     expect(screen.getByRole("button", { name: "2x" }).className).toContain("text-clinical-blue");
