@@ -10,9 +10,10 @@ interface EcgViewerProps {
   speed?: 25 | 50;
   timeOffset?: number;
   classResult?: string;
+  pixelsPerMm?: number;
 }
 
-export const EcgViewer: React.FC<EcgViewerProps> = ({ segment, speed = 25, timeOffset = 0, classResult }) => {
+export const EcgViewer: React.FC<EcgViewerProps> = ({ segment, speed = 25, timeOffset = 0, classResult, pixelsPerMm = 3.7795 }) => {
   const { t } = useTranslation();
 
   // Medical Configuration States
@@ -178,7 +179,7 @@ export const EcgViewer: React.FC<EcgViewerProps> = ({ segment, speed = 25, timeO
     <div className="relative flex flex-col flex-1 h-full w-full">
       {/* The main scrollable canvas wrapper */}
       <div className="flex-1 min-h-0 relative flex flex-col">
-        <ECGCanvas paths={slicedPaths} rPeaks={slicedRPeaks} speed={speed} paperSpeed={paperSpeed} gain={gain} isAnomaly={segment?.isAnomaly || false} classResult={classResult} timeOffset={timeOffset} />
+        <ECGCanvas paths={slicedPaths} rPeaks={slicedRPeaks} speed={speed} paperSpeed={paperSpeed} gain={gain} pixelsPerMm={pixelsPerMm} isAnomaly={segment?.isAnomaly || false} classResult={classResult} timeOffset={timeOffset} />
 
         {/* Active Filters Overlay Badge (Medical Standard Visual) */}
         <div className="absolute top-3 right-3 z-30 pointer-events-none select-none flex flex-wrap gap-1.5 max-w-[70%] justify-end">

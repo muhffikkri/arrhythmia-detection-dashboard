@@ -458,10 +458,14 @@ export const PatientMonitorPage: React.FC = () => {
                     </div>
                     <button
                       onClick={() => setShowScreenCalibration(true)}
-                      className="flex items-center justify-center bg-clinical-surface border border-clinical-charcoal/10 text-clinical-charcoal hover:bg-clinical-surface/80 active:scale-95 transition-all rounded-full w-10 h-10 shadow-xs outline-none"
+                      aria-label="Kalibrasi layar dengan penggaris"
+                      className="flex items-center justify-center gap-1.5 bg-clinical-surface border border-clinical-charcoal/10 text-clinical-charcoal hover:bg-clinical-surface/80 active:scale-95 transition-all rounded-full h-10 px-3 shadow-xs outline-none"
                       title="Kalibrasi ukuran fisik layar"
                     >
-                      <span className="material-symbols-outlined text-[18px]">straighten</span>
+                      <span className="material-symbols-outlined text-[18px]" aria-hidden="true">
+                        straighten
+                      </span>
+                      <span className="hidden sm:inline text-[10px] font-bold uppercase tracking-wider">Ruler</span>
                     </button>
                   </div>
 

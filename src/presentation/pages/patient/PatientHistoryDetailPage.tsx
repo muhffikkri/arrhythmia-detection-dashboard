@@ -16,6 +16,7 @@ import { useECGScale } from "../../../application/hooks/useECGScale";
 import { API_URL } from "../../../config/env";
 import { fetchWithAuth } from "../../../config/api";
 import { supabase, isSupabaseConfigured } from "../../../config/supabaseClient";
+import { ScreenCalibrationModal } from "../../components/shared/ScreenCalibrationModal";
 
 const HISTORY_FILTER_CONFIG = FILTERS_CLINICAL_DEFAULT;
 
@@ -46,6 +47,12 @@ export const PatientHistoryDetailPage: React.FC = () => {
 
   // Download menu states
   const [showDownloadMenu, setShowDownloadMenu] = useState<boolean>(false);
+  const [showScreenCalibration, setShowScreenCalibration] = useState(false);
+  const [pixelsPerMm, setPixelsPerMm] = useState(() => {
+    const saved = localStorage.getItem("ecg_pixels_per_mm");
+    const parsed = saved ? Number(saved) : 3.7795;
+    return Number.isFinite(parsed) && parsed > 0 ? parsed : 3.7795;
+  });
   const downloadMenuRef = useRef<HTMLDivElement>(null);
 
   const downloadSegmentJSON = () => {
@@ -276,7 +283,7 @@ export const PatientHistoryDetailPage: React.FC = () => {
               {/* Pembungkus Kanvas 7-Lead */}
               <div className="relative flex-1 min-h-[400px]">
                 <div className="absolute inset-0 z-0 bg-white border border-clinical-blue/20 rounded-[2rem] overflow-y-auto overflow-x-hidden shadow-[0px_20px_40px_rgba(0,0,0,0.04)] flex flex-col">
-                  <EcgViewer segment={currentSegment} speed={speed} classResult={currentEvent?.classResult} timeOffset={selectedIdx * 10} />
+                  <EcgViewer segment={currentSegment} speed={speed} classResult={currentEvent?.classResult} timeOffset={selectedIdx * 10} pixelsPerMm={pixelsPerMm} />
                   {isLoading && (
                     <div className="absolute inset-0 flex flex-col items-center justify-center bg-white/60 backdrop-blur-md z-50 transition-all duration-300">
                       <span className="material-symbols-outlined text-clinical-blue text-4xl animate-spin">sync</span>
@@ -306,6 +313,17 @@ export const PatientHistoryDetailPage: React.FC = () => {
               {/* Download Action Menu (Moved to bottom) */}
               <div className="flex justify-end w-full mt-2">
                 <div className="flex items-center gap-2 relative z-[99999]" ref={downloadMenuRef}>
+                  <button
+                    onClick={() => setShowScreenCalibration(true)}
+                    aria-label="Kalibrasi layar dengan penggaris"
+                    title="Kalibrasi ukuran fisik layar"
+                    className="flex items-center gap-2 bg-clinical-surface hover:bg-clinical-charcoal/5 border border-clinical-charcoal/10 px-4 py-2 rounded-full font-bold text-xs transition-all duration-300 outline-none hover:-translate-y-0.5 shadow-sm"
+                  >
+                    <span className="material-symbols-outlined text-[16px]" aria-hidden="true">
+                      straighten
+                    </span>
+                    Ruler
+                  </button>
                   <button
                     onClick={() => setShowDownloadMenu(!showDownloadMenu)}
                     className="bg-clinical-surface hover:bg-clinical-charcoal/5 border border-clinical-charcoal/10 px-4 py-2 rounded-full font-bold text-xs flex items-center gap-2 transition-all duration-300 outline-none hover:-translate-y-0.5 shadow-sm"
@@ -406,8 +424,9 @@ export const PatientHistoryDetailPage: React.FC = () => {
         </main>
 
         {/* Bottom Navigation Shell (Sembunyikan sepenuhnya sesuai permintaan pengguna) */}
-        <nav className="hidden fixed bottom-0 left-0 w-full flex justify-around items-center h-20 bg-white border-t border-clinical-charcoal/10 z-50"></nav>
+        <nav className="hidden fixed bottom-0 left-0 w-full justify-around items-center h-20 bg-white border-t border-clinical-charcoal/10 z-50"></nav>
       </div>
+      <ScreenCalibrationModal isOpen={showScreenCalibration} onClose={() => setShowScreenCalibration(false)} onSave={setPixelsPerMm} />
     </div>
   );
 };
