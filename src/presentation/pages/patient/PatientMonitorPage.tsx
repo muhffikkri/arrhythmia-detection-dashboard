@@ -281,12 +281,8 @@ export const PatientMonitorPage: React.FC = () => {
   const executeToggleRecord = async () => {
     const command = isRecording ? "STOP" : "START";
 
-    // Optimistic UI update: Langsung ubah state saat diklik
-    if (isRecording) {
-      stopStream();
-    } else {
-      startStream();
-    }
+    // Keep the live connection open until STOP is accepted so the backend can flush the session.
+    if (!isRecording) startStream();
 
     setIsCommandLoading(true);
     try {
@@ -299,26 +295,27 @@ export const PatientMonitorPage: React.FC = () => {
         if (sessRes.ok) {
           const sessData = await sessRes.json();
           const sessionsArray = sessData.data || sessData.sessions || (Array.isArray(sessData) ? sessData : []);
-          const activeSession = sessionsArray.find((s: any) => !s.ended_at && s.patient_id === selectedPatientId);
+          const activeSession = sessionsArray.find((s: any) => !s.ended_at && String(s.patient_id) === String(selectedPatientId));
           if (activeSession) {
             targetDeviceId = activeSession.device_id;
           }
         }
       }
 
-      if (targetDeviceId && targetDeviceId !== "MENUNGGU PERANGKAT...") {
-        const response = await fetchWithAuth(`/api/devices/${targetDeviceId}/command`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ command, patient_id: selectedPatientId }),
-        });
-        if (!response.ok) {
-          throw new Error(`Server menolak perintah (${response.status})`);
-        }
+      if (!targetDeviceId || targetDeviceId === "MENUNGGU PERANGKAT...") {
+        throw new Error("Perangkat perekaman tidak ditemukan.");
       }
 
-      if (command === "START") startStream();
-      else stopStream();
+      const response = await fetchWithAuth(`/api/devices/${targetDeviceId}/command`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ command, patient_id: selectedPatientId }),
+      });
+      if (!response.ok) {
+        throw new Error(`Server menolak perintah (${response.status})`);
+      }
+
+      if (command === "STOP") stopStream();
 
       if (command === "STOP") {
         setActionModal({
