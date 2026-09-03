@@ -17,7 +17,7 @@ import type { ECGPaths, RPeakMarker } from "../../../core/types/ecgTypes";
 const PAPER_SPEED_X_SCALE: Record<number, number> = {
   12.5: 0.5,
   25: 1,
-  50: 2.1,
+  50: 1.03,
 };
 
 interface ECGCanvasProps {
