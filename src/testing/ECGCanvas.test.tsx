@@ -30,11 +30,11 @@ describe("ECGCanvas unit", () => {
     expect(document.querySelector('[data-testid="ecg-svg"]')?.getAttribute("width")).toBe("2000");
 
     rerender(<ECGCanvas paths={emptyPaths} rPeaks={[]} paperSpeed={50} />);
-    expect(document.querySelector('[data-testid="ecg-svg"]')?.getAttribute("width")).toBe("4000");
+    expect(document.querySelector('[data-testid="ecg-svg"]')?.getAttribute("width")).toBe("2000");
     expect(document.querySelector('[data-testid="ecg-path-I"]')?.parentElement?.getAttribute("transform")).toContain("scale(0.5, 1)");
 
     rerender(<ECGCanvas paths={emptyPaths} rPeaks={[]} paperSpeed={12.5} />);
-    expect(document.querySelector('[data-testid="ecg-svg"]')?.getAttribute("width")).toBe("1000");
+    expect(document.querySelector('[data-testid="ecg-svg"]')?.getAttribute("width")).toBe("4000");
     expect(document.querySelector('[data-testid="ecg-path-I"]')?.parentElement?.getAttribute("transform")).toContain("scale(2, 1)");
   });
 

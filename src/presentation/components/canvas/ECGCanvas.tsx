@@ -34,11 +34,12 @@ export const ECGCanvas: React.FC<ECGCanvasProps> = ({ paths, rPeaks, isAnomaly =
   const [pointerY, setPointerY] = useState<number | null>(null);
 
   // Mathematical Calibration:
-  const logicalCanvasWidth = 2000 * (paperSpeed / 25);
-  const physicalWidth = 10 * paperSpeed * pixelsPerMm;
+  const xScale = 25 / paperSpeed;
+  const widthFactor = Math.max(1, xScale);
+  const logicalCanvasWidth = 2000 * widthFactor;
+  const physicalWidth = 10 * 25 * pixelsPerMm * widthFactor;
   const physicalHeight = 360 * pixelsPerMm; // 6 leads * 60mm
 
-  const xScale = 25 / paperSpeed;
   const yGain = gain / 10;
   const lead2Stroke = "#001F54";
 
