@@ -20,6 +20,12 @@ const PAPER_SPEED_X_SCALE: Record<number, number> = {
   50: 1.03,
 };
 
+const GAIN_Y_SCALE: Record<number, number> = {
+  5: 0.5,
+  10: 1,
+  20: 2,
+};
+
 interface ECGCanvasProps {
   paths: ECGPaths;
   rPeaks: RPeakMarker[];
@@ -46,7 +52,7 @@ export const ECGCanvas: React.FC<ECGCanvasProps> = ({ paths, rPeaks, isAnomaly =
   const physicalWidth = 10 * 25 * pixelsPerMm * widthFactor;
   const physicalHeight = 360 * pixelsPerMm; // 6 leads * 60mm
 
-  const yGain = gain / 10;
+  const yGain = GAIN_Y_SCALE[gain] ?? 1;
   const lead2Stroke = "#001F54";
 
   const handlePointerMove = (e: React.MouseEvent | React.TouchEvent) => {

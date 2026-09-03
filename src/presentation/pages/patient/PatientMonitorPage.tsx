@@ -22,6 +22,12 @@ import { ActionModal } from "../../components/shared/ActionModal";
 import { ScreenCalibrationModal } from "../../components/shared/ScreenCalibrationModal";
 import { RulerIcon } from "../../components/shared/RulerIcon";
 
+const GAIN_Y_SCALE: Record<number, number> = {
+  5: 0.5,
+  10: 1,
+  20: 2,
+};
+
 interface DeviceRecord {
   id: string;
   name: string;
@@ -169,7 +175,7 @@ export const PatientMonitorPage: React.FC = () => {
   }, [rPeaks, visibleCount, paths.I.length]);
 
   const gainAdjustedPaths = React.useMemo(() => {
-    const gainFactor = gain / 10;
+    const gainFactor = GAIN_Y_SCALE[gain] ?? 1;
     if (gainFactor === 1) return slicedPaths;
 
     const adjustPath = (path: string[]) =>
