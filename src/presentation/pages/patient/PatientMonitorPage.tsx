@@ -158,15 +158,22 @@ export const PatientMonitorPage: React.FC = () => {
     };
   }, [paths, visibleCount]);
 
-  const slicedRPeaks = React.useMemo(() => {
-    if (visibleCount >= paths.I.length) return rPeaks;
-    const pathWidth = 2000;
-    const maxVisibleX = (visibleCount / TOTAL_SAMPLES) * pathWidth;
-    return rPeaks.filter((p: any) => p.x <= maxVisibleX);
-  }, [rPeaks, visibleCount, paths.I.length]);
-
   // Gain override untuk 5, 10, 20
   const [gain, setGain] = useState<number>(10);
+  const gainHorizontalFactor = 10 / gain;
+
+  const slicedRPeaks = React.useMemo(() => {
+    const pathWidth = 2000;
+    const maxVisibleX = (visibleCount / TOTAL_SAMPLES) * pathWidth;
+    const visiblePeaks = visibleCount >= paths.I.length ? rPeaks : rPeaks.filter((p: any) => p.x <= maxVisibleX);
+    if (gainHorizontalFactor === 1) return visiblePeaks;
+    return visiblePeaks.map((peak) => ({
+      ...peak,
+      x: peak.x * gainHorizontalFactor,
+      prevX: peak.prevX === undefined ? undefined : peak.prevX * gainHorizontalFactor,
+    }));
+  }, [gainHorizontalFactor, rPeaks, visibleCount, paths.I.length]);
+
   const gainAdjustedPaths = React.useMemo(() => {
     const gainFactor = gain / 10;
     if (gainFactor === 1) return slicedPaths;
@@ -175,9 +182,9 @@ export const PatientMonitorPage: React.FC = () => {
       path.map((point) => {
         const separator = point.indexOf(",");
         if (separator < 0) return point;
-        const x = point.slice(0, separator);
+        const x = Number(point.slice(0, separator));
         const y = Number(point.slice(separator + 1));
-        return Number.isFinite(y) ? `${x},${(240 + (y - 240) * gainFactor).toFixed(2)}` : point;
+        return Number.isFinite(x) && Number.isFinite(y) ? `${(x * gainHorizontalFactor).toFixed(2)},${(240 + (y - 240) * gainFactor).toFixed(2)}` : point;
       });
 
     return {
@@ -189,7 +196,7 @@ export const PatientMonitorPage: React.FC = () => {
       aVF: adjustPath(slicedPaths.aVF),
       V1: adjustPath(slicedPaths.V1),
     };
-  }, [gain, slicedPaths]);
+  }, [gain, gainHorizontalFactor, slicedPaths]);
 
   useEffect(() => {
     const isNormal = rawClassification?.toUpperCase() === "NORMAL" || rawClassification?.toUpperCase() === "NORM";
