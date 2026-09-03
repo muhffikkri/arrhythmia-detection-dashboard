@@ -1,12 +1,10 @@
-import { useState, useEffect, useRef } from 'react';
-import { WS_URL } from '../../config/env';
-import { fetchWithAuth } from '../../config/api';
+import { useState, useEffect, useRef } from "react";
+import { fetchWithAuth } from "../../config/api";
 
 export const useRecordingStatus = (patientId: string) => {
   const [isRecording, setIsRecording] = useState<boolean>(false);
   const [isLoading, setIsLoading] = useState<boolean>(true);
-  const wsRef = useRef<WebSocket | null>(null);
-
+  const hasLocalOverride = useRef(false);
   useEffect(() => {
     if (!patientId) {
       setIsRecording(false);
@@ -22,7 +20,7 @@ export const useRecordingStatus = (patientId: string) => {
         const response = await fetchWithAuth(`/api/patients/${patientId}/recording-status`);
         if (response.ok) {
           const data = await response.json();
-          if (isMounted) {
+          if (isMounted && !hasLocalOverride.current) {
             setIsRecording(data.is_recording || false);
           }
         }
@@ -37,47 +35,15 @@ export const useRecordingStatus = (patientId: string) => {
 
     fetchInitialStatus();
 
-    // 2. Connect to WebSocket for real-time updates
-    const connectWebSocket = () => {
-      const wsUrl = `${WS_URL}?client_type=web&patient_id=${patientId}`;
-      const ws = new WebSocket(wsUrl);
-
-      ws.onopen = () => {
-        console.log("WebSocket connected for recording status.");
-      };
-
-      ws.onmessage = (event) => {
-        try {
-          const message = JSON.parse(event.data);
-          if (message.type === 'recording_status') {
-            setIsRecording(message.status === 'START');
-          }
-        } catch (error) {
-          console.error("Error parsing websocket message in useRecordingStatus", error);
-        }
-      };
-
-      ws.onclose = () => {
-        console.log("WebSocket for recording status closed.");
-      };
-
-      ws.onerror = (error) => {
-        console.error("WebSocket error in useRecordingStatus:", error);
-      };
-
-      wsRef.current = ws;
-    };
-
-    connectWebSocket();
-
     return () => {
       isMounted = false;
-      if (wsRef.current) {
-        wsRef.current.close();
-        wsRef.current = null;
-      }
     };
   }, [patientId]);
 
-  return { isRecording, isLoading, setIsRecording };
+  const setRecordingState = (value: boolean) => {
+    hasLocalOverride.current = true;
+    setIsRecording(value);
+  };
+
+  return { isRecording, isLoading, setIsRecording: setRecordingState };
 };

@@ -307,12 +307,18 @@ export const PatientMonitorPage: React.FC = () => {
       }
 
       if (targetDeviceId && targetDeviceId !== "MENUNGGU PERANGKAT...") {
-        await fetchWithAuth(`/api/devices/${targetDeviceId}/command`, {
+        const response = await fetchWithAuth(`/api/devices/${targetDeviceId}/command`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ command, patient_id: selectedPatientId }),
         });
+        if (!response.ok) {
+          throw new Error(`Server menolak perintah (${response.status})`);
+        }
       }
+
+      if (command === "START") startStream();
+      else stopStream();
 
       if (command === "STOP") {
         setActionModal({
@@ -325,6 +331,8 @@ export const PatientMonitorPage: React.FC = () => {
       }
     } catch (error: any) {
       console.error("Gagal mengirim command", error);
+      if (command === "START") stopStream();
+      else startStream();
       if (command === "STOP") {
         setActionModal({
           isOpen: true,

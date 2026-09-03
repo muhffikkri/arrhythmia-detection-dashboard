@@ -302,9 +302,13 @@ export const useECGStream = (endpoint: string, patientIdOrFilter: string | Strea
               processLiveChunkRef.current(msg.data_payload, msg.timestamp);
             }
           }
-        } else if (msg.type === "status") setIsRecording(false);
+        } else if (msg.type === "status") {
+          const status = String((msg as any).status || (msg as any).recording_status || "").toUpperCase();
+          if (status === "START" || status === "RECORDING") setIsRecording(true);
+          if (status === "STOP" || status === "STOPPED") setIsRecording(false);
+        }
       };
-      clientRef.current.onClose = () => setIsRecording(false);
+      clientRef.current.onClose = () => undefined;
     }
   }, [endpoint, processLiveChunk]);
 
