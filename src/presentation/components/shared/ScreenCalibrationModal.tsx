@@ -10,7 +10,7 @@ interface ScreenCalibrationModalProps {
 export const ScreenCalibrationModal: React.FC<ScreenCalibrationModalProps> = ({ isOpen, onClose, onSave }) => {
   // Default 96 DPI CSS value: 1 inch = 96px => 1 mm = 96 / 25.4 ≈ 3.7795 px
   const [pixelsPerMm, setPixelsPerMm] = useState<number>(3.7795);
-  const [targetLengthCm, setTargetLengthCm] = useState<number>(5); // 5 cm reference
+  const [targetLengthCm, setTargetLengthCm] = useState<number>(10); // 10 cm reference
 
   useEffect(() => {
     if (isOpen) {
@@ -40,7 +40,7 @@ export const ScreenCalibrationModal: React.FC<ScreenCalibrationModalProps> = ({ 
 
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-charcoal/40 backdrop-blur-sm">
-      <div className="bg-white w-full max-w-2xl max-h-[calc(100vh-2rem)] rounded-3xl shadow-xl overflow-y-auto flex flex-col relative animate-fade-in-up custom-scrollbar">
+      <div className="bg-white w-full max-w-4xl max-h-[calc(100vh-2rem)] rounded-3xl shadow-xl overflow-y-auto flex flex-col relative animate-fade-in-up custom-scrollbar">
         {/* Header */}
         <div className="px-6 py-5 border-b border-slate-100 flex justify-between items-center bg-slate-50">
           <div className="flex items-center gap-3">
@@ -58,7 +58,7 @@ export const ScreenCalibrationModal: React.FC<ScreenCalibrationModalProps> = ({ 
         </div>
 
         {/* Content */}
-        <div className="p-6 flex flex-col gap-8">
+        <div className="p-6 md:p-8 flex flex-col gap-8">
           {/* Info */}
           <div className="bg-blue-50 border border-blue-100 rounded-xl p-4 flex gap-3 text-blue-800 text-sm">
             <span className="material-symbols-outlined flex-shrink-0 mt-0.5 text-[16px]">info</span>
