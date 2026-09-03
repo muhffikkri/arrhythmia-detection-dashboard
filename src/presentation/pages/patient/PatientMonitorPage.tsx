@@ -22,12 +22,6 @@ import { ActionModal } from "../../components/shared/ActionModal";
 import { ScreenCalibrationModal } from "../../components/shared/ScreenCalibrationModal";
 import { RulerIcon } from "../../components/shared/RulerIcon";
 
-const GAIN_Y_SCALE: Record<number, number> = {
-  5: 0.5,
-  10: 1,
-  20: 2,
-};
-
 interface DeviceRecord {
   id: string;
   name: string;
@@ -173,30 +167,6 @@ export const PatientMonitorPage: React.FC = () => {
     const visiblePeaks = visibleCount >= paths.I.length ? rPeaks : rPeaks.filter((p: any) => p.x <= maxVisibleX);
     return visiblePeaks;
   }, [rPeaks, visibleCount, paths.I.length]);
-
-  const gainAdjustedPaths = React.useMemo(() => {
-    const gainFactor = GAIN_Y_SCALE[gain] ?? 1;
-    if (gainFactor === 1) return slicedPaths;
-
-    const adjustPath = (path: string[]) =>
-      path.map((point) => {
-        const separator = point.indexOf(",");
-        if (separator < 0) return point;
-        const x = point.slice(0, separator);
-        const y = Number(point.slice(separator + 1));
-        return Number.isFinite(y) ? `${x},${(240 + (y - 240) * gainFactor).toFixed(2)}` : point;
-      });
-
-    return {
-      I: adjustPath(slicedPaths.I),
-      II: adjustPath(slicedPaths.II),
-      III: adjustPath(slicedPaths.III),
-      aVR: adjustPath(slicedPaths.aVR),
-      aVL: adjustPath(slicedPaths.aVL),
-      aVF: adjustPath(slicedPaths.aVF),
-      V1: adjustPath(slicedPaths.V1),
-    };
-  }, [gain, slicedPaths]);
 
   useEffect(() => {
     const isNormal = rawClassification?.toUpperCase() === "NORMAL" || rawClassification?.toUpperCase() === "NORM";
@@ -430,7 +400,7 @@ export const PatientMonitorPage: React.FC = () => {
 
             <div className="relative flex-1 min-h-[560px] md:min-h-[600px] group flex flex-col bg-white border border-clinical-charcoal/5 rounded-[2rem] shadow-[0px_20px_40px_rgba(0,0,0,0.04)] transition-all duration-700 hover:shadow-[0px_30px_60px_rgba(0,0,0,0.08)] hover:-translate-y-1 overflow-hidden">
               <div className="relative flex-1 overflow-y-auto overflow-x-hidden">
-                <ECGCanvas paths={gainAdjustedPaths} rPeaks={slicedRPeaks} speed={speed} paperSpeed={speed} pixelsPerMm={pixelsPerMm} isAnomaly={clinicalStatus?.isAnomaly} classResult={aiClassResult} />
+                <ECGCanvas paths={slicedPaths} rPeaks={slicedRPeaks} speed={speed} paperSpeed={speed} gain={gain} pixelsPerMm={pixelsPerMm} isAnomaly={clinicalStatus?.isAnomaly} classResult={aiClassResult} />
               </div>
 
               {/* Playback Control Bar */}
