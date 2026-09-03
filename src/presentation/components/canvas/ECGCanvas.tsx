@@ -15,9 +15,9 @@ import React, { useState, useRef } from "react";
 import type { ECGPaths, RPeakMarker } from "../../../core/types/ecgTypes";
 
 const PAPER_SPEED_X_SCALE: Record<number, number> = {
-  12.5: 0.25,
+  12.5: 0.5,
   25: 1,
-  50: 4.1,
+  50: 2.1,
 };
 
 interface ECGCanvasProps {
