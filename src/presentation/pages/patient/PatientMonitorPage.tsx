@@ -177,7 +177,7 @@ export const PatientMonitorPage: React.FC = () => {
         if (separator < 0) return point;
         const x = point.slice(0, separator);
         const y = Number(point.slice(separator + 1));
-        return Number.isFinite(y) ? `${x},${(240 - (y - 240) * gainFactor).toFixed(2)}` : point;
+        return Number.isFinite(y) ? `${x},${(240 + (y - 240) * gainFactor).toFixed(2)}` : point;
       });
 
     return {
