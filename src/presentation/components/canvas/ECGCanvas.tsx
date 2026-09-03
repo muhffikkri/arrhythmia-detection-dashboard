@@ -34,7 +34,8 @@ export const ECGCanvas: React.FC<ECGCanvasProps> = ({ paths, rPeaks, isAnomaly =
   const [pointerY, setPointerY] = useState<number | null>(null);
 
   // Mathematical Calibration:
-  const xScale = 25 / paperSpeed;
+  const speedRatio = 25 / paperSpeed;
+  const xScale = speedRatio * speedRatio;
   const widthFactor = Math.max(1, xScale);
   const logicalCanvasWidth = 2000 * widthFactor;
   const physicalWidth = 10 * 25 * pixelsPerMm * widthFactor;
