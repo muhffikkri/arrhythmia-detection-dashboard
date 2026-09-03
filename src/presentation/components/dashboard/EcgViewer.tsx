@@ -151,15 +151,14 @@ export const EcgViewer: React.FC<EcgViewerProps> = ({ segment, speed = 25, timeO
   // Slice paths and rPeaks based on visible count for animation drawing
   const slicedPaths = useMemo(() => {
     if (visibleCount >= samples.length) return paths;
-    const end = CALIBRATION_POINT_COUNT + visibleCount;
     return {
-      I: paths.I.slice(0, end),
-      II: paths.II.slice(0, end),
-      III: paths.III.slice(0, end),
-      aVR: paths.aVR.slice(0, end),
-      aVL: paths.aVL.slice(0, end),
-      aVF: paths.aVF.slice(0, end),
-      V1: paths.V1.slice(0, end),
+      I: paths.I.slice(0, CALIBRATION_POINT_COUNT + visibleCount),
+      II: paths.II.slice(0, visibleCount),
+      III: paths.III.slice(0, visibleCount),
+      aVR: paths.aVR.slice(0, visibleCount),
+      aVL: paths.aVL.slice(0, visibleCount),
+      aVF: paths.aVF.slice(0, visibleCount),
+      V1: paths.V1.slice(0, visibleCount),
     };
   }, [paths, visibleCount, samples.length]);
 
@@ -179,7 +178,18 @@ export const EcgViewer: React.FC<EcgViewerProps> = ({ segment, speed = 25, timeO
     <div className="relative flex flex-col flex-1 h-full w-full">
       {/* The main scrollable canvas wrapper */}
       <div className="flex-1 min-h-0 relative flex flex-col">
-        <ECGCanvas paths={slicedPaths} rPeaks={slicedRPeaks} speed={speed} paperSpeed={paperSpeed} gain={gain} pixelsPerMm={pixelsPerMm} isAnomaly={segment?.isAnomaly || false} classResult={classResult} timeOffset={timeOffset} />
+        <ECGCanvas
+          paths={slicedPaths}
+          rPeaks={slicedRPeaks}
+          speed={speed}
+          paperSpeed={paperSpeed}
+          gain={gain}
+          pixelsPerMm={pixelsPerMm}
+          showCalibrationPulse={false}
+          isAnomaly={segment?.isAnomaly || false}
+          classResult={classResult}
+          timeOffset={timeOffset}
+        />
 
         {/* Active Filters Overlay Badge (Medical Standard Visual) */}
         <div className="absolute top-3 right-3 z-30 pointer-events-none select-none flex flex-wrap gap-1.5 max-w-[70%] justify-end">

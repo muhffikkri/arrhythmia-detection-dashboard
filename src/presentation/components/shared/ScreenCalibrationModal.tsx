@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { RulerIcon } from "./RulerIcon";
 
 interface ScreenCalibrationModalProps {
   isOpen: boolean;
@@ -39,12 +40,12 @@ export const ScreenCalibrationModal: React.FC<ScreenCalibrationModalProps> = ({ 
 
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-charcoal/40 backdrop-blur-sm">
-      <div className="bg-white w-full max-w-2xl rounded-3xl shadow-xl overflow-hidden flex flex-col relative animate-fade-in-up">
+      <div className="bg-white w-full max-w-2xl max-h-[calc(100vh-2rem)] rounded-3xl shadow-xl overflow-y-auto flex flex-col relative animate-fade-in-up custom-scrollbar">
         {/* Header */}
         <div className="px-6 py-5 border-b border-slate-100 flex justify-between items-center bg-slate-50">
           <div className="flex items-center gap-3">
             <div className="bg-medical-teal/10 p-2 rounded-xl text-medical-teal">
-              <span className="material-symbols-outlined text-[20px]">open_in_full</span>
+              <RulerIcon size={20} />
             </div>
             <div>
               <h2 className="text-xl font-display font-bold text-charcoal">Kalibrasi Monitor Fisik</h2>
