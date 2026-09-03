@@ -38,7 +38,7 @@ export const ECGCanvas: React.FC<ECGCanvasProps> = ({ paths, rPeaks, isAnomaly =
   const physicalWidth = 10 * paperSpeed * pixelsPerMm;
   const physicalHeight = 360 * pixelsPerMm; // 6 leads * 60mm
 
-  const xScale = paperSpeed / 25;
+  const xScale = 25 / paperSpeed;
   const yGain = gain / 10;
   const lead2Stroke = "#001F54";
 
