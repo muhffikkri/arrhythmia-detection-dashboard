@@ -84,10 +84,10 @@ export const ECGCanvas: React.FC<ECGCanvasProps> = ({ paths, rPeaks, isAnomaly =
   // This gives the calibration sheet's 12.5 mm at 25 mm/s and 25 mm at 50 mm/s.
   const calibrationPulseWidth = 100;
   const calibrationPulseHeight = 80;
-  const renderCalibrationPulse = () => {
+  const renderCalibrationPulse = (lead: string) => {
     return (
       <path
-        data-testid="calibration-pulse"
+        data-testid={`calibration-pulse-${lead}`}
         d={`M 0 240 L 5 240 L 5 ${240 - calibrationPulseHeight} L ${calibrationPulseWidth - 5} ${240 - calibrationPulseHeight} L ${calibrationPulseWidth - 5} 240 L ${calibrationPulseWidth} 240`}
         fill="none"
         stroke="#001F54"
@@ -201,7 +201,7 @@ export const ECGCanvas: React.FC<ECGCanvasProps> = ({ paths, rPeaks, isAnomaly =
               {/* Layer 2: Saluran Gelombang (Digeser otomatis dengan transform-translate) */}
               {/* 1. Lead I */}
               <g transform={`translate(0, 0)`}>
-                {showCalibrationPulse && renderCalibrationPulse()}
+                {showCalibrationPulse && renderCalibrationPulse("I")}
                 <g transform={`translate(50, 240) scale(${xScale}, ${yGain}) translate(0, -240)`}>
                   <path data-testid="ecg-path-I" d={paths.I.length > 0 ? `M${paths.I.join(" L")}` : ""} fill="none" stroke="#001F54" strokeWidth="1.5" strokeLinejoin="round" vectorEffect="non-scaling-stroke" />
                 </g>
@@ -210,6 +210,7 @@ export const ECGCanvas: React.FC<ECGCanvasProps> = ({ paths, rPeaks, isAnomaly =
 
               {/* 2. Lead II */}
               <g transform={`translate(0, 480)`}>
+                {showCalibrationPulse && renderCalibrationPulse("II")}
                 <g transform={`translate(50, 240) scale(${xScale}, ${yGain}) translate(0, -240)`}>
                   <path d={paths.II.length > 0 ? `M${paths.II.join(" L")}` : ""} fill="none" stroke={lead2Stroke} strokeWidth="1.5" strokeLinejoin="round" vectorEffect="non-scaling-stroke" />
                 </g>
@@ -218,6 +219,7 @@ export const ECGCanvas: React.FC<ECGCanvasProps> = ({ paths, rPeaks, isAnomaly =
 
               {/* 3. Lead III */}
               <g transform={`translate(0, 960)`}>
+                {showCalibrationPulse && renderCalibrationPulse("III")}
                 <g transform={`translate(50, 240) scale(${xScale}, ${yGain}) translate(0, -240)`}>
                   <path d={paths.III.length > 0 ? `M${paths.III.join(" L")}` : ""} fill="none" stroke="#001F54" strokeWidth="1.5" strokeLinejoin="round" vectorEffect="non-scaling-stroke" />
                 </g>
@@ -226,6 +228,7 @@ export const ECGCanvas: React.FC<ECGCanvasProps> = ({ paths, rPeaks, isAnomaly =
 
               {/* 4. aVR (Pembalikan sinyal dilakukan dengan -yGain) */}
               <g transform={`translate(0, 1440)`}>
+                {showCalibrationPulse && renderCalibrationPulse("aVR")}
                 <g transform={`translate(50, 240) scale(${xScale}, ${-yGain}) translate(0, -240)`}>
                   <path d={paths.aVR.length > 0 ? `M${paths.aVR.join(" L")}` : ""} fill="none" stroke="#001F54" strokeWidth="1.5" strokeLinejoin="round" vectorEffect="non-scaling-stroke" />
                 </g>
@@ -234,6 +237,7 @@ export const ECGCanvas: React.FC<ECGCanvasProps> = ({ paths, rPeaks, isAnomaly =
 
               {/* 5. aVL */}
               <g transform={`translate(0, 1920)`}>
+                {showCalibrationPulse && renderCalibrationPulse("aVL")}
                 <g transform={`translate(50, 240) scale(${xScale}, ${yGain}) translate(0, -240)`}>
                   <path d={paths.aVL.length > 0 ? `M${paths.aVL.join(" L")}` : ""} fill="none" stroke="#001F54" strokeWidth="1.5" strokeLinejoin="round" vectorEffect="non-scaling-stroke" />
                 </g>
@@ -242,6 +246,7 @@ export const ECGCanvas: React.FC<ECGCanvasProps> = ({ paths, rPeaks, isAnomaly =
 
               {/* 6. aVF */}
               <g transform={`translate(0, 2400)`}>
+                {showCalibrationPulse && renderCalibrationPulse("aVF")}
                 <g transform={`translate(50, 240) scale(${xScale}, ${yGain}) translate(0, -240)`}>
                   <path d={paths.aVF.length > 0 ? `M${paths.aVF.join(" L")}` : ""} fill="none" stroke="#001F54" strokeWidth="1.5" strokeLinejoin="round" vectorEffect="non-scaling-stroke" />
                 </g>

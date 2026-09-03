@@ -25,10 +25,14 @@ describe("useLazyEcgPaths custom hook", () => {
     // width = 0.4 * 25 * 8 = 80px
     const expectedCalPulse = ["0,240.00", "20,240.00", "20,160", "60,160", "60,240.00", "80,240.00"];
 
-    // The calibration pulse is rendered once on Lead I only.
+    // Every visible lead starts with the same calibration pulse.
     expect(result.current.I.slice(0, 6)).toEqual(expectedCalPulse);
-    expect(result.current.II.slice(0, 1)).not.toEqual(expectedCalPulse.slice(0, 1));
-    expect(result.current.III.slice(0, 1)).not.toEqual(expectedCalPulse.slice(0, 1));
+    expect(result.current.II.slice(0, 6)).toEqual(expectedCalPulse);
+    expect(result.current.III.slice(0, 6)).toEqual(expectedCalPulse);
+    expect(result.current.aVR.slice(0, 6)).toEqual(expectedCalPulse);
+    expect(result.current.aVL.slice(0, 6)).toEqual(expectedCalPulse);
+    expect(result.current.aVF.slice(0, 6)).toEqual(expectedCalPulse);
+    expect(result.current.V1.slice(0, 6)).toEqual(expectedCalPulse);
   });
 
   it("should scale calibration pulse and coordinates when gain is modified", () => {

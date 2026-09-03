@@ -59,6 +59,12 @@ export const useLazyEcgPaths = (
     const calPulsePath = [`0,240.00`, `${calPulseRise},240.00`, `${calPulseRise},${calPulseHeight}`, `${calPulseFall},${calPulseHeight}`, `${calPulseFall},240.00`, `${calPulseWidth},240.00`];
 
     paths.I = [...calPulsePath];
+    paths.II = [...calPulsePath];
+    paths.III = [...calPulsePath];
+    paths.aVR = [...calPulsePath];
+    paths.aVL = [...calPulsePath];
+    paths.aVF = [...calPulsePath];
+    paths.V1 = [...calPulsePath];
 
     const remainingWidth = 10 * paperSpeed * 8 - calPulseWidth;
     const X_STEP = remainingWidth / samples.length;
