@@ -21,9 +21,9 @@ const PAPER_SPEED_X_SCALE: Record<number, number> = {
 };
 
 const GAIN_Y_SCALE: Record<number, number> = {
-  5: 0.5,
+  5: 0.95,
   10: 1,
-  20: 2,
+  20: 1.005,
 };
 
 interface ECGCanvasProps {
