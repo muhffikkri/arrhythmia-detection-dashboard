@@ -79,9 +79,9 @@ export const applyConfiguredFiltersToFrame = (raw: FrameRawSamples, config: Stre
   const III = new Array<number>(n);
 
   const dcBlocker = new DCBlocker();
-  const lpI = new MovingAverageFilter(5);
-  const lpII = new MovingAverageFilter(5);
-  const lpIII = new MovingAverageFilter(5);
+  const lpI = new MovingAverageFilter(6);
+  const lpII = new MovingAverageFilter(6);
+  const lpIII = new MovingAverageFilter(6);
   const bpI = new IIRFilter();
   const bpII = new IIRFilter();
   const bpIII = new IIRFilter();
