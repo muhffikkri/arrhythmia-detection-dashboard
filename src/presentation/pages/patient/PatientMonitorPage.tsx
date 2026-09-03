@@ -20,6 +20,7 @@ import { API_URL, WS_URL } from "../../../config/env";
 import { fetchWithAuth } from "../../../config/api";
 import { ActionModal } from "../../components/shared/ActionModal";
 import { ScreenCalibrationModal } from "../../components/shared/ScreenCalibrationModal";
+import { RulerIcon } from "../../components/shared/RulerIcon";
 
 interface DeviceRecord {
   id: string;
@@ -485,9 +486,7 @@ export const PatientMonitorPage: React.FC = () => {
                       className="flex items-center justify-center gap-1.5 bg-clinical-surface border border-clinical-charcoal/10 text-clinical-charcoal hover:bg-clinical-surface/80 active:scale-95 transition-all rounded-full h-10 px-3 shadow-xs outline-none"
                       title="Kalibrasi ukuran fisik layar"
                     >
-                      <span className="material-symbols-outlined text-[18px]" aria-hidden="true">
-                        straighten
-                      </span>
+                      <RulerIcon size={18} />
                       <span className="hidden sm:inline text-[10px] font-bold uppercase tracking-wider">Ruler</span>
                     </button>
                   </div>

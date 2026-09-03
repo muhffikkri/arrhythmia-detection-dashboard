@@ -17,6 +17,7 @@ import { API_URL } from "../../../config/env";
 import { fetchWithAuth } from "../../../config/api";
 import { supabase, isSupabaseConfigured } from "../../../config/supabaseClient";
 import { ScreenCalibrationModal } from "../../components/shared/ScreenCalibrationModal";
+import { RulerIcon } from "../../components/shared/RulerIcon";
 
 const HISTORY_FILTER_CONFIG = FILTERS_CLINICAL_DEFAULT;
 
@@ -277,6 +278,15 @@ export const PatientHistoryDetailPage: React.FC = () => {
                     <p className="text-[10px] font-bold text-clinical-charcoal/60 uppercase tracking-widest">{t("history.recordingTime")}</p>
                     <p className="text-sm font-bold text-clinical-charcoal mt-0.5">{currentEvent ? `${currentEvent.timeStr} - ${events[selectedIdx + 1]?.timeStr || t("history.end")}` : "--"}</p>
                   </div>
+                  <button
+                    onClick={() => setShowScreenCalibration(true)}
+                    aria-label="Kalibrasi layar dengan penggaris"
+                    title="Kalibrasi ukuran fisik layar"
+                    className="flex items-center gap-2 bg-clinical-surface hover:bg-clinical-charcoal/5 border border-clinical-charcoal/10 px-4 py-2 rounded-full font-bold text-xs transition-all duration-300 outline-none hover:-translate-y-0.5 shadow-sm"
+                  >
+                    <RulerIcon size={18} />
+                    Ruler
+                  </button>
                 </div>
               </div>
 
@@ -313,17 +323,6 @@ export const PatientHistoryDetailPage: React.FC = () => {
               {/* Download Action Menu (Moved to bottom) */}
               <div className="flex justify-end w-full mt-2">
                 <div className="flex items-center gap-2 relative z-[99999]" ref={downloadMenuRef}>
-                  <button
-                    onClick={() => setShowScreenCalibration(true)}
-                    aria-label="Kalibrasi layar dengan penggaris"
-                    title="Kalibrasi ukuran fisik layar"
-                    className="flex items-center gap-2 bg-clinical-surface hover:bg-clinical-charcoal/5 border border-clinical-charcoal/10 px-4 py-2 rounded-full font-bold text-xs transition-all duration-300 outline-none hover:-translate-y-0.5 shadow-sm"
-                  >
-                    <span className="material-symbols-outlined text-[16px]" aria-hidden="true">
-                      straighten
-                    </span>
-                    Ruler
-                  </button>
                   <button
                     onClick={() => setShowDownloadMenu(!showDownloadMenu)}
                     className="bg-clinical-surface hover:bg-clinical-charcoal/5 border border-clinical-charcoal/10 px-4 py-2 rounded-full font-bold text-xs flex items-center gap-2 transition-all duration-300 outline-none hover:-translate-y-0.5 shadow-sm"

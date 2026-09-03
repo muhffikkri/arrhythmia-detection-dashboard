@@ -8,6 +8,7 @@ import { API_URL } from "../../../config/env";
 import { fetchWithAuth } from "../../../config/api";
 import { useCachedFetch } from "../../../application/hooks/useCachedFetch";
 import { ScreenCalibrationModal } from "../../components/shared/ScreenCalibrationModal";
+import { RulerIcon } from "../../components/shared/RulerIcon";
 
 interface SessionRecord {
   id: string;
@@ -157,9 +158,7 @@ export const PatientHistoryPage: React.FC = () => {
               title="Kalibrasi ukuran fisik layar"
               className="flex items-center justify-center gap-2 bg-clinical-surface hover:bg-clinical-charcoal/5 border border-clinical-charcoal/10 px-4 py-2 rounded-full font-bold text-xs transition-all duration-300 outline-none hover:-translate-y-0.5 shadow-sm"
             >
-              <span className="material-symbols-outlined text-[18px]" aria-hidden="true">
-                straighten
-              </span>
+              <RulerIcon size={18} />
               Ruler
             </button>
           </header>
