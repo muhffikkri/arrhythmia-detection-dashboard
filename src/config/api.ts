@@ -38,12 +38,16 @@ export async function fetchWithAuth(endpoint: string, options: RequestInit = {})
 
 export const getPhotoUrl = (url: string | null | undefined) => {
     if (!url) return undefined;
+    
+    const baseUrl = API_URL.endsWith('/') ? API_URL.slice(0, -1) : API_URL;
+    
     if (url.startsWith('http')) {
-        if (url.includes('localhost') || url.includes('127.0.0.1')) {
-            const parts = url.split('/uploads');
-            if (parts.length > 1) return `${API_URL}/uploads${parts[1]}`;
+        if (url.includes('/uploads/')) {
+            const parts = url.split('/uploads/');
+            return `${baseUrl}/uploads/${parts[1]}`;
         }
         return url;
     }
-    return `${API_URL}${url.startsWith('/') ? '' : '/'}${url}`;
+    
+    return `${baseUrl}${url.startsWith('/') ? '' : '/'}${url}`;
 };

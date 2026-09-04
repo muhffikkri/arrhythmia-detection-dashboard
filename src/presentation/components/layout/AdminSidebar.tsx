@@ -47,12 +47,12 @@ export const AdminSidebar: React.FC = () => {
                 `}
             >
                 {/* Logo header — visible only on desktop */}
-                <div className="hidden md:flex p-5 items-center justify-between border-b border-clinical-charcoal/5">
+                <div className={`hidden md:flex items-center border-b border-clinical-charcoal/5 ${isCollapsed ? 'p-3 flex-col gap-4 justify-center' : 'p-5 justify-between'}`}>
                     <div className="flex items-center gap-3 cursor-pointer" onClick={() => navigate('/admin/dashboard')}>
                         <img src="https://lh3.googleusercontent.com/aida-public/AB6AXuDJfACqMSzy6S1S81otlvrhfNIHr526OT9XlgCl04PJNewQysO-szQBYwNy1CAVfF851GuVn5qSOMjNWQdVGWANcLFnC4v9hdbnEGw6a6zjZHiO-z3KrczLQUpmNPbJBK3DPcvSUNAMyxXlVaN3XK5XqDW2MwFfclgdHRXsKHmF-u3QnVmzkBpw6dRTGNCyHk4YD526zmZNozyix_CMqEgOacA2M9LUFTaMDhBfigT5e7htUaxvw6bZCKeoVwqQgtQxho0qkC32iy0g"
-                            alt="ecgrhythmia logo" className="w-8 h-8 object-contain" />
+                            alt="ecgrhythmia logo" className="w-8 h-8 object-contain shrink-0" />
                         {!isCollapsed && (
-                            <div className="text-xl font-headline-lg tracking-tight select-none flex">
+                            <div className="text-xl font-headline-lg tracking-tight select-none flex shrink-0">
                                 <span className="text-clinical-red">ecg</span><span className="text-clinical-charcoal">rhythmia</span>
                             </div>
                         )}
@@ -60,14 +60,14 @@ export const AdminSidebar: React.FC = () => {
                     {/* Desktop Collapse Button */}
                     <button
                         onClick={toggleCollapsed}
-                        className="p-1.5 rounded-lg hover:bg-clinical-surface text-clinical-charcoal/50 hover:text-clinical-charcoal transition-colors outline-none"
+                        className="p-1.5 rounded-lg hover:bg-clinical-surface text-clinical-charcoal/50 hover:text-clinical-charcoal transition-colors outline-none shrink-0"
                         title={isCollapsed ? "Tampilkan Sidebar" : "Sembunyikan Sidebar"}
                     >
                         <span className="material-symbols-outlined text-[20px]">{isCollapsed ? 'menu' : 'menu_open'}</span>
                     </button>
                 </div>
 
-                <div className={`px-2 py-2 bg-clinical-charcoal/5 text-clinical-charcoal text-[10px] font-bold tracking-widest uppercase text-center border-b border-clinical-charcoal/5 ${isCollapsed ? 'px-1' : 'px-6'}`}>
+                <div className={`py-2 bg-clinical-charcoal/5 text-clinical-charcoal text-[10px] font-bold tracking-widest uppercase text-center border-b border-clinical-charcoal/5 ${isCollapsed ? 'px-1' : 'px-6'}`}>
                     {isCollapsed ? 'SYS' : 'SYSTEM ADMIN'}
                 </div>
 
@@ -102,19 +102,19 @@ export const AdminSidebar: React.FC = () => {
                             AD
                         </div>
                         {!isCollapsed && (
-                            <div className="flex-1 overflow-hidden">
-                                <p className="font-bold text-xs text-clinical-charcoal truncate group-hover:text-clinical-blue transition-colors">Admin</p>
-                                <p className="text-[10px] text-clinical-charcoal/50 truncate uppercase tracking-wider font-medium">Root Access</p>
-                            </div>
-                        )}
-                        {!isCollapsed && (
-                            <button onClick={(e) => {
-                                e.stopPropagation();
-                                closeSidebar();
-                                setIsLogoutModalOpen(true);
-                            }}>
-                                <span className="material-symbols-outlined text-clinical-charcoal/40 text-lg hover:text-clinical-red transition-colors outline-none">logout</span>
-                            </button>
+                            <>
+                                <div className="flex-1 overflow-hidden">
+                                    <p className="font-bold text-xs text-clinical-charcoal truncate group-hover:text-clinical-blue transition-colors">Admin</p>
+                                    <p className="text-[10px] text-clinical-charcoal/50 truncate uppercase tracking-wider font-medium">Root Access</p>
+                                </div>
+                                <button onClick={(e) => {
+                                    e.stopPropagation();
+                                    closeSidebar();
+                                    setIsLogoutModalOpen(true);
+                                }}>
+                                    <span className="material-symbols-outlined text-clinical-charcoal/40 text-lg hover:text-clinical-red transition-colors outline-none">logout</span>
+                                </button>
+                            </>
                         )}
                     </div>
                 </div>
