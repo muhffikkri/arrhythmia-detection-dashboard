@@ -24,7 +24,7 @@ export interface DeviceRecord {
 
 export const DashboardPage: React.FC = () => {
     const navigate = useNavigate();
-    const { isOpen, toggleSidebar } = useSidebar();
+    const { isOpen, toggleSidebar, isCollapsed } = useSidebar();
     const { connectedPatients, removeConnectedPatient, disconnectAll } = useConnection();
     const [showDisconnectModal, setShowDisconnectModal] = useState(false);
     const [showSuccessModal, setShowSuccessModal] = useState(false);
@@ -116,7 +116,7 @@ export const DashboardPage: React.FC = () => {
         <div className="bg-clinical-surface text-clinical-charcoal antialiased overflow-x-hidden w-full relative min-h-screen">
             <div className="fixed inset-0 ecg-grid opacity-10 pointer-events-none z-0"></div>
             <DoctorSidebar />
-            <main id="main-content" className={`min-h-screen pb-24 md:pb-12 transition-all duration-300 w-full relative z-10 ${isOpen ? 'md:ml-[260px] md:w-[calc(100%-260px)]' : 'ml-0'}`}>
+            <main id="main-content" className={`min-h-screen pb-24 md:pb-12 transition-all duration-300 w-full relative z-10 md:ml-[260px] md:w-[calc(100%-260px)] ${isCollapsed ? "md:!ml-[72px] md:!w-[calc(100%-72px)]" : ""}`}>
 
                 <header className="sticky top-0 bg-clinical-surface/80 backdrop-blur-xl border-b border-clinical-charcoal/5 z-40 px-4 md:px-6 py-4 flex justify-between items-center max-w-container-max mx-auto w-full">
                     <div className="flex items-center gap-3">

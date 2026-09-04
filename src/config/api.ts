@@ -41,13 +41,16 @@ export const getPhotoUrl = (url: string | null | undefined) => {
     
     const baseUrl = API_URL.endsWith('/') ? API_URL.slice(0, -1) : API_URL;
     
-    if (url.startsWith('http')) {
-        if (url.includes('/uploads/')) {
-            const parts = url.split('/uploads/');
-            return `${baseUrl}/uploads/${parts[1]}`;
-        }
-        return url;
+    const normalizedUrl = url.replace(/\\/g, '/');
+    
+    if (normalizedUrl.includes('/uploads/')) {
+        const parts = normalizedUrl.split('/uploads/');
+        return `${baseUrl}/uploads/${parts[1]}`;
     }
     
-    return `${baseUrl}${url.startsWith('/') ? '' : '/'}${url}`;
+    if (normalizedUrl.startsWith('http')) {
+        return normalizedUrl;
+    }
+    
+    return `${baseUrl}${normalizedUrl.startsWith('/') ? '' : '/'}${normalizedUrl}`;
 };

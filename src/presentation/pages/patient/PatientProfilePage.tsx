@@ -165,7 +165,16 @@ export const PatientProfilePage: React.FC = () => {
                         <div className="p-8 lg:p-12 lg:w-1/3 border-b lg:border-b-0 lg:border-r border-clinical-charcoal/10 flex flex-col items-center text-center">
                             <div className="relative w-32 h-32 rounded-full overflow-hidden border-4 border-white shadow-sm bg-clinical-surface flex items-center justify-center mb-6 ring-4 ring-clinical-blue/20">
                                 {profile?.patient?.profile_photo ? (
-                                    <img alt="Profile" className="w-full h-full object-cover" src={getPhotoUrl(profile.patient.profile_photo)} />
+                                    <img 
+                                        alt="Profile" 
+                                        className="w-full h-full object-cover" 
+                                        src={getPhotoUrl(profile.patient.profile_photo)}
+                                        onError={(e) => {
+                                            const target = e.target as HTMLImageElement;
+                                            target.onerror = null;
+                                            target.outerHTML = '<span class="material-symbols-outlined text-[64px] text-clinical-charcoal/20">person</span>';
+                                        }}
+                                    />
                                 ) : (
                                     <span className="material-symbols-outlined text-6xl text-clinical-charcoal/30">person</span>
                                 )}

@@ -1024,7 +1024,7 @@ export const AdminSessionsPage: React.FC = () => {
             <div className="absolute inset-0 ecg-grid opacity-10 pointer-events-none z-0"></div>
             <AdminSidebar />
 
-            <main className={`flex flex-col transition-all duration-300 min-h-screen pb-12 w-full relative z-10 ${isOpen ? 'md:ml-[260px] md:w-[calc(100%-260px)]' : 'md:ml-0 md:w-full'}`}>
+            <main className={`flex flex-col transition-all duration-300 min-h-screen pb-12 w-full relative z-10 md:ml-[260px] md:w-[calc(100%-260px)] ${isCollapsed ? "md:!ml-[72px] md:!w-[calc(100%-72px)]" : ""}`}>
                 {/* Header */}
                 <header className="sticky top-0 bg-clinical-surface/80 backdrop-blur-xl border-b border-clinical-charcoal/5 z-40 px-4 md:px-6 py-4 flex justify-between items-center w-full transition-all duration-300">
                     <div className="flex items-center gap-3">

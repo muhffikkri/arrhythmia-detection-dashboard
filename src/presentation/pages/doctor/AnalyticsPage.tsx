@@ -44,7 +44,7 @@ export const AnalyticsPage: React.FC = () => {
   const [showPatientSelector, setShowPatientSelector] = useState(!sessionId);
   const [selectedPatientFilter, setSelectedPatientFilter] = useState<string>("ALL");
 
-  const { isOpen, toggleSidebar } = useSidebar();
+  const { isOpen, toggleSidebar, isCollapsed } = useSidebar();
   const { connectedPatients } = useConnection();
 
   const [events, setEvents] = useState<TimelineEvent[]>([]);
@@ -283,7 +283,7 @@ export const AnalyticsPage: React.FC = () => {
         </div>
       )}
 
-      <main className={`flex flex-col transition-all duration-300 min-h-screen pb-12 w-full ${isOpen ? "md:ml-[260px] md:w-[calc(100%-260px)]" : "ml-0"}`}>
+      <main className={`flex flex-col transition-all duration-300 min-h-screen pb-12 w-full md:ml-[260px] md:w-[calc(100%-260px)] ${isCollapsed ? "md:!ml-[72px] md:!w-[calc(100%-72px)]" : ""}`}>
         {/* --- HEADER KOMPONEN --- */}
         <header className="sticky top-0 bg-clinical-surface/80 backdrop-blur-xl border-b border-clinical-charcoal/5 z-40 px-4 md:px-6 py-4 flex justify-between items-center max-w-container-max mx-auto w-full">
           <div className="flex items-center gap-3">

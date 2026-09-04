@@ -20,7 +20,7 @@ interface DoctorProfile {
 
 export const ProfilePage: React.FC = () => {
     const navigate = useNavigate();
-    const { isOpen, toggleSidebar } = useSidebar();
+    const { isOpen, toggleSidebar, isCollapsed } = useSidebar();
     const { connectedDoctor, setConnectedDoctor } = useConnection();
 
     const userId = localStorage.getItem('user_id');
@@ -160,7 +160,7 @@ export const ProfilePage: React.FC = () => {
             <div className="absolute inset-0 ecg-grid opacity-10 pointer-events-none z-0"></div>
             <DoctorSidebar />
 
-            <div className={`flex-1 flex flex-col min-w-0 relative z-10 transition-all duration-300 ${isOpen ? 'md:ml-[260px]' : 'ml-0'}`}>
+            <div className={`flex-1 flex flex-col min-w-0 relative z-10 transition-all duration-300 md:ml-[260px] md:w-[calc(100%-260px)] ${isCollapsed ? "md:!ml-[72px] md:!w-[calc(100%-72px)]" : ""}`}>
 
                 <header className="sticky top-0 bg-clinical-surface/80 backdrop-blur-xl border-b border-clinical-charcoal/5 z-40 px-4 md:px-6 py-4 flex justify-between items-center w-full">
                     <div className="flex items-center gap-3">
