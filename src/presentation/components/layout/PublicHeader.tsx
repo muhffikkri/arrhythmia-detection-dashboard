@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { API_URL } from '../../../config/env';
-import { fetchWithAuth } from '../../../config/api';
+import { fetchWithAuth, getPhotoUrl } from '../../../config/api';
 
 export const PublicHeader: React.FC = () => {
   const navigate = useNavigate();
@@ -115,7 +115,7 @@ export const PublicHeader: React.FC = () => {
               title="Go to Dashboard"
             >
               {profilePhoto ? (
-                <img className="w-full h-full object-cover" src={profilePhoto} alt="Profile" />
+                <img className="w-full h-full object-cover" src={getPhotoUrl(profilePhoto)} alt="Profile" />
               ) : (
                 <span>{initials || <span className="material-symbols-outlined text-[20px]">person</span>}</span>
               )}

@@ -4,7 +4,7 @@ import { DoctorSidebar } from '../../components/layout/DoctorSidebar';
 import { useSidebar } from '../../../application/context/SidebarContext';
 import { useConnection } from '../../../application/context/ConnectionContext';
 import { API_URL } from '../../../config/env';
-import { fetchWithAuth } from '../../../config/api';
+import { fetchWithAuth, getPhotoUrl } from '../../../config/api';
 import { useCachedFetch } from '../../../application/hooks/useCachedFetch';
 
 export interface SessionRecord {
@@ -185,7 +185,7 @@ export const DashboardPage: React.FC = () => {
                                         <div className="flex items-center gap-5">
                                             <div className="w-14 h-14 rounded-full bg-clinical-surface group-hover:bg-clinical-blue/10 transition-colors duration-700 flex items-center justify-center text-lg font-bold text-clinical-blue uppercase border border-clinical-charcoal/5 overflow-hidden">
                                                 {patient.profile_photo ? (
-                                                    <img src={patient.profile_photo} alt={patient.name} className="w-full h-full object-cover" />
+                                                    <img src={getPhotoUrl(patient.profile_photo)} alt={patient.name} className="w-full h-full object-cover" />
                                                 ) : (
                                                     patient.name.substring(0, 2).toUpperCase()
                                                 )}

@@ -1,3 +1,4 @@
+import { getPhotoUrl } from '../../../config/api';
 /**
  * @fileoverview Halaman UI: Analytics & History Page
  * Berfungsi untuk meninjau ulang rekaman EKG pasien dari masa lalu (Historical Review).
@@ -422,7 +423,7 @@ export const AdminAnalyticsPage: React.FC = () => {
                           <div className="flex items-center gap-4">
                             <div className="w-10 h-10 rounded-full bg-white-container-low flex items-center justify-center font-headline-md text-outline uppercase overflow-hidden flex-shrink-0">
                               {session.patient_id && patientPhotos[session.patient_id] ? (
-                                <img src={patientPhotos[session.patient_id]} alt={session.patient_name || ""} className="w-full h-full object-cover" />
+                                <img src={getPhotoUrl(patientPhotos[session.patient_id])} alt={session.patient_name || ""} className="w-full h-full object-cover" />
                               ) : session.patient_name ? (
                                 session.patient_name.substring(0, 2)
                               ) : (

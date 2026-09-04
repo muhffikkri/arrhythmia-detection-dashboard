@@ -1,3 +1,4 @@
+import { getPhotoUrl } from '../../../config/api';
 import React, { useEffect, useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { useConnection } from "../../../application/context/ConnectionContext";
@@ -331,7 +332,7 @@ export const PatientDashboardPage: React.FC = () => {
                   <>
                     <div className="relative mb-4">
                       <div className="w-24 h-24 rounded-full border-4 border-clinical-surface overflow-hidden shadow-sm flex items-center justify-center bg-slate-50 text-3xl font-bold text-clinical-charcoal/40">
-                        {displayDoctor.photo ? <img src={displayDoctor.photo} alt="Doctor" className="w-full h-full object-cover" /> : <span className="material-symbols-outlined text-5xl">person</span>}
+                        {displayDoctor.photo ? <img src={getPhotoUrl(displayDoctor.photo)} alt="Doctor" className="w-full h-full object-cover" /> : <span className="material-symbols-outlined text-5xl">person</span>}
                       </div>
                       {displayDoctor.isLive && <div className="absolute bottom-1 right-1 bg-status-green w-5 h-5 rounded-full border-4 border-white"></div>}
                     </div>

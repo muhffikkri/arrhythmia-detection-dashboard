@@ -5,7 +5,7 @@ import { useSidebar } from '../../../application/context/SidebarContext';
 import { LogoutModal } from '../../components/shared/LogoutModal';
 import { useConnection } from '../../../application/context/ConnectionContext';
 import { API_URL } from '../../../config/env';
-import { fetchWithAuth } from '../../../config/api';
+import { fetchWithAuth, getPhotoUrl } from '../../../config/api';
 import { useCachedFetch } from '../../../application/hooks/useCachedFetch';
 import { ActionModal } from '../../components/shared/ActionModal';
 
@@ -197,7 +197,7 @@ export const ProfilePage: React.FC = () => {
                                 </div>
                                 <div className="relative w-28 h-28 md:w-32 md:h-32 rounded-full overflow-hidden border-4 border-white shadow-xl bg-white flex items-center justify-center mb-5 md:mb-6 z-10 group-hover:shadow-2xl transition-all duration-700">
                                     {profile?.profile_photo ? (
-                                        <img alt="Profile" className="w-full h-full object-cover" src={profile.profile_photo} />
+                                        <img alt="Profile" className="w-full h-full object-cover" src={getPhotoUrl(profile.profile_photo)} />
                                     ) : (
                                         <span className="material-symbols-outlined text-4xl md:text-6xl text-clinical-charcoal/70">person</span>
                                     )}

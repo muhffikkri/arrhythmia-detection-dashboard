@@ -28,7 +28,7 @@ const handleReturnToOriginalProfile = (navigate: any) => {
 };
 import { useTranslation } from '../../../application/hooks/useTranslation';
 import { API_URL } from '../../../config/env';
-import { fetchWithAuth } from '../../../config/api';
+import { fetchWithAuth, getPhotoUrl } from '../../../config/api';
 import { useCachedFetch } from '../../../application/hooks/useCachedFetch';
 
 interface PatientProfile {
@@ -92,7 +92,7 @@ export const PatientHeader: React.FC = () => {
                         </div>
                         <div className="w-10 h-10 rounded-full border border-clinical-charcoal/10 overflow-hidden bg-clinical-surface flex items-center justify-center font-bold text-clinical-blue text-sm shrink-0">
                             {profile?.patient.profile_photo ? (
-                                <img className="w-full h-full object-cover" data-alt="Patient Profile" src={profile.patient.profile_photo} />
+                                <img className="w-full h-full object-cover" data-alt="Patient Profile" src={getPhotoUrl(profile.patient.profile_photo)} />
                             ) : (
                                 <span>{profile ? getInitials(profile.patient.first_name, profile.patient.last_name) : ''}</span>
                             )}

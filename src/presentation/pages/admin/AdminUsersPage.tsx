@@ -7,7 +7,7 @@ import { API_URL } from '../../../config/env';
 import { Pagination } from '../../components/shared/Pagination';
 import { useStickyState } from '../../../application/hooks/useStickyState';
 import { useCachedFetch } from '../../../application/hooks/useCachedFetch';
-import { fetchWithAuth } from '../../../config/api';
+import { fetchWithAuth, getPhotoUrl } from '../../../config/api';
 import { ActionModal } from '../../components/shared/ActionModal';
 
 interface AdminUser {
@@ -391,7 +391,7 @@ export const AdminUsersPage: React.FC = () => {
                 <div className="flex items-center gap-3">
                     <div className="w-8 h-8 rounded-full bg-clinical-surface border border-clinical-charcoal/5 shadow-sm overflow-hidden flex items-center justify-center text-clinical-charcoal/60 shrink-0">
                         {u.profile_photo ? (
-                            <img src={u.profile_photo} alt={u.name} className="w-full h-full object-cover" />
+                            <img src={getPhotoUrl(u.profile_photo)} alt={u.name} className="w-full h-full object-cover" />
                         ) : (
                             <span className="material-symbols-outlined text-[18px]">person</span>
                         )}
@@ -616,7 +616,7 @@ export const AdminUsersPage: React.FC = () => {
                                     <div className="flex items-center gap-6">
                                         <div className="w-24 h-24 rounded-[1.5rem] bg-clinical-surface border-4 border-white shadow-md overflow-hidden flex items-center justify-center text-clinical-charcoal/50 shrink-0">
                                             {userDetail.patient?.profile_photo || userDetail.profile_photo ? (
-                                                <img src={userDetail.patient?.profile_photo || userDetail.profile_photo} alt="Profile" className="w-full h-full object-cover" />
+                                                <img src={getPhotoUrl(userDetail.patient?.profile_photo || userDetail.profile_photo)} alt="Profile" className="w-full h-full object-cover" />
                                             ) : (
                                                 <span className="material-symbols-outlined text-5xl">person</span>
                                             )}
