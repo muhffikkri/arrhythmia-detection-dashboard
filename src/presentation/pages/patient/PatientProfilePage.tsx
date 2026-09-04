@@ -26,7 +26,7 @@ export const PatientProfilePage: React.FC = () => {
     const [formData, setFormData] = useState({
         first_name: '',
         last_name: '',
-        age: 0,
+        date_of_birth: '',
         gender: 'L',
         profile_photo: ''
     });
@@ -54,7 +54,7 @@ export const PatientProfilePage: React.FC = () => {
             setFormData({
                 first_name: profile.patient.first_name || '',
                 last_name: profile.patient.last_name || '',
-                age: profile.patient.age || 0,
+                date_of_birth: profile.patient.date_of_birth || '',
                 gender: profile.patient.gender || 'L',
                 profile_photo: profile.patient.profile_photo || ''
             });
@@ -82,9 +82,8 @@ export const PatientProfilePage: React.FC = () => {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                    first_name: formData.first_name,
-                    last_name: formData.last_name,
-                    age: String(formData.age),
+                    name: `${formData.first_name} ${formData.last_name}`.trim(),
+                    date_of_birth: formData.date_of_birth,
                     gender: formData.gender,
                     profile_photo: formData.profile_photo || null
                 })
@@ -225,7 +224,7 @@ export const PatientProfilePage: React.FC = () => {
                                         <div className="bg-clinical-surface p-5 rounded-2xl border border-clinical-charcoal/5 transition-all hover:border-clinical-blue/30 hover:shadow-sm">
                                             <p className="text-[10px] text-clinical-charcoal/60 uppercase font-bold tracking-widest mb-1">{t('profile.age')}</p>
                                             <p className="text-base font-bold text-clinical-charcoal">
-                                                {isLoading ? '---' : (profile?.patient?.age ? `${profile.patient.age} ${t('profile.yearsOld')}` : '-')}
+                                                {isLoading ? '---' : (profile?.patient?.date_of_birth ? `${calculateAge(profile.patient.date_of_birth)} ${t('profile.yearsOld')}` : '-')}
                                             </p>
                                         </div>
                                         <div className="bg-clinical-surface p-5 rounded-2xl border border-clinical-charcoal/5 transition-all hover:border-clinical-blue/30 hover:shadow-sm">
@@ -265,10 +264,9 @@ export const PatientProfilePage: React.FC = () => {
                                         <div className="space-y-1.5">
                                             <label className="text-xs font-bold text-clinical-charcoal uppercase tracking-wider">{t('profile.age')}</label>
                                             <input
-                                                type="number"
-                                                min="0" max="150"
-                                                value={formData.age || ''}
-                                                onChange={e => setFormData({ ...formData, age: Number(e.target.value) })}
+                                                type="date"
+                                                value={formData.date_of_birth}
+                                                onChange={e => setFormData({ ...formData, date_of_birth: e.target.value })}
                                                 className="w-full px-4 py-3 bg-white border border-clinical-charcoal/10 rounded-2xl focus:outline-none focus:ring-2 focus:ring-clinical-blue focus:border-transparent text-clinical-charcoal font-medium transition-all"
                                             />
                                         </div>
@@ -313,7 +311,7 @@ export const PatientProfilePage: React.FC = () => {
                                                     setFormData({
                                                         first_name: profile.patient.first_name,
                                                         last_name: profile.patient.last_name,
-                                                        age: profile.patient.age,
+                                                        date_of_birth: profile.patient.date_of_birth || '',
                                                         gender: profile.patient.gender || 'L',
                                                         profile_photo: profile.patient.profile_photo || ''
                                                     });
@@ -362,7 +360,7 @@ export const PatientProfilePage: React.FC = () => {
                                         </div>
                                         <div>
                                             <h4 className="text-lg text-clinical-charcoal font-bold font-display">Dr. {profile.doctor.first_name} {profile.doctor.last_name}</h4>
-                                            <p className="text-sm font-medium text-clinical-charcoal/60">{t('profile.doctorRole')} <span className="text-clinical-charcoal/20 mx-1">•</span> {profile.doctor.hospital || 'Klinik Jantung Sehat'}</p>
+                                            <p className="text-sm font-medium text-clinical-charcoal/60">{t('profile.doctorRole')} <span className="text-clinical-charcoal/20 mx-1">â€¢</span> {profile.doctor.hospital || 'Klinik Jantung Sehat'}</p>
 
                                             <span className="inline-flex items-center mt-2 px-3 py-1 bg-green-50 text-green-700 rounded-full text-[10px] font-bold uppercase tracking-widest border border-green-200">
                                                 <span className="w-1.5 h-1.5 rounded-full bg-status-green mr-1.5"></span>
@@ -415,3 +413,7 @@ export const PatientProfilePage: React.FC = () => {
         </div>
     );
 };
+
+
+
+

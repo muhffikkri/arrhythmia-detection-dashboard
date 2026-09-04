@@ -35,3 +35,15 @@ export async function fetchWithAuth(endpoint: string, options: RequestInit = {})
 
     return fetch(url, newOptions);
 }
+
+export const getPhotoUrl = (url: string | null | undefined) => {
+    if (!url) return undefined;
+    if (url.startsWith('http')) {
+        if (url.includes('localhost') || url.includes('127.0.0.1')) {
+            const parts = url.split('/uploads');
+            if (parts.length > 1) return `${API_URL}/uploads${parts[1]}`;
+        }
+        return url;
+    }
+    return `${API_URL}${url.startsWith('/') ? '' : '/'}${url}`;
+};
