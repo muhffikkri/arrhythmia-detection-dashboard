@@ -86,9 +86,9 @@ export const AdminSidebar: React.FC = () => {
                     ))}
                 </nav>
 
-                <div className="p-4 border-t border-clinical-charcoal/5 bg-clinical-surface/30">
+                <div className={`border-t border-clinical-charcoal/5 bg-clinical-surface/30 ${isCollapsed ? 'p-2' : 'p-4'}`}>
                     <div 
-                        className={`flex bg-white border border-clinical-charcoal/10 ${isCollapsed ? 'p-2 justify-center' : 'p-3 gap-3'} rounded-xl items-center transition-all group hover:border-clinical-blue/50 cursor-pointer shadow-sm`}
+                        className={`flex bg-white border border-clinical-charcoal/10 ${isCollapsed ? 'p-1 justify-center' : 'p-3 gap-3'} rounded-xl items-center transition-all group hover:border-clinical-blue/50 cursor-pointer shadow-sm`}
                         onClick={(e) => {
                             if (isCollapsed) {
                                 e.stopPropagation();
