@@ -1,3 +1,4 @@
+import { getPhotoUrl } from '../../../config/api';
 /**
  * @fileoverview Halaman UI: Analytics & History Page
  * Berfungsi untuk meninjau ulang rekaman EKG pasien dari masa lalu (Historical Review).
@@ -279,10 +280,10 @@ export const AdminAnalyticsPage: React.FC = () => {
   // Derive props for the cards from currentSegment
   const clinicalStatus: ClinicalExplanation | null = currentSegment
     ? {
-        isAnomaly: currentSegment.isAnomaly,
-        fullExplanation: `${currentSegment.isAnomaly ? "Anomali Terdeteksi" : "Normal"} - ${currentEvent?.classResult}. ${currentSegment.diagnosis}`,
-        severity: currentSegment.isAnomaly ? "CRITICAL" : "NORMAL",
-      }
+      isAnomaly: currentSegment.isAnomaly,
+      fullExplanation: `${currentSegment.isAnomaly ? "Anomali Terdeteksi" : "Normal"} - ${currentEvent?.classResult}. ${currentSegment.diagnosis}`,
+      severity: currentSegment.isAnomaly ? "CRITICAL" : "NORMAL",
+    }
     : null;
 
   const heartRate = currentSegment?.heartRate || "--";
@@ -311,7 +312,7 @@ export const AdminAnalyticsPage: React.FC = () => {
       <div className="absolute inset-0 ecg-grid opacity-10 pointer-events-none z-0"></div>
       <AdminSidebar />
 
-      <main className={`flex flex-col transition-all duration-300 min-h-screen pb-12 w-full relative z-10 ${isOpen ? "md:ml-[260px] md:w-[calc(100%-260px)]" : "md:ml-0 md:w-full"}`}>
+      <main className={`flex flex-col transition-all duration-300 min-h-screen pb-12 w-full relative z-10 md:ml-[260px] md:w-[calc(100%-260px)] ${isCollapsed ? "md:!ml-[72px] md:!w-[calc(100%-72px)]" : ""}`}>
         {/* --- HEADER KOMPONEN --- */}
         <header className="sticky top-0 bg-clinical-surface/80 backdrop-blur-xl border-b border-clinical-charcoal/5 z-40 px-4 md:px-6 py-4 flex justify-between items-center w-full w-full transition-all duration-300">
           <div className="flex items-center gap-3">
@@ -422,7 +423,7 @@ export const AdminAnalyticsPage: React.FC = () => {
                           <div className="flex items-center gap-4">
                             <div className="w-10 h-10 rounded-full bg-white-container-low flex items-center justify-center font-headline-md text-outline uppercase overflow-hidden flex-shrink-0">
                               {session.patient_id && patientPhotos[session.patient_id] ? (
-                                <img src={patientPhotos[session.patient_id]} alt={session.patient_name || ""} className="w-full h-full object-cover" />
+                                <img src={getPhotoUrl(patientPhotos[session.patient_id])} alt={session.patient_name || ""} className="w-full h-full object-cover" />
                               ) : session.patient_name ? (
                                 session.patient_name.substring(0, 2)
                               ) : (

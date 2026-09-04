@@ -4,7 +4,7 @@ import { DoctorSidebar } from '../../components/layout/DoctorSidebar';
 import { useSidebar } from '../../../application/context/SidebarContext';
 import { useConnection } from '../../../application/context/ConnectionContext';
 import { API_URL } from '../../../config/env';
-import { fetchWithAuth } from '../../../config/api';
+import { fetchWithAuth, getPhotoUrl } from '../../../config/api';
 import { useCachedFetch } from '../../../application/hooks/useCachedFetch';
 
 export interface SessionRecord {
@@ -24,7 +24,7 @@ export interface DeviceRecord {
 
 export const DashboardPage: React.FC = () => {
     const navigate = useNavigate();
-    const { isOpen, toggleSidebar } = useSidebar();
+    const { isOpen, toggleSidebar, isCollapsed } = useSidebar();
     const { connectedPatients, removeConnectedPatient, disconnectAll } = useConnection();
     const [showDisconnectModal, setShowDisconnectModal] = useState(false);
     const [showSuccessModal, setShowSuccessModal] = useState(false);
@@ -116,7 +116,7 @@ export const DashboardPage: React.FC = () => {
         <div className="bg-clinical-surface text-clinical-charcoal antialiased overflow-x-hidden w-full relative min-h-screen">
             <div className="fixed inset-0 ecg-grid opacity-10 pointer-events-none z-0"></div>
             <DoctorSidebar />
-            <main id="main-content" className={`min-h-screen pb-24 md:pb-12 transition-all duration-300 w-full relative z-10 ${isOpen ? 'md:ml-[260px] md:w-[calc(100%-260px)]' : 'ml-0'}`}>
+            <main id="main-content" className={`min-h-screen pb-24 md:pb-12 transition-all duration-300 w-full relative z-10 md:ml-[260px] md:w-[calc(100%-260px)] ${isCollapsed ? "md:!ml-[72px] md:!w-[calc(100%-72px)]" : ""}`}>
 
                 <header className="sticky top-0 bg-clinical-surface/80 backdrop-blur-xl border-b border-clinical-charcoal/5 z-40 px-4 md:px-6 py-4 flex justify-between items-center max-w-container-max mx-auto w-full">
                     <div className="flex items-center gap-3">
@@ -185,7 +185,7 @@ export const DashboardPage: React.FC = () => {
                                         <div className="flex items-center gap-5">
                                             <div className="w-14 h-14 rounded-full bg-clinical-surface group-hover:bg-clinical-blue/10 transition-colors duration-700 flex items-center justify-center text-lg font-bold text-clinical-blue uppercase border border-clinical-charcoal/5 overflow-hidden">
                                                 {patient.profile_photo ? (
-                                                    <img src={patient.profile_photo} alt={patient.name} className="w-full h-full object-cover" />
+                                                    <img src={getPhotoUrl(patient.profile_photo)} alt={patient.name} className="w-full h-full object-cover" />
                                                 ) : (
                                                     patient.name.substring(0, 2).toUpperCase()
                                                 )}

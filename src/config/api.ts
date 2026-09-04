@@ -10,26 +10,17 @@ export async function fetchWithAuth(endpoint: string, options: RequestInit = {})
     const url = endpoint.startsWith('http') ? endpoint : `${API_URL}${endpoint}`;
     
     // Get the current session from Supabase
-    let token: string | undefined = undefined;
-    try {
-        const { data: { session }, error } = await supabase.auth.getSession();
-        if (error) {
-            console.error('Error getting Supabase session:', error.message);
-        }
-        token = session?.access_token || undefined;
-    } catch (e) {
-        console.warn('Failed to retrieve Supabase session, using localStorage fallback');
-    }
-
-    if (!token) {
-        token = localStorage.getItem('auth_token') || undefined;
+    const { data: { session }, error } = await supabase.auth.getSession();
+    
+    if (error) {
+        console.error('Error getting Supabase session:', error.message);
     }
 
     const headers = new Headers(options.headers || {});
     
-    // If we have a session or local token, append the JWT token
-    if (token) {
-        headers.set('Authorization', `Bearer ${token}`);
+    // If we have a session, append the JWT token
+    if (session?.access_token) {
+        headers.set('Authorization', `Bearer ${session.access_token}`);
     }
 
     // Default to application/json if not set and body exists
@@ -44,3 +35,22 @@ export async function fetchWithAuth(endpoint: string, options: RequestInit = {})
 
     return fetch(url, newOptions);
 }
+
+export const getPhotoUrl = (url: string | null | undefined) => {
+    if (!url) return undefined;
+    
+    const baseUrl = API_URL.endsWith('/') ? API_URL.slice(0, -1) : API_URL;
+    
+    const normalizedUrl = url.replace(/\\/g, '/');
+    
+    if (normalizedUrl.includes('/uploads/')) {
+        const parts = normalizedUrl.split('/uploads/');
+        return `${baseUrl}/uploads/${parts[1]}`;
+    }
+    
+    if (normalizedUrl.startsWith('http')) {
+        return normalizedUrl;
+    }
+    
+    return `${baseUrl}${normalizedUrl.startsWith('/') ? '' : '/'}${normalizedUrl}`;
+};

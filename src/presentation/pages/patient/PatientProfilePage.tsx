@@ -4,7 +4,7 @@ import { LogoutModal } from '../../components/shared/LogoutModal';
 import { PatientHeader } from '../../components/layout/PatientHeader';
 import { useTranslation } from '../../../application/hooks/useTranslation';
 import { API_URL } from '../../../config/env';
-import { fetchWithAuth } from '../../../config/api';
+import { fetchWithAuth, getPhotoUrl } from '../../../config/api';
 import { useCachedFetch } from '../../../application/hooks/useCachedFetch';
 import { ActionModal } from '../../components/shared/ActionModal';
 import { FolderUploadModal } from '../../components/shared/FolderUploadModal';
@@ -165,7 +165,16 @@ export const PatientProfilePage: React.FC = () => {
                         <div className="p-8 lg:p-12 lg:w-1/3 border-b lg:border-b-0 lg:border-r border-clinical-charcoal/10 flex flex-col items-center text-center">
                             <div className="relative w-32 h-32 rounded-full overflow-hidden border-4 border-white shadow-sm bg-clinical-surface flex items-center justify-center mb-6 ring-4 ring-clinical-blue/20">
                                 {profile?.patient?.profile_photo ? (
-                                    <img alt="Profile" className="w-full h-full object-cover" src={profile.patient.profile_photo} />
+                                    <img 
+                                        alt="Profile" 
+                                        className="w-full h-full object-cover" 
+                                        src={getPhotoUrl(profile.patient.profile_photo)}
+                                        onError={(e) => {
+                                            const target = e.target as HTMLImageElement;
+                                            target.onerror = null;
+                                            target.outerHTML = '<span class="material-symbols-outlined text-[64px] text-clinical-charcoal/20">person</span>';
+                                        }}
+                                    />
                                 ) : (
                                     <span className="material-symbols-outlined text-6xl text-clinical-charcoal/30">person</span>
                                 )}
@@ -351,7 +360,7 @@ export const PatientProfilePage: React.FC = () => {
                                         <div className="relative">
                                             <div className="w-16 h-16 rounded-full overflow-hidden border-2 p-0.5 bg-slate-50 border-clinical-blue">
                                                 {profile.doctor.profile_photo ? (
-                                                    <img className="w-full h-full rounded-full object-cover" src={profile.doctor.profile_photo} alt={`Dr. ${profile.doctor.first_name}`} />
+                                                    <img className="w-full h-full rounded-full object-cover" src={getPhotoUrl(profile.doctor.profile_photo)} alt={`Dr. ${profile.doctor.first_name}`} />
                                                 ) : (
                                                     <span className="material-symbols-outlined text-[32px] w-full h-full flex items-center justify-center text-clinical-charcoal/30 bg-slate-50">person</span>
                                                 )}

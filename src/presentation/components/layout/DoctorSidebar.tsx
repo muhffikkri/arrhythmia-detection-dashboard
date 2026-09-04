@@ -1,3 +1,4 @@
+import { getPhotoUrl } from '../../../config/api';
 import React, { useEffect, useState } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useSidebar } from '../../../application/context/SidebarContext';
@@ -95,7 +96,16 @@ export const DoctorSidebar: React.FC = () => {
                     <div className="flex bg-white border border-clinical-blue/20/50 p-3 rounded-lg items-center gap-3 transition-all group hover:border-clinical-blue cursor-pointer" onClick={() => { navigate('/doctor/profile'); handleNavClick(); }}>
                         <div className="w-9 h-9 rounded-full overflow-hidden border border-clinical-blue/20 flex items-center justify-center bg-white-container">
                             {profile?.profile_photo ? (
-                                <img className="w-full h-full object-cover" alt="Profile" src={profile.profile_photo} />
+                                <img 
+                                    className="w-full h-full object-cover" 
+                                    alt="Profile" 
+                                    src={getPhotoUrl(profile.profile_photo)}
+                                    onError={(e) => {
+                                        const target = e.target as HTMLImageElement;
+                                        target.onerror = null;
+                                        target.outerHTML = '<div class="w-9 h-9 rounded-full bg-clinical-blue/10 flex items-center justify-center border border-clinical-blue/20 text-clinical-blue font-bold shrink-0">DR</div>';
+                                    }}
+                                />
                             ) : (
                                 <span className="material-symbols-outlined text-clinical-charcoal/70 text-xl">person</span>
                             )}

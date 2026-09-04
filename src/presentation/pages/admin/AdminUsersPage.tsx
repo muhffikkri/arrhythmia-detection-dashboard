@@ -7,7 +7,7 @@ import { API_URL } from '../../../config/env';
 import { Pagination } from '../../components/shared/Pagination';
 import { useStickyState } from '../../../application/hooks/useStickyState';
 import { useCachedFetch } from '../../../application/hooks/useCachedFetch';
-import { fetchWithAuth } from '../../../config/api';
+import { fetchWithAuth, getPhotoUrl } from '../../../config/api';
 import { ActionModal } from '../../components/shared/ActionModal';
 
 interface AdminUser {
@@ -391,7 +391,16 @@ export const AdminUsersPage: React.FC = () => {
                 <div className="flex items-center gap-3">
                     <div className="w-8 h-8 rounded-full bg-clinical-surface border border-clinical-charcoal/5 shadow-sm overflow-hidden flex items-center justify-center text-clinical-charcoal/60 shrink-0">
                         {u.profile_photo ? (
-                            <img src={u.profile_photo} alt={u.name} className="w-full h-full object-cover" />
+                            <img 
+                                src={getPhotoUrl(u.profile_photo)} 
+                                alt={u.name} 
+                                className="w-full h-full object-cover" 
+                                onError={(e) => {
+                                    const target = e.target as HTMLImageElement;
+                                    target.onerror = null;
+                                    target.outerHTML = '<span class="material-symbols-outlined text-[18px]">person</span>';
+                                }} 
+                            />
                         ) : (
                             <span className="material-symbols-outlined text-[18px]">person</span>
                         )}
@@ -430,7 +439,7 @@ export const AdminUsersPage: React.FC = () => {
             <div className="absolute inset-0 ecg-grid opacity-10 pointer-events-none z-0"></div>
             <AdminSidebar />
 
-            <main id="main-content" className={`pb-24 md:pb-12 transition-all duration-300 min-h-screen flex flex-col relative z-10 ${isOpen ? "md:ml-[260px]" : "md:ml-0"} ${isCollapsed ? "md:!ml-[72px]" : ""}`}>
+            <main id="main-content" className={`pb-24 md:pb-12 transition-all duration-300 min-h-screen flex flex-col relative z-10 md:ml-[260px] md:w-[calc(100%-260px)] ${isCollapsed ? "md:!ml-[72px] md:!w-[calc(100%-72px)]" : ""}`}>
                 <header className="sticky top-0 bg-clinical-surface/80 backdrop-blur-xl border-b border-clinical-charcoal/5 z-40 px-4 md:px-6 py-4 flex items-center gap-4 w-full w-full transition-all duration-300">
                     <button onClick={toggleSidebar} className="md:hidden flex items-center justify-center p-2 -ml-2 rounded-full hover:bg-clinical-surface text-clinical-charcoal/70 transition-colors outline-none" title="Sembunyikan / Tampilkan Menu Utama">
                         <span className="material-symbols-outlined">menu</span>
@@ -616,7 +625,16 @@ export const AdminUsersPage: React.FC = () => {
                                     <div className="flex items-center gap-6">
                                         <div className="w-24 h-24 rounded-[1.5rem] bg-clinical-surface border-4 border-white shadow-md overflow-hidden flex items-center justify-center text-clinical-charcoal/50 shrink-0">
                                             {userDetail.patient?.profile_photo || userDetail.profile_photo ? (
-                                                <img src={userDetail.patient?.profile_photo || userDetail.profile_photo} alt="Profile" className="w-full h-full object-cover" />
+                                                <img 
+                                                    src={getPhotoUrl(userDetail.patient?.profile_photo || userDetail.profile_photo)} 
+                                                    alt="Profile" 
+                                                    className="w-full h-full object-cover"
+                                                    onError={(e) => {
+                                                        const target = e.target as HTMLImageElement;
+                                                        target.onerror = null;
+                                                        target.outerHTML = '<span class="material-symbols-outlined text-[18px] text-clinical-charcoal/50">person</span>';
+                                                    }}
+                                                />
                                             ) : (
                                                 <span className="material-symbols-outlined text-5xl">person</span>
                                             )}
