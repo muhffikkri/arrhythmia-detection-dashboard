@@ -3,8 +3,14 @@ const http = require('http');
 
 function checkPort(port) {
   return new Promise((resolve) => {
-    const req = http.request({ host: 'localhost', port, path: '/', method: 'GET', timeout: 1000 }, (res) => {
-      resolve(true);
+    const req = http.request({ host: 'localhost', port, path: '/', method: 'GET', timeout: 1500 }, (res) => {
+      let body = '';
+      res.setEncoding('utf8');
+      res.on('data', (chunk) => { body += chunk; });
+      res.on('end', () => {
+        // Only accept this project's Vite dev server (its index.html references /src/main.tsx)
+        resolve(body.includes('/src/main.tsx'));
+      });
     });
     req.on('error', () => {
       resolve(false);
@@ -18,15 +24,20 @@ function checkPort(port) {
 }
 
 (async () => {
-  // Discover which port Vite is running on (5173 or 5174)
-  let port = 5173;
-  const is5173Open = await checkPort(5173);
-  if (!is5173Open) {
-    const is5174Open = await checkPort(5174);
-    if (is5174Open) {
-      port = 5174;
-    } else {
-      console.log("WARNING: Local Vite server does not seem to be running on port 5173 or 5174. Defaulting to 5173.");
+  // Allow explicit override via E2E_PORT, otherwise discover which port Vite runs on (5173 or 5174)
+  let port = Number(process.env.E2E_PORT);
+  if (port) {
+    console.log(`Using E2E_PORT=${port} for local Vite server.`);
+  } else {
+    port = 5173;
+    const is5173Open = await checkPort(5173);
+    if (!is5173Open) {
+      const is5174Open = await checkPort(5174);
+      if (is5174Open) {
+        port = 5174;
+      } else {
+        console.log("WARNING: Local Vite server does not seem to be running on port 5173 or 5174. Defaulting to 5173.");
+      }
     }
   }
   

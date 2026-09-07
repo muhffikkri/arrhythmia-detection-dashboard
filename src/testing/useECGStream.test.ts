@@ -112,7 +112,7 @@ describe('useECGStream integration', () => {
         act(() => {
             wsHarness.client.onMessage(makeLivePayload(frameA, 'NORM'));
         });
-        const liveY = parsePathPoint(result.current.paths.II[100]).y;
+        const liveY = parsePathPoint(result.current.paths.II[202]).y;
         const liveHr = result.current.heartRate;
 
         act(() => {
@@ -130,14 +130,14 @@ describe('useECGStream integration', () => {
 
         expect(result.current.isViewingHistory).toBe(true);
         expect(result.current.rawClassification).toBe('BRADY');
-        expect(parsePathPoint(result.current.paths.II[100]).y).not.toBe(liveY);
+        expect(parsePathPoint(result.current.paths.II[202]).y).not.toBe(liveY);
 
         act(() => {
             result.current.resumeRealTimeStream();
         });
 
         expect(result.current.isViewingHistory).toBe(false);
-        expect(parsePathPoint(result.current.paths.II[100]).y).toBe(liveY);
+        expect(parsePathPoint(result.current.paths.II[202]).y).toBe(liveY);
         expect(result.current.heartRate).toBe(liveHr);
     });
 

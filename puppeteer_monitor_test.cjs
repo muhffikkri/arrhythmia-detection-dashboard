@@ -3,8 +3,14 @@ const http = require('http');
 
 function checkPort(port) {
   return new Promise((resolve) => {
-    const req = http.request({ host: 'localhost', port, path: '/', method: 'GET', timeout: 1000 }, () => {
-      resolve(true);
+    const req = http.request({ host: 'localhost', port, path: '/', method: 'GET', timeout: 1500 }, (res) => {
+      let body = '';
+      res.setEncoding('utf8');
+      res.on('data', (chunk) => { body += chunk; });
+      res.on('end', () => {
+        // Only accept this project's Vite dev server (its index.html references /src/main.tsx)
+        resolve(body.includes('/src/main.tsx'));
+      });
     });
     req.on('error', () => resolve(false));
     req.on('timeout', () => {
@@ -16,12 +22,15 @@ function checkPort(port) {
 }
 
 (async () => {
-  let port = 5173;
-  if (!(await checkPort(5173))) {
-    if (await checkPort(5174)) port = 5174;
-    else {
-      console.log('SKIP E2E monitor: Vite tidak berjalan di 5173/5174');
-      process.exit(0);
+  let port = Number(process.env.E2E_PORT);
+  if (!port) {
+    port = 5173;
+    if (!(await checkPort(5173))) {
+      if (await checkPort(5174)) port = 5174;
+      else {
+        console.log('SKIP E2E monitor: Vite tidak berjalan di 5173/5174');
+        process.exit(0);
+      }
     }
   }
 
