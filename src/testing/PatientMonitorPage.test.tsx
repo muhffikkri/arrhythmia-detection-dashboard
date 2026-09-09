@@ -122,7 +122,7 @@ describe("PatientMonitorPage integration", () => {
       const hr = screen.getByTestId("heart-rate-value").textContent;
       expect(Number(hr)).toBeGreaterThan(50);
     });
-    expect(screen.getByTestId("ai-classification").textContent).toBe("NORM");
+    expect(screen.getByTestId("ai-classification").textContent).toBe("Non Aritmia");
 
     expect(pathY(10)).toBeCloseTo(Number(mapMillivoltToCanvasY(full.ch1[10]).toFixed(2)), 1);
 

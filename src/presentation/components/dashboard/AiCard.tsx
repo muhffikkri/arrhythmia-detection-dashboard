@@ -20,6 +20,12 @@ interface AiCardProps {
     onViewEcgPaper?: () => void;
 }
 
+const displayClassification = (label: string | null | undefined): string | null => {
+    if (!label) return null;
+    const upper = label.toUpperCase();
+    return upper === "NORMAL" || upper === "NORM" ? "Non Aritmia" : label;
+};
+
 export const AiCard: React.FC<AiCardProps> = ({ 
     sessionId, 
     rawClassification, 
@@ -245,7 +251,7 @@ export const AiCard: React.FC<AiCardProps> = ({
                     {rawClassification ? (
                         <>
                                 <h2 data-testid="ai-classification" className="text-2xl md:text-3xl font-headline-lg tracking-tight text-clinical-charcoal mb-4 break-words leading-tight">
-                                {rawClassification}
+                                {displayClassification(rawClassification)}
                             </h2>
                             
                             {isDoctorReview && (
