@@ -74,7 +74,7 @@ export function evaluateIrregularity(rrIntervalsSec: number[]): RuleBasedResult 
     // Aturan klinis: jika Standar Deviasi > 100ms, irama tidak teratur
     if (stdRr > 100) events.push("Irregular Rhythm");
 
-    if (events.length === 0) events.push("Non Aritmia");
+    if (events.length === 0) events.push("Sinus Rhythm");
 
     return {
         hr: Math.round(hr),
@@ -110,7 +110,7 @@ export function generateClinicalExplanation(
     if (!isAnomaly) {
         explanation = `Non Aritmia. Jaringan AI menyimpulkan ${aiClass} dengan variasi interval (RMSSD: ${ruleResult.rmssdMs} ms). Detak jantung dan QTc (${ruleResult.qtcMs} ms) stabil.`;
     } else {
-        const ruleEvents = ruleResult.events.filter(e => e !== "Non Aritmia" && e !== "Menganalisis...").join(" & ");
+        const ruleEvents = ruleResult.events.filter(e => e !== "Sinus Rhythm" && e !== "Menganalisis...").join(" & ");
         const eventStr = ruleEvents.length > 0 ? `Diagnosis Aturan Matematis: [${ruleEvents}].` : "";
         
         explanation = `PERINGATAN KLINIS: Analisis AI mendeteksi [${aiClass}]. ${eventStr} Variabilitas jantung (RMSSD) mencapai ${ruleResult.rmssdMs} ms dengan QTc ${ruleResult.qtcMs} ms. Tinjauan klinis disarankan.`;

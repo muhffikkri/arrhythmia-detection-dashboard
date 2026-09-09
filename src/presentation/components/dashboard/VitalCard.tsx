@@ -34,7 +34,7 @@ export const VitalCard: React.FC<VitalCardProps> = ({ heartRate, clinicalStatus,
                 <div className="flex justify-between items-center">
                     <span className="text-[13px] font-medium text-clinical-charcoal/60">Status Irama:</span>
                     <span className={`text-[14px] font-bold font-display tracking-wide transition-colors duration-700 ${!clinicalStatus ? 'text-clinical-charcoal/40' : clinicalStatus.severity === 'CRITICAL' ? 'text-clinical-red' : 'text-clinical-blue'}`}>
-                        {!clinicalStatus ? 'Menganalisis...' : clinicalStatus.severity === 'CRITICAL' ? 'Aritmia Terdeteksi' : 'Non Aritmia'}
+                        {!clinicalStatus ? 'Menganalisis...' : clinicalStatus.severity === 'CRITICAL' ? 'Aritmia Terdeteksi' : 'Sinus Rhythm'}
                     </span>
                 </div>
             </div>

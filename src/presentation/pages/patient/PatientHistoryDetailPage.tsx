@@ -209,7 +209,7 @@ export const PatientHistoryDetailPage: React.FC = () => {
             payload, // Store the raw payload so EcgViewer can parse it lazily
             rPeaks: [],
             isAnomaly,
-            diagnosis: isAnomaly ? "Anomali Terdeteksi pada rekaman." : "Non Aritmia. Variasi stabil.",
+            diagnosis: isAnomaly ? "Anomali Terdeteksi pada rekaman." : "Sinus Rhythm. Variasi stabil.",
             heartRate: calculatedHR,
             frameId: payload.message_id || payload.frame_id || "---",
             deviceId: payload.device_id || "---",

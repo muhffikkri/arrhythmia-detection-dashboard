@@ -181,7 +181,7 @@ export const AnalyticsPage: React.FC = () => {
         payload, // Store raw payload for lazy parsing
         rPeaks: [],
         isAnomaly,
-        diagnosis: isAnomaly ? "Anomali Terdeteksi pada rekaman." : "Non Aritmia. Variasi stabil.",
+        diagnosis: isAnomaly ? "Anomali Terdeteksi pada rekaman." : "Sinus Rhythm. Variasi stabil.",
         heartRate: calculatedHR,
         frameId: payload.message_id || payload.frame_id || "---",
         deviceId: payload.device_id || "---",
