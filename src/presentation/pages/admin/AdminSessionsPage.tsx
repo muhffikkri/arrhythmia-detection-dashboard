@@ -238,7 +238,7 @@ export const AdminSessionsPage: React.FC = () => {
                     const mapped = validData.map((item: any, index: number) => ({
                         id: item.message_id || item.frame_id || String(index),
                         start_time: index * 10,
-                        label: item.prediction?.label || "Normal",
+                        label: item.prediction?.label || "Non Aritmia",
                         hidden: false
                     }));
                     setSessionFrames(mapped);

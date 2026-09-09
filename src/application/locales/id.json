@@ -162,7 +162,7 @@
     "loadingSegment": "Memuat Riwayat Segmen...",
     "conclusion": "Kesimpulan Analisis",
     "processing": "Sedang memproses rekaman Anda...",
-    "normalStatus": "normal",
+    "normalStatus": "Non Aritmia",
     "normalDesc": "Berdasarkan analisis rekaman EKG Anda, detak jantung dan irama Anda terpantau ",
     "normalDesc2": ". Tidak terdeteksi adanya tanda-tanda aritmia atau gangguan irama jantung pada sesi ini.",
     "normalTip": "Terus jaga pola hidup sehat Anda, makan makanan bergizi, dan rutin berolahraga untuk mempertahankan kondisi prima ini!",

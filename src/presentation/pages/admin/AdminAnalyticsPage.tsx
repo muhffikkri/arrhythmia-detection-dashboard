@@ -183,11 +183,11 @@ export const AdminAnalyticsPage: React.FC = () => {
       const startTime = originalIndex * 10;
       const dbLabel = labelMap.get(startTime);
 
-      const isDbLabelAnomaly = dbLabel && dbLabel !== "Normal" && dbLabel !== "NORM" && dbLabel !== "NSR";
-      const isPayloadAnomaly = (payload.anomaly_indices && payload.anomaly_indices.length > 0) || (payload.prediction?.label && payload.prediction.label !== "Normal" && payload.prediction.label !== "NORM") || false;
+      const isDbLabelAnomaly = dbLabel && dbLabel !== "Non Aritmia" && dbLabel !== "Normal" && dbLabel !== "NORM" && dbLabel !== "NSR";
+      const isPayloadAnomaly = (payload.anomaly_indices && payload.anomaly_indices.length > 0) || (payload.prediction?.label && payload.prediction.label !== "Non Aritmia" && payload.prediction.label !== "Normal" && payload.prediction.label !== "NORM") || false;
 
       const isAnomaly = dbLabel ? isDbLabelAnomaly : isPayloadAnomaly;
-      const classResult = dbLabel || payload.prediction?.label || payload.classification_result || "NORM";
+      const classResult = dbLabel || payload.prediction?.label || payload.classification_result || "Non Aritmia";
 
       loadedEvents.push({
         index: i,
@@ -206,7 +206,7 @@ export const AdminAnalyticsPage: React.FC = () => {
         payload, // Store raw payload for lazy parsing
         rPeaks: [],
         isAnomaly,
-        diagnosis: isAnomaly ? "Anomali Terdeteksi pada rekaman." : "Normal Sinus Rhythm. Variasi stabil.",
+        diagnosis: isAnomaly ? "Anomali Terdeteksi pada rekaman." : "Non Aritmia. Variasi stabil.",
         heartRate: calculatedHR,
         frameId: payload.message_id || payload.frame_id || "---",
         deviceId: payload.device_id || "---",
@@ -281,7 +281,7 @@ export const AdminAnalyticsPage: React.FC = () => {
   const clinicalStatus: ClinicalExplanation | null = currentSegment
     ? {
       isAnomaly: currentSegment.isAnomaly,
-      fullExplanation: `${currentSegment.isAnomaly ? "Anomali Terdeteksi" : "Normal"} - ${currentEvent?.classResult}. ${currentSegment.diagnosis}`,
+      fullExplanation: `${currentSegment.isAnomaly ? "Anomali Terdeteksi" : "Non Aritmia"} - ${currentEvent?.classResult}. ${currentSegment.diagnosis}`,
       severity: currentSegment.isAnomaly ? "CRITICAL" : "NORMAL",
     }
     : null;

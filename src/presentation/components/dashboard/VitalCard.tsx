@@ -27,14 +27,14 @@ export const VitalCard: React.FC<VitalCardProps> = ({ heartRate, clinicalStatus,
                     'bg-blue-50 text-clinical-blue border-blue-100'
                 }`}>
                     <span className={`w-2.5 h-2.5 rounded-full ${!clinicalStatus ? 'bg-slate-300' : clinicalStatus.severity === 'CRITICAL' ? 'bg-clinical-red' : 'bg-clinical-blue'}`}></span>
-                    {!clinicalStatus ? 'TUNGGU DATA' : clinicalStatus.severity === 'CRITICAL' ? 'ANOMALI DETEKSI' : 'NORMAL'}
+                    {!clinicalStatus ? 'TUNGGU DATA' : clinicalStatus.severity === 'CRITICAL' ? 'ANOMALI DETEKSI' : 'NON ARITMIA'}
                 </div>
             </div>
             <div className="space-y-4 pt-6 border-t border-clinical-charcoal/5">
                 <div className="flex justify-between items-center">
                     <span className="text-[13px] font-medium text-clinical-charcoal/60">Status Irama:</span>
                     <span className={`text-[14px] font-bold font-display tracking-wide transition-colors duration-700 ${!clinicalStatus ? 'text-clinical-charcoal/40' : clinicalStatus.severity === 'CRITICAL' ? 'text-clinical-red' : 'text-clinical-blue'}`}>
-                        {!clinicalStatus ? 'Menganalisis...' : clinicalStatus.severity === 'CRITICAL' ? 'Aritmia Terdeteksi' : 'Normal Sinus Rhythm'}
+                        {!clinicalStatus ? 'Menganalisis...' : clinicalStatus.severity === 'CRITICAL' ? 'Aritmia Terdeteksi' : 'Non Aritmia'}
                     </span>
                 </div>
             </div>

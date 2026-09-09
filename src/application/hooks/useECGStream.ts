@@ -33,6 +33,11 @@ const formatTime = (seconds: number) => {
   return `${m}:${s}`;
 };
 
+const isNonAnomalyClass = (label: string | null | undefined): boolean => {
+  const upper = (label || "").toUpperCase();
+  return upper === "NORMAL" || upper === "NORM" || upper === "NON ARITMIA";
+};
+
 const cloneRaw = (raw: FrameRawSamples): FrameRawSamples => ({
   ch1: [...raw.ch1],
   ch2: [...raw.ch2],
@@ -191,7 +196,7 @@ export const useECGStream = (endpoint: string, patientIdOrFilter: string | Strea
     calculateBpmInBackground(raw, filterConfigRef.current, (bpm, rrIntervals) => {
       setHeartRate(bpm > 0 ? bpm : "--");
       const classification = payload.classification_result || payload.prediction_details?.label || "UNKNOWN";
-      const isNormal = classification.toUpperCase() === "NORMAL" || classification.toUpperCase() === "NORM";
+      const isNormal = isNonAnomalyClass(classification);
       setClinicalStatus(generateClinicalExplanation(classification, !isNormal, evaluateIrregularity(rrIntervals)));
     });
   };
@@ -218,7 +223,7 @@ export const useECGStream = (endpoint: string, patientIdOrFilter: string | Strea
     const ch3 = payload.raw.ch3;
     const config = filterConfigRef.current;
     const classification_result = payload.classification_result;
-    const isNormal = classification_result?.toUpperCase() === "NORMAL" || classification_result?.toUpperCase() === "NORM";
+    const isNormal = isNonAnomalyClass(classification_result);
 
     for (let i = 0; i < ch1.length; i++) {
       if (xIndex >= TOTAL_POINTS) {
@@ -285,7 +290,7 @@ export const useECGStream = (endpoint: string, patientIdOrFilter: string | Strea
         if (msg.type === "summary" && msg.data) {
           const summaries = msg.data.map((seg) => {
             const classRes = (seg as any).class_result;
-            const isNormal = classRes?.toUpperCase() === "NORMAL" || classRes?.toUpperCase() === "NORM";
+            const isNormal = isNonAnomalyClass(classRes);
             return { index: (seg as any).index, timeStr: formatTime((seg as any).index * 10), isAnomaly: !isNormal, classResult: classRes };
           });
           setTimeline(summaries);

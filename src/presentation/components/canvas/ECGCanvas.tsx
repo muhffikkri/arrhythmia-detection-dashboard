@@ -40,7 +40,7 @@ interface ECGCanvasProps {
   showCalibrationPulse?: boolean;
 }
 
-export const ECGCanvas: React.FC<ECGCanvasProps> = ({ paths, rPeaks, isAnomaly = false, classResult = "NORM", speed = 25, paperSpeed = 25, gain = 10, scale = 1, timeOffset = 0, pixelsPerMm = 3.7795, showCalibrationPulse = true }) => {
+export const ECGCanvas: React.FC<ECGCanvasProps> = ({ paths, rPeaks, isAnomaly = false, classResult = "Non Aritmia", speed = 25, paperSpeed = 25, gain = 10, scale = 1, timeOffset = 0, pixelsPerMm = 3.7795, showCalibrationPulse = true }) => {
   const canvasRef = useRef<HTMLDivElement>(null);
   const [pointerX, setPointerX] = useState<number | null>(null);
   const [pointerY, setPointerY] = useState<number | null>(null);

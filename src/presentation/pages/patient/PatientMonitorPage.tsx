@@ -169,7 +169,7 @@ export const PatientMonitorPage: React.FC = () => {
   }, [rPeaks, visibleCount, paths.I.length]);
 
   useEffect(() => {
-    const isNormal = rawClassification?.toUpperCase() === "NORMAL" || rawClassification?.toUpperCase() === "NORM";
+    const isNormal = ["NORMAL", "NORM", "NON ARITMIA"].includes(rawClassification?.toUpperCase() || "");
     setShowAlert(clinicalStatus?.isAnomaly && !isNormal ? true : false);
   }, [clinicalStatus, rawClassification]);
 
@@ -324,7 +324,7 @@ export const PatientMonitorPage: React.FC = () => {
   };
 
   const alertTitle = clinicalStatus ? clinicalStatus.fullExplanation.split(".")[0] : "Anomali Terdeteksi";
-  const aiClassResult = rawClassification || (clinicalStatus ? clinicalStatus.fullExplanation.split(" ")[2] : "NORM");
+  const aiClassResult = rawClassification || (clinicalStatus ? clinicalStatus.fullExplanation.split(" ")[2] : "Non Aritmia");
 
   return (
     <div className="bg-clinical-surface/30 text-clinical-charcoal antialiased min-h-screen flex flex-col transition-colors duration-700 relative">

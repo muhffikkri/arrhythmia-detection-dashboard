@@ -42,7 +42,7 @@ export const AiCard: React.FC<AiCardProps> = ({
     
     const [isEditing, setIsEditing] = useState(!hasInitialValidation);
     const [verificationState, setVerificationState] = useState<'correct' | 'incorrect' | null>(initialConfirmation === true ? 'correct' : (initialConfirmation === false ? 'incorrect' : null));
-    const [selectedCorrection, setSelectedCorrection] = useState<string>(initialDocClassification || 'Normal');
+    const [selectedCorrection, setSelectedCorrection] = useState<string>(initialDocClassification || 'Non Aritmia');
     const [docNote, setDocNote] = useState<string>(initialDocNote || '');
     
     const [isSubmitting, setIsSubmitting] = useState(false);
@@ -56,7 +56,7 @@ export const AiCard: React.FC<AiCardProps> = ({
         const hasValidation = initialConfirmation !== null && initialConfirmation !== undefined;
         setIsEditing(!hasValidation);
         setVerificationState(initialConfirmation === true ? 'correct' : (initialConfirmation === false ? 'incorrect' : null));
-        setSelectedCorrection(initialDocClassification || 'Normal');
+        setSelectedCorrection(initialDocClassification || 'Non Aritmia');
         setDocNote(initialDocNote || '');
         setShowConfirmModal(false);
         setShowPostSubmitModal(false);
@@ -116,7 +116,7 @@ export const AiCard: React.FC<AiCardProps> = ({
                 setIsEditing(true); 
                 setVerificationState(null);
                 setDocNote('');
-                setSelectedCorrection('Normal');
+                setSelectedCorrection('Non Aritmia');
                 if (onValidationSuccess) {
                     onValidationSuccess({
                         confirmation: null,
@@ -331,7 +331,7 @@ export const AiCard: React.FC<AiCardProps> = ({
                                                             onChange={(e) => setSelectedCorrection(e.target.value)}
                                                             className="w-full appearance-none text-sm font-headline-md border border-outline-variant rounded-xl px-3 py-2.5 bg-white text-clinical-charcoal focus:ring-2 focus:ring-clinical-blue/20 focus:border-clinical-blue outline-none transition-all shadow-sm"
                                                         >
-                                                            <option value="Normal">Normal</option>
+                                                            <option value="Non Aritmia">Non Aritmia</option>
                                                             <option value="Bradikardia">Bradikardia</option>
                                                             <option value="Takikardia">Takikardia</option>
                                                             <option value="Atrial Fibrillation">Atrial Fibrillation</option>

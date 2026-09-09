@@ -1,7 +1,7 @@
 /**
  * @fileoverview Komponen UI: TimelineBar
  * Menampilkan baris navigasi segmen waktu perekaman 10 detik (00:00 - 10:00).
- * Mengubah warna tombol berdasarkan hasil evaluasi AI klinis (Normal vs Aritmia).
+ * Mengubah warna tombol berdasarkan hasil evaluasi AI klinis (Non Aritmia vs Aritmia).
  */
 
 import React, { useEffect, useRef } from "react";
@@ -39,7 +39,7 @@ export const TimelineBar: React.FC<TimelineBarProps> = ({ events, currentIdx, on
         </h3>
         <div className="flex gap-4">
           <div className="flex items-center gap-2 text-[11px] text-clinical-charcoal/60 font-bold uppercase tracking-wider">
-            <div className="w-3 h-3 rounded-full bg-clinical-blue shadow-sm"></div> Normal
+            <div className="w-3 h-3 rounded-full bg-clinical-blue shadow-sm"></div> Non Aritmia
           </div>
           <div className="flex items-center gap-2 text-[11px] text-clinical-charcoal/60 font-bold uppercase tracking-wider">
             <div className="w-3 h-3 rounded-full bg-clinical-red shadow-sm"></div> Anomali

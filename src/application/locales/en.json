@@ -162,7 +162,7 @@
     "loadingSegment": "Loading Segment History...",
     "conclusion": "Analysis Conclusion",
     "processing": "Processing your recording...",
-    "normalStatus": "normal",
+    "normalStatus": "Non-arrhythmia",
     "normalDesc": "Based on your ECG recording analysis, your heart rate and rhythm are monitored as ",
     "normalDesc2": ". No signs of arrhythmia or heart rhythm disorders detected in this session.",
     "normalTip": "Keep maintaining a healthy lifestyle, eating nutritious foods, and exercising regularly to maintain this prime condition!",

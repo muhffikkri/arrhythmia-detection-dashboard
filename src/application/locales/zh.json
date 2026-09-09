@@ -162,7 +162,7 @@
     "loadingSegment": "加载分段记录...",
     "conclusion": "分析结论",
     "processing": "正在处理您的记录...",
-    "normalStatus": "正常",
+    "normalStatus": "非心律失常",
     "normalDesc": "根据您的心电图记录分析，您的心率和节律被监测为",
     "normalDesc2": "。在本次会话中没有检测到心律失常或心律不齐的迹象。",
     "normalTip": "继续保持健康的生活方式，吃有营养的食物，经常锻炼以保持这种良好的状态！",
