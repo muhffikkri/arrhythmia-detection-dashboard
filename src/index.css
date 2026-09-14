@@ -4,6 +4,12 @@
 @tailwind components;
 @tailwind utilities;
 
+html {
+  /* Mencegah elemen fixed full-width (mis. header) memperluas area scroll
+     horizontal dokumen (misal strip scrollbar 33px pada layout viewport). */
+  overflow-x: clip;
+}
+
 body {
   background-color: #F4F7F9;
   -webkit-font-smoothing: antialiased;

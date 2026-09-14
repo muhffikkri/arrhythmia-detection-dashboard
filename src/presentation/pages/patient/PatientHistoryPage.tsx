@@ -25,6 +25,11 @@ interface PatientProfile {
   };
 }
 
+// Modul-level constant agar referensi array stabil antar render.
+// Menggunakan literal `[]` di dalam render membuat array baru setiap kali,
+// yang memicu useEffect di bawah dan menyebabkan infinite re-render.
+const EMPTY_SESSIONS: SessionRecord[] = [];
+
 export const PatientHistoryPage: React.FC = () => {
   const navigate = useNavigate();
   const userId = localStorage.getItem("user_id") || "1";
@@ -36,7 +41,10 @@ export const PatientHistoryPage: React.FC = () => {
   const { data: profile } = useCachedFetch(`/api/patients/${userId}`);
   const { data: sessionsResponse, mutate: mutateSessions, isLoading } = useCachedFetch(`/api/patients/${userId}/sessions?page=${currentPage}&limit=${itemsPerPage}`, { keepPreviousData: true });
 
-  const sessionsData = sessionsResponse?.data || sessionsResponse?.sessions || (Array.isArray(sessionsResponse) ? sessionsResponse : []);
+  const sessionsData = React.useMemo(
+    () => sessionsResponse?.data || sessionsResponse?.sessions || (Array.isArray(sessionsResponse) ? sessionsResponse : EMPTY_SESSIONS),
+    [sessionsResponse]
+  );
   const totalPages = sessionsResponse?.pagination?.total_pages || Math.ceil(sessionsData.length / itemsPerPage) || 1;
 
   // Default internal state for optimistic UI updates (e.g. after uploading a photo)

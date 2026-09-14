@@ -8,9 +8,15 @@ interface ErrorPageProps {
 
 export const ErrorPage: React.FC<ErrorPageProps> = ({ type = 'error', message }) => {
   const navigate = useNavigate();
-  // useRouteError is useful if used as an errorElement in a data router,
-  // but here it might be null since we are just rendering it as a component.
-  const routeError = useRouteError();
+  // useRouteError is only safe inside an errorElement of a data router.
+  // This app uses BrowserRouter (declarative mode), so calling it directly
+  // throws. Guard it so the 404 page renders correctly in both modes.
+  let routeError: unknown = null;
+  try {
+    routeError = useRouteError();
+  } catch {
+    routeError = undefined;
+  }
   
   let errorCode = type === '404' ? '404' : '500';
   let errorTitle = type === '404' ? 'Halaman Tidak Ditemukan' : 'Terjadi Kesalahan Server';
