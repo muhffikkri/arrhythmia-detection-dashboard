@@ -1,90 +1,157 @@
-# Arrhythmia Detection Dashboard (ECG Simulation)
+# Arrhythmia Detection Dashboard — ECGRhythmia
 
-A real-time medical dashboard designed for streaming and monitoring Electrocardiogram (ECG) data, featuring advanced clinical algorithms and AI-powered arrhythmia detection. 
+Dashboard medis **real-time** untuk merekam, memantau, dan mengklasifikasikan
+sinyal **Electrocardiogram (ECG) 3-lead**. Aplikasi ini adalah **frontend** React
+yang menampilkan gelombang EKG berperforma tinggi (HTML Canvas + SVG), dengan
+deteksi aritmia berbasis AI, algoritma klinis bawaan, dan dukungan PWA agar bisa
+diinstal di desktop maupun mobile.
 
-This project simulates a medical device monitor, streaming high-frequency ECG data through a robust Rust-based WebSocket backend to a highly responsive React frontend rendered via HTML Canvas.
+> Backend (Rust) berada di **repo terpisah** dan menyediakan REST API
+> (`http://127.0.0.1:8081`) serta WebSocket streaming (`ws://127.0.0.1:8080`).
+> Repo ini berisi frontend + skrip pengujian/maintenance.
 
-## 🚀 Features
+## ✨ Fitur Utama
 
-- **Progressive Web App (PWA):** Fully installable on Desktop and Mobile devices, featuring an offline-ready caching mechanism and background auto-updates.
-- **Backend Synchronization:** Seamless state synchronization for patient profiles with a graceful mock/local storage fallback when the API server is unreachable.
-- **Real-Time ECG Streaming:** High-performance data streaming from backend to frontend.
-- **AI Arrhythmia Detection:** Integrates AI model predictions for clinical insights.
-- **Clinical Algorithms:** Implements Einthoven, Pan-Tompkins, and Peak-to-Peak algorithms for signal processing.
-- **HTML Canvas Rendering:** Smooth, performant rendering of ECG waveforms using custom React Canvas components.
-- **Clean Architecture:** Strict separation of concerns (Core, Data, Application, Presentation layers) in the frontend.
+- **Streaming EKG real-time** via WebSocket dengan rendering satu-canvas
+  (grid kertas medis, 7 lead: I, II, III, aVR, aVL, aVF, V1).
+- **Deteksi aritmia AI** + algoritma klinis: Einthoven, Pan-Tompkins,
+  Peak-to-Peak, dan Rule-Based Engine.
+- **Kontrol medis:** gain (5/10/20), paper speed (12.5/25/50), playback speed,
+  kalibrasi layar fisik (penggaris), replay, dan scrub timeline.
+- **Marker R-peak** dengan metrik BPM & jarak kotak (Lead II), plus
+  calibration pulse di semua lead.
+- **AI Timeline** navigasi segmen 10 detik (Non Aritmia vs Anomali).
+- **Tiga peran pengguna:** Admin, Dokter, Pasien.
+- **Progressive Web App (PWA)** — installable, auto-update, precache offline.
+- **Obfuscation kode produksi** & perlindungan DevTools.
+- **Fallback mock/localStorage** saat backend tidak terjangkau.
+- **Migrasi database** SQLite (VPS) → Supabase (lihat [README migrasi](scripts/db-migration/README.md)).
 
-## 🛠️ Technology Stack
+## 🛠️ Teknologi
 
-### Frontend (React + Vite)
-- **Framework:** React 19 + TypeScript + Vite
-- **Styling:** Tailwind CSS
-- **State Management:** Custom Hooks (`useECGStream`)
-- **Rendering:** HTML5 `<canvas>` for high-performance waveform visualization
+- **Framework:** React 19, React Router 7, TypeScript, Vite 8
+- **Styling:** Tailwind CSS 3 + tailwindcss-animate + container-queries
+- **State/Data:** SWR (`useCachedFetch`), custom hooks (`useECGStream`, `useECGScale`)
+- **Backend service:** Supabase (Auth + Database, proxy `/supabase`) & Rust API (repo terpisah)
+- **Pengujian:** Vitest + Testing Library (unit), Puppeteer (E2E), oxlint (lint)
+- **Build:** Vite PWA (`vite-plugin-pwa`), `vite-plugin-javascript-obfuscator`
 
-### Backend (Rust)
-- **Language:** Rust (Edition 2021)
-- **WebSockets:** `tungstenite` for TCP Server and WebSocket streaming (Port 8080)
-- **Data Parsing:** `csv` crate for reading simulated medical data
-- **Serialization:** `serde` & `serde_json`
+## 👥 Halaman per Peran
 
-## 📂 Project Architecture
+| Peran | Rute utama |
+|-------|-----------|
+| Publik | `/`, `/how-it-works`, `/faq`, `/auth`, `/auth/login`, `/auth/register` |
+| Admin | `/admin/dashboard`, `/admin/users`, `/admin/devices`, `/admin/sessions`, `/admin/analytics` |
+| Dokter | `/doctor/dashboard`, `/doctor/analytics`, `/doctor/qr-scanner`, `/doctor/profile` |
+| Pasien | `/patient/dashboard`, `/patient/qr-sync`, `/patient/device-scanner`, `/patient/history[/:sessionId]`, `/patient/profile`, `/patient/settings`, `/patient/monitor` |
 
-```text
-├── backend/               # Rust WebSocket Server
-│   ├── src/models/        # Data structures & JSON payloads
-│   ├── src/data/          # CSV reading & Data simulation
-│   ├── src/network/       # WebSocket handling (Port 8080)
-│   └── src/main.rs        # Backend entry point
-├── src/                   # React Frontend
-│   ├── core/              # Pure clinical logic (Algorithms, Rule Engines)
-│   ├── data/              # Network & Security (WebSockets, Checksum)
-│   ├── application/       # State management hooks
-│   └── presentation/      # UI Components (Dashboard, Canvas, Layout)
-└── best_model.keras       # AI Model for Arrhythmia Detection
-```
+## ⚙️ Memulai
 
-## ⚙️ Getting Started
+### Prasyarat
 
-### Prerequisites
-- [Node.js](https://nodejs.org/) (v18+)
-- [Python 3.10+](https://www.python.org/)
+- **Node.js ≥ 20** (disarankan **≥ 22.5** agar skrip migrasi bisa memakai
+  `node:sqlite` bawaan tanpa package tambahan).
+- Backend Rust berjalan (repo terpisah) pada:
+  - REST API `http://127.0.0.1:8081`
+  - WebSocket `ws://127.0.0.1:8080`
 
-### 1. Install Dependencies
-Install React frontend packages and Python dependencies:
+### 1. Install dependensi
+
 ```bash
-# Install React dependencies
 npm install
-
-# Install Python MQTT listener & analysis requirements
-pip install -r scripts/mqtt/requirements.txt
 ```
 
-### 2. Run the MQTT Listener & WebSocket Bridge
-The listener script connects to the cloud MQTT broker to receive incoming ECG frames, saves raw JSON/CSVs in the `dataset/` directory, checks packet loss, and runs a local WebSocket server (on port `8080`) to bridge and stream this data in real-time directly to the React dashboard.
+### 2. Siapkan environment
+
 ```bash
-python scripts/mqtt/mqtt_listener.py
+cp .env.example .env
 ```
 
-### 3. Run the Frontend Dashboard (React)
-Start the Vite development server. The frontend will automatically connect to the WebSocket bridge at `ws://127.0.0.1:8080` and render live ECG telemetry.
+Isi bila memakai Supabase (lihat tabel env di bawah). Tanpa `VITE_SUPABASE_URL`,
+aplikasi otomatis memakai **mode fallback REST API SQLite**.
+
+### 3. Jalankan development server
+
 ```bash
 npm run dev
 ```
-*The dashboard will be available at `http://localhost:5173`.*
 
-### 4. Run the Device Simulator (Optional)
-To publish simulated ECG waves, CPU metrics, and a draining battery level to the MQTT broker for testing:
+Dashboard tersedia di `http://localhost:5173`. Vite meng-proxy `/api`
+ke backend dan `/supabase` ke Supabase.
+
+## 🔐 Environment Variables
+
+| Variabel | Default | Deskripsi |
+|----------|---------|-----------|
+| `VITE_API_URL` | `http://127.0.0.1:8081` | Base URL REST API backend |
+| `VITE_WS_URL` | `ws://127.0.0.1:8080` | URL WebSocket streaming ECG |
+| `VITE_SUPABASE_URL` | *(kosong)* | URL project Supabase. Kosong = fallback REST SQLite |
+| `VITE_SUPABASE_ANON_KEY` | *(kosong)* | Anon public key Supabase |
+| `SUPABASE_URL` / `SUPABASE_SERVICE_ROLE_KEY` | *(kosong)* | Hanya untuk `npm run db:migrate` — **jangan** digunakan di frontend/production |
+| `SUPABASE_CONNECTION_STRING` / `SQLITE_DB_PATH` | *(kosong)* | Hanya untuk migrasi/schema otomatis |
+
+## 📜 Skrip NPM
+
 ```bash
-python scripts/mqtt/simulate_device.py --interval 10.0 --battery-start 100.0
+npm run dev                 # dev server (Vite)
+npm run build               # typecheck (tsc -b) + production build ke dist/
+npm run preview             # pratinjau hasil build
+npm run lint                # oxlint
+npm test                    # unit test (Vitest)
+npm run test:watch          # unit test watch mode
+npm run test:e2e            # E2E Puppeteer (admin + monitor)
+npm run test:all            # unit + E2E
+npm run test-and-build      # pipeline test lalu build
+npm run db:migrate          # migrasi SQLite → Supabase
+npm run db:migrate:dry-run  # simulasi migrasi tanpa menulis
 ```
 
-### 5. Run Stress Test Diagnostics
-To check packet loss rates, analyze CPU metrics, calculate battery depletion times, and generate diagnostic plots:
-```bash
-python scripts/mqtt/analyze_stress_test.py
-```
-*Charts will be saved to `dataset/plots/stress_test_analysis.png`.*
+Dokumentasi lengkap migrasi database: [`scripts/db-migration/README.md`](scripts/db-migration/README.md).
 
-## 📜 License
-This project is for educational and simulation purposes.
+## 🧪 Pengujian
+
+- **Unit test (40):** algoritma sinyal, rule engine, hook, komponen halaman
+  (`npm test`).
+- **E2E Puppeteer:** alur admin sessions (`puppeteer_test.cjs`) dan monitor pasien
+  (`puppeteer_monitor_test.cjs`).
+- **Audit tampilan lintas viewport:** mobile (375px), tablet (768px), desktop
+  (1440px) di semua halaman:
+
+  ```bash
+  node scripts/ui_viewport_audit.cjs
+  ```
+
+## 📂 Struktur Proyek
+
+```text
+├── src/
+│   ├── core/               # Logika klinis murni (algoritma, rule engine)
+│   ├── data/               # Jaringan & keamanan (WebSocket, checksum)
+│   ├── application/        # Hooks state management (useECGStream, SWR)
+│   ├── presentation/       # Komponen UI (pages, canvas, layout, shared)
+│   ├── config/             # env, api/fetchWithAuth, supabaseClient
+│   └── testing/            # Unit test (Vitest)
+├── scripts/
+│   ├── db-migration/       # Migrasi SQLite → Supabase + schema + panduan
+│   └── ui_viewport_audit.cjs  # Audit tampilan lintas viewport
+├── public/                 # Aset statis & PWA icons
+├── puppeteer_test.cjs      # E2E admin/sessions
+├── puppeteer_monitor_test.cjs  # E2E monitor pasien
+├── test_and_build.cjs      # Pipeline test + build
+├── vite.config.ts          # PWA, obfuscation, proxy dev server
+├── index.html
+└── package.json
+```
+
+## 🔄 Deployment & Rilis
+
+```bash
+npm run build            # menghasilkan folder dist/ (termasuk PWA service worker)
+npm run preview          # untuk mengecek hasil build secara lokal
+```
+
+Catatan versi & riwayat perubahan ada di [`CHANGELOG.md`](CHANGELOG.md).
+
+## 📜 Lisensi
+
+Proyek ini digunakan untuk tujuan pendidikan dan simulasi.
