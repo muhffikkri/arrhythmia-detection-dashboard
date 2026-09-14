@@ -12,7 +12,9 @@
     "test:watch": "vitest",
     "test:e2e": "node puppeteer_test.cjs && node puppeteer_monitor_test.cjs",
     "test:all": "npm run test && npm run test:e2e",
-    "test-and-build": "node test_and_build.cjs"
+    "test-and-build": "node test_and_build.cjs",
+    "db:migrate": "node scripts/db-migration/migrate-sqlite-to-supabase.mjs",
+    "db:migrate:dry-run": "node scripts/db-migration/migrate-sqlite-to-supabase.mjs --dry-run"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.112.3",
