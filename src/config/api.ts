@@ -21,6 +21,11 @@ export async function fetchWithAuth(endpoint: string, options: RequestInit = {})
     // If we have a session, append the JWT token
     if (session?.access_token) {
         headers.set('Authorization', `Bearer ${session.access_token}`);
+    } else if (!headers.has('Authorization')) {
+        const fallbackToken = localStorage.getItem('auth_token');
+        if (fallbackToken) {
+            headers.set('Authorization', `Bearer ${fallbackToken}`);
+        }
     }
 
     // Default to application/json if not set and body exists
