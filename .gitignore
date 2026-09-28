@@ -102,6 +102,10 @@ web_modules/
 .env.production.local
 .env.local
 
+# .env.production bisa berisi kredensial backend (MQTT, DATABASE_URL, JWT_SECRET)
+# JANGAN pernah di-commit. Gunakan .env.production.example sebagai template.
+.env.production
+
 # database migration config (bisa berisi path & mapping lokal)
 supabase-migration*.json
 
