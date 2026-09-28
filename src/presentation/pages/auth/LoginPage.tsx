@@ -2,8 +2,6 @@ import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { supabase } from '../../../config/supabaseClient';
 
-import { fetchWithAuth } from '../../../config/api';
-
 export const LoginPage: React.FC = () => {
   const navigate = useNavigate();
   const [email, setEmail] = useState('');
@@ -39,45 +37,40 @@ export const LoginPage: React.FC = () => {
       }
 
       if (authData.user && authData.session) {
-        // Ambil role dari Backend Rust
-        try {
-            // Kita HARUS mendaftarkan sesi access token agar fetchWithAuth berfungsi
-            localStorage.setItem('auth_token', authData.session.access_token);
-            
-            const response = await fetchWithAuth('/api/auth/me');
-            const data = await response.json();
-            
-            if (response.ok && data.success && data.role) {
-                // Hapus data koneksi lama sebelum login baru berhasil
-                localStorage.removeItem('connectedPatients');
-                localStorage.removeItem('connectedDoctor');
-                localStorage.removeItem('mock_patient_profile');
+        // Daftarkan access token agar fetchWithAuth bisa mengirimnya ke backend Rust.
+        localStorage.setItem('auth_token', authData.session.access_token);
 
-                // Simpan data auth ke localStorage
-                localStorage.setItem('user_id', authData.user.id);
-                localStorage.setItem('user_role', data.role);
-                
-                // Navigasi jika berhasil
-                if (data.role === 'pasien') {
-                  navigate('/patient/dashboard');
-                } else if (data.role === 'dokter') {
-                  navigate('/doctor/dashboard');
-                } else {
-                  navigate('/admin/dashboard');
-                }
-            } else {
-                console.warn("Gagal mengambil role dari backend:", data.message);
-                setError("Gagal memverifikasi akun Anda dengan server. Pastikan API menyala.");
-                await supabase.auth.signOut();
-                localStorage.clear();
-            }
-        } catch (err) {
-            console.error("Kesalahan jaringan saat mengambil profil:", err);
-            setError("Koneksi ke server terputus. Pastikan backend Rust berjalan.");
+        // Role diambil dari JWT session, BUKAN dari /api/auth/me.
+        // Endpoint tersebut tidak ada di backend yang ter-deploy (menghasilkan 404
+        // dengan body kosong, sehingga response.json() melempar error dan login
+        // selalu gagal). app_metadata lebih_authoritative daripada user_metadata.
+        const role: string | undefined =
+          authData.user.app_metadata?.role ?? authData.user.user_metadata?.role;
+
+        if (!role) {
+            setError("Akun Anda belum memiliki role. Hubungi administrator.");
             await supabase.auth.signOut();
             localStorage.clear();
+            return;
         }
 
+        // Hapus data koneksi lama sebelum login baru berhasil
+        localStorage.removeItem('connectedPatients');
+        localStorage.removeItem('connectedDoctor');
+        localStorage.removeItem('mock_patient_profile');
+
+        // Simpan data auth ke localStorage
+        localStorage.setItem('user_id', authData.user.id);
+        localStorage.setItem('user_role', role);
+
+        // Navigasi sesuai role
+        if (role === 'pasien') {
+          navigate('/patient/dashboard');
+        } else if (role === 'dokter') {
+          navigate('/doctor/dashboard');
+        } else {
+          navigate('/admin/dashboard');
+        }
       }
     } catch (err) {
       setError('Terjadi kesalahan saat login.');
