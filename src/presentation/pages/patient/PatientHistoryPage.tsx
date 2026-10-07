@@ -34,12 +34,24 @@ export const PatientHistoryPage: React.FC = () => {
   const navigate = useNavigate();
   const userId = localStorage.getItem("user_id") || "1";
 
+  const { data: profile } = useCachedFetch(`/api/patients/${userId}`);
+  // ponytail: use resolved profile.patient.id (authoritative patients.id) for session
+  // lookup, not the raw localStorage user_id which may be an accounts/auth uuid that
+  // fails the get_sessions_from_db security failsafe for unresolvable lookups.
+  const sessionsSourceId = profile?.patient?.id || userId;
+
   // Pagination
   const [currentPage, setCurrentPage] = useStickyState(1, "patientHistoryPage");
   const itemsPerPage = 10;
 
-  const { data: profile } = useCachedFetch(`/api/patients/${userId}`);
-  const { data: sessionsResponse, mutate: mutateSessions, isLoading } = useCachedFetch(`/api/patients/${userId}/sessions?page=${currentPage}&limit=${itemsPerPage}`, { keepPreviousData: true });
+  // Reset sticky page when the underlying patient changes, otherwise a stale
+  // currentPage > totalPages from the previous user shows an empty list.
+  useEffect(() => {
+    setCurrentPage(1);
+    sessionStorage.removeItem("patientHistoryPage");
+  }, [userId, setCurrentPage]);
+
+  const { data: sessionsResponse, mutate: mutateSessions, isLoading } = useCachedFetch(`/api/patients/${sessionsSourceId}/sessions?page=${currentPage}&limit=${itemsPerPage}`, { keepPreviousData: true });
 
   const sessionsData = React.useMemo(
     () => sessionsResponse?.data || sessionsResponse?.sessions || (Array.isArray(sessionsResponse) ? sessionsResponse : EMPTY_SESSIONS),
