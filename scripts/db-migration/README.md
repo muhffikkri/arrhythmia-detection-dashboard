@@ -17,6 +17,7 @@ dan fungsi RPC `get_sessions_validation_counts` disimpan.
 - Kredensial Supabase (lihat langkah 3).
 
 Skrip migrasi membaca SQLite dengan salah satu driver, urut:
+
 1. `node:sqlite` (bawaan Node 22.5+) — **disarankan**
 2. `better-sqlite3` (`npm i better-sqlite3`)
 3. CLI `sqlite3` (`apt install sqlite3`)
@@ -66,6 +67,7 @@ SQLITE_DB_PATH=../backend/database.db
 > File `.env` sudah ada di `.gitignore`.
 
 Cara mengambil kredensial Supabase:
+
 - Dashboard Supabase → Project Settings → **API** → copy `URL` + `service_role` (secret).
 - Connection string: Project Settings → **Database** → **Connection string**.
 
@@ -110,10 +112,12 @@ Buka file `scripts/db-migration/supabase_schema.sql` — berisi:
 Jalankan salah satu cara berikut:
 
 **Cara A — Supabase Dashboard (paling mudah):**
+
 1. Buka Supabase Dashboard → SQL Editor → New query.
 2. Tempel seluruh isi `supabase_schema.sql` → **Run**.
 
 **Cara B — otomatis dari script (perlu psql + connection string):**
+
 ```bash
 npm run db:migrate -- --schema-only
 ```
@@ -156,14 +160,13 @@ Jika nama tabel/kolom berbeda, buat config (contoh: `supabase-migration.json`):
       "conflictColumn": "id"
     }
   },
-  "remapReferences": [
-    { "table": "frame_records", "column": "session_id", "fromTable": "sessions" }
-  ],
+  "remapReferences": [{ "table": "frame_records", "column": "session_id", "fromTable": "sessions" }],
   "tableOrder": ["sessions", "frame_records"]
 }
 ```
 
 Penjelasan:
+
 - `columnMap` — pemetaan `"kolomSQLite": "kolomSupabase"`. Kolom yang tidak tercantum
   dilewati (tidak dikirim).
 - `idMode` — `"uuid"` (convert id integer → UUID baru) atau `"identity"` (salin apa adanya).
@@ -259,15 +262,15 @@ oleh frontend setiap 10 jam. Skrip ini adalah alternatif mandiri tanpa bergantun
 
 ## 11. Troubleshooting
 
-| Masalah | Solusi |
-|--------|--------|
-| `Tidak ada driver SQLite yang tersedia` | Upgrade Node ke >=22.5, atau `npm i better-sqlite3`, atau `apt install sqlite3` |
-| `SUPABASE_URL dan SUPABASE_SERVICE_ROLE_KEY wajib diisi` | Isi `.env` (langkah 3); untuk simulasi gunakan `--dry-run` |
-| `Could not find the 'public.sessions' table` / `relation does not exist` | Jalankan `supabase_schema.sql` dulu (langkah 5) |
-| `invalid input syntax for type uuid` | Gunakan `idMode: "uuid"` dan pastikan `remapReferences` terisi |
-| `duplicate key value violates unique constraint` | Aman — upsert sudah menangani; jalankan ulang |
-| Error saat `hidden`/`confirmation` (boolean) di SQLite bertipe 0/1 | Postgres menerima 0/1 sebagai boolean; jika tetap error, tambahkan map ke kolom lain |
-| RLS menghalangi insert | Pastikan memakai `service_role` key, bukan anon key |
+| Masalah                                                                  | Solusi                                                                               |
+| ------------------------------------------------------------------------ | ------------------------------------------------------------------------------------ |
+| `Tidak ada driver SQLite yang tersedia`                                  | Upgrade Node ke >=22.5, atau `npm i better-sqlite3`, atau `apt install sqlite3`      |
+| `SUPABASE_URL dan SUPABASE_SERVICE_ROLE_KEY wajib diisi`                 | Isi `.env` (langkah 3); untuk simulasi gunakan `--dry-run`                           |
+| `Could not find the 'public.sessions' table` / `relation does not exist` | Jalankan `supabase_schema.sql` dulu (langkah 5)                                      |
+| `invalid input syntax for type uuid`                                     | Gunakan `idMode: "uuid"` dan pastikan `remapReferences` terisi                       |
+| `duplicate key value violates unique constraint`                         | Aman — upsert sudah menangani; jalankan ulang                                        |
+| Error saat `hidden`/`confirmation` (boolean) di SQLite bertipe 0/1       | Postgres menerima 0/1 sebagai boolean; jika tetap error, tambahkan map ke kolom lain |
+| RLS menghalangi insert                                                   | Pastikan memakai `service_role` key, bukan anon key                                  |
 
 ---
 
