@@ -44,13 +44,13 @@ export const LogoutModal: React.FC<LogoutModalProps> = ({ isOpen, onClose }) => 
         }
 
         await supabase.auth.signOut();
-        localStorage.removeItem('user_id');
-        localStorage.removeItem('user_role');
-        localStorage.removeItem('connectedPatients');
-        localStorage.removeItem('connectedDoctor');
-        localStorage.removeItem('mock_patient_profile');
-        localStorage.removeItem('auth_token');
-        navigate('/', { state: { logoutSuccess: true } });
+        localStorage.clear();
+        sessionStorage.clear();
+        document.cookie.split(';').forEach((c) => {
+            const name = c.split('=')[0].trim();
+            document.cookie = `${name}=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT`;
+        });
+        navigate('/', { replace: true });
     };
 
     return (

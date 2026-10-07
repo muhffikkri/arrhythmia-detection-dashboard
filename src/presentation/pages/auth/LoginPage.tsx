@@ -6,6 +6,7 @@ export const LoginPage: React.FC = () => {
   const navigate = useNavigate();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
 
   useEffect(() => {
@@ -108,9 +109,9 @@ export const LoginPage: React.FC = () => {
                     <div className="space-y-2">
                         <label className="font-medium text-label-bold text-on-surface-variant" htmlFor="password">Password</label>
                         <div className="relative">
-                            <input className="w-full bg-white border border-outline-variant rounded-lg p-3 font-body-sm text-body-sm focus:ring-2 focus:ring-medical-teal focus:border-medical-teal transition-all outline-none border-outline" id="password" placeholder="••••••••" type="password" value={password} onChange={(e) => setPassword(e.target.value)} required />
-                            <button className="absolute right-3 top-1/2 -translate-y-1/2 text-on-surface-variant hover:text-medical-teal transition-colors" type="button">
-                                <span className="material-symbols-outlined text-[20px]">visibility</span>
+                            <input className="w-full bg-white border border-outline-variant rounded-lg p-3 font-body-sm text-body-sm focus:ring-2 focus:ring-medical-teal focus:border-medical-teal transition-all outline-none border-outline pr-10" id="password" placeholder="••••••••" type={showPassword ? "text" : "password"} value={password} onChange={(e) => setPassword(e.target.value)} required />
+                            <button className="absolute right-3 top-1/2 -translate-y-1/2 text-on-surface-variant hover:text-medical-teal transition-colors focus:outline-none" type="button" onClick={() => setShowPassword((prev) => !prev)} aria-label="Toggle password visibility">
+                                <span className="material-symbols-outlined text-[20px]">{showPassword ? "visibility_off" : "visibility"}</span>
                             </button>
                         </div>
                     </div>

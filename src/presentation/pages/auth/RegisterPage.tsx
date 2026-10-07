@@ -9,11 +9,12 @@ export const RegisterPage: React.FC = () => {
   const [role, setRole] = useState<'pasien' | 'dokter'>('pasien');
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
-  const [age, setAge] = useState<number | ''>('');
+  const [dob, setDob] = useState('');
   const [gender, setGender] = useState('L');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
 
   const handleRegister = async (e: React.FormEvent) => {
@@ -49,7 +50,7 @@ export const RegisterPage: React.FC = () => {
             first_name: firstName,
             last_name: lastName,
             email,
-            age: role === 'pasien' ? (age || 0) : null,
+            date_of_birth: role === 'pasien' ? (dob || null) : null,
             gender: role === 'pasien' ? gender : null,
         };
 
@@ -130,7 +131,7 @@ export const RegisterPage: React.FC = () => {
                             <div className="space-y-2 flex-1">
                                 <label className="font-medium text-label-bold text-on-surface-variant" htmlFor="dob">Tanggal Lahir (Umur)</label>
                                 <input className="w-full bg-white border border-outline-variant rounded-lg p-3 font-body-sm text-body-sm focus:ring-2 focus:ring-medical-teal focus:border-medical-teal transition-all outline-none border-outline" id="dob"
-                                    type="date" value={age} onChange={(e) => setAge(parseInt(e.target.value))} required />
+                                    type="date" value={dob} onChange={(e) => setDob(e.target.value)} max={new Date().toISOString().split('T')[0]} required />
                             </div>
                             <div className="space-y-2 flex-1">
                                 <label className="font-medium text-label-bold text-on-surface-variant" htmlFor="gender">Jenis Kelamin</label>
@@ -148,7 +149,12 @@ export const RegisterPage: React.FC = () => {
                     </div>
                     <div className="space-y-2">
                         <label className="font-medium text-label-bold text-on-surface-variant" htmlFor="password">Password</label>
-                        <input className="w-full bg-white border border-outline-variant rounded-lg p-3 font-body-sm text-body-sm focus:ring-2 focus:ring-medical-teal focus:border-medical-teal transition-all outline-none border-outline" id="password" placeholder="••••••••" type="password" value={password} onChange={(e) => setPassword(e.target.value)} required />
+                        <div className="relative">
+                            <input className="w-full bg-white border border-outline-variant rounded-lg p-3 font-body-sm text-body-sm focus:ring-2 focus:ring-medical-teal focus:border-medical-teal transition-all outline-none border-outline pr-10" id="password" placeholder="••••••••" type={showPassword ? "text" : "password"} value={password} onChange={(e) => setPassword(e.target.value)} required />
+                            <button className="absolute right-3 top-1/2 -translate-y-1/2 text-on-surface-variant hover:text-medical-teal transition-colors focus:outline-none" type="button" onClick={() => setShowPassword((prev) => !prev)} aria-label="Toggle password visibility">
+                                <span className="material-symbols-outlined text-[20px]">{showPassword ? "visibility_off" : "visibility"}</span>
+                            </button>
+                        </div>
                     </div>
                     <div className="space-y-2">
                         <label className="font-medium text-label-bold text-on-surface-variant" htmlFor="confirmPassword">Konfirmasi Password</label>

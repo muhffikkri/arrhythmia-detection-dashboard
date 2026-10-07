@@ -82,7 +82,8 @@ export const PatientProfilePage: React.FC = () => {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                    name: `${formData.first_name} ${formData.last_name}`.trim(),
+                    first_name: formData.first_name,
+                    last_name: formData.last_name,
                     date_of_birth: formData.date_of_birth,
                     gender: formData.gender,
                     profile_photo: formData.profile_photo || null

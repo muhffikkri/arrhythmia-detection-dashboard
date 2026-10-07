@@ -79,7 +79,7 @@ export const AdminUsersPage: React.FC = () => {
     const [addRole, setAddRole] = useState<'dokter' | 'pasien'>('dokter');
     const [addFirstName, setAddFirstName] = useState('');
     const [addLastName, setAddLastName] = useState('');
-    const [addAge, setAddAge] = useState<number | ''>('');
+    const [addDob, setAddDob] = useState('');
     const [addGender, setAddGender] = useState('L');
     const [addLoading, setAddLoading] = useState(false);
     const [addError, setAddError] = useState<string | null>(null);
@@ -134,7 +134,7 @@ export const AdminUsersPage: React.FC = () => {
                     role: addRole,
                     first_name: addFirstName,
                     last_name: addLastName,
-                    age: addAge || 0,
+                    date_of_birth: addRole === 'pasien' ? (addDob || null) : null,
                     gender: addGender
                 })
             });
@@ -145,7 +145,7 @@ export const AdminUsersPage: React.FC = () => {
                 setAddPassword('');
                 setAddFirstName('');
                 setAddLastName('');
-                setAddAge('');
+                setAddDob('');
                 setAddGender('L');
                 fetchUsersAndDevices();
             } else {
@@ -580,8 +580,8 @@ export const AdminUsersPage: React.FC = () => {
                             {addRole === 'pasien' && (
                                 <div className="flex gap-4 animate-in fade-in duration-200">
                                     <div className="flex-1">
-                                        <label className="block text-[11px] font-bold text-clinical-charcoal/60 uppercase tracking-widest mb-2">Umur</label>
-                                        <input type="number" required value={addAge} onChange={e => setAddAge(parseInt(e.target.value) || '')} className="w-full bg-clinical-surface/50 border border-clinical-charcoal/10 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-clinical-blue focus:ring-1 focus:ring-clinical-blue transition-all" />
+                                        <label className="block text-[11px] font-bold text-clinical-charcoal/60 uppercase tracking-widest mb-2">Tanggal Lahir</label>
+                                        <input type="date" required value={addDob} onChange={e => setAddDob(e.target.value)} max={new Date().toISOString().split('T')[0]} className="w-full bg-clinical-surface/50 border border-clinical-charcoal/10 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-clinical-blue focus:ring-1 focus:ring-clinical-blue transition-all" />
                                     </div>
                                     <div className="flex-1">
                                         <label className="block text-[11px] font-bold text-clinical-charcoal/60 uppercase tracking-widest mb-2">Gender</label>
