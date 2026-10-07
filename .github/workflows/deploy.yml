@@ -23,7 +23,8 @@ jobs:
           FRONTEND_DIR: /var/www/arrhythmia-detection-dashboard
         run: |
           set -e
-          ssh "$VPS_USER@$VPS_HOST" "set -e
+          export SSH_OPTS="-o StrictHostKeyChecking=no"
+          ssh $SSH_OPTS "$VPS_USER@$VPS_HOST" "set -e
             cd '$FRONTEND_DIR'
             git fetch origin main
             git checkout main
