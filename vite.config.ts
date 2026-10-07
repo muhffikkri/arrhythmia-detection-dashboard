@@ -3,7 +3,9 @@ import react from '@vitejs/plugin-react'
 import obfuscatorPlugin from 'vite-plugin-javascript-obfuscator'
 import { VitePWA } from 'vite-plugin-pwa'
 
-const backendStatusPlugin = () => {
+// ponytail: status plugin uses the same HOST_IP-derived URL as the proxy target;
+// no separate env needed, add when health-check endpoint changes.
+const backendStatusPlugin = (backendUrl: string) => {
   return {
     name: 'backend-status-checker',
     configureServer(server: any) {
@@ -18,13 +20,13 @@ const backendStatusPlugin = () => {
         console.log(`  │        ${cyan}ECGRHYTHMIA FRONTEND DEVELOPMENT${reset}           │`);
         console.log(`  ╰───────────────────────────────────────────────────╯`);
         console.log(`  ${dim}[SYSTEM]${reset} Memuat Environment Variables...`);
-        console.log(`  ${dim}[TRACE]${reset}  VITE_API_URL        -> ${cyan}http://127.0.0.1:8081${reset}`);
+        console.log(`  ${dim}[TRACE]${reset}  VITE_API_URL        -> ${cyan}${backendUrl}${reset}`);
         console.log(`  ${dim}[TRACE]${reset}  VITE_SUPABASE_URL   -> ${cyan}/supabase${reset} (Proxy Mode)\n`);
         
         console.log(`  ${dim}[NETWORK]${reset} Memeriksa koneksi komponen...`);
         
         const startTime = Date.now();
-        fetch('http://127.0.0.1:8081/api/devices')
+        fetch(`${backendUrl}/api/devices`)
           .then(() => {
             const ms = Date.now() - startTime;
             console.log(`  [  ${green}OK${reset}  ] Backend Rust API    : ${green}ONLINE${reset} (Respons < ${ms}ms)`);
@@ -42,11 +44,13 @@ const backendStatusPlugin = () => {
 
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), '');
+  const hostIp = env.HOST_IP || '127.0.0.1';
+  const backendUrl = `http://${hostIp}:8081`;
   return {
     server: {
       proxy: {
         '/api': {
-          target: 'http://127.0.0.1:8081',
+          target: backendUrl,
           changeOrigin: true,
         },
         '/supabase': {
@@ -60,7 +64,7 @@ export default defineConfig(({ mode }) => {
     },
     plugins: [
       react(),
-      backendStatusPlugin(),
+      backendStatusPlugin(backendUrl),
       VitePWA({
         registerType: 'autoUpdate',
         injectRegister: 'auto',
