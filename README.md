@@ -150,6 +150,35 @@ npm run build            # menghasilkan folder dist/ (termasuk PWA service worke
 npm run preview          # untuk mengecek hasil build secara lokal
 ```
 
+### CI & Auto-Deploy (GitHub Actions)
+
+Dua workflow di `.github/workflows/`:
+
+| Workflow | File | Pemicu |
+|---|---|---|
+| Lint + type + test + build | `ci.yml` | Push/PR ke `main` (job build hanya push, bukan PR) |
+| Deploy VPS | `deploy.yml` | Push ke `main` (setelah CI hijau) |
+
+**`ci.yml`** — `npm run lint` (oxlint), `npx tsc --noEmit`,
+`npm run test` (Vitest), lalu `npm run build` (push only).
+
+**`deploy.yml`** — SSH ke VPS (`VPS_SSH_KEY`), `git pull` di
+`/var/www/arrhythmia-detection-dashboard`, `npm ci`,
+`VITE_APP_VERSION=$VITE_APP_VERSION npm run build`.
+Hasil `dist/` disajikan nginx di VPS.
+
+**Secrets GitHub** (Settings → Secrets and variables → Actions, repo ini):
+
+| Nama | Isi |
+|---|---|
+| `VPS_SSH_KEY` | Private key ed25519 (pub-nya di `~/.ssh/authorized_keys` VPS). Arah: GitHub runner → VPS. |
+| `VPS_HOST` | `202.155.16.129` atau `api.ecgrhythmia.cloud` |
+| `VPS_USER` | user SSH di VPS (mis. `root`) |
+| `VITE_APP_VERSION` | string versi (mis. `2`); ubah untuk memaksa full clear `localStorage`/`sessionStorage`/cookie di client (mekanisme `checkAppVersion` di `src/main.tsx`) |
+
+Catatan: runner juga `git pull` dari VPS via git key Opsi A (key user-level
+VPS→GitHub, terpisah dari `VPS_SSH_KEY`). Rahasia tak pernah tercatat di log.
+
 Catatan versi & riwayat perubahan ada di [`CHANGELOG.md`](CHANGELOG.md).
 
 ## 📜 Lisensi

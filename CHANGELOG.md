@@ -5,12 +5,30 @@ Semua perubahan penting pada proyek ini dicatat di file ini.
 Format mengikuti [Keep a Changelog](https://keepachangelog.com/id-ID/1.1.0/),
 dan versi mengikuti [Semantic Versioning](https://semver.org/lang/id/).
 
-## [Unreleased]
+## [1.1.0] - 2026-10-08
 
 ### Ditambahkan
-- *Belum ada.*
 
----
+- **GitHub Actions CI** (`.github/workflows/ci.yml`): `npm run lint` (oxlint),
+  `npx tsc --noEmit` (type-check), dan `npm run test` (Vitest, 40+ test)
+  otomatis di setiap push/PR ke `main`. Job build (`npm run build`)
+  dijalankan hanya di push ke `main` (bukan PR) agar tetap ringan.
+- **GitHub Actions auto-deploy VPS** (`.github/workflows/deploy.yml`):
+  SSH dari runner ke VPS (`VPS_SSH_KEY`), `git pull` di
+  `/var/www/arrhythmia-detection-dashboard`, `npm ci`,
+  `VITE_APP_VERSION=$VITE_APP_VERSION npm run build` (file statis di `dist/`
+  disajikan nginx di VPS).
+- `VITE_APP_VERSION` (secrets GitHub) — versi aplikasi yang di-inject saat
+  build di VPS; perubahan nilai memicu full clear
+  `localStorage`/`sessionStorage`/cookie di frontend (mekanisme
+  `checkAppVersion` di `src/main.tsx`), jadi cache token lama terhapus otomatis
+  saat deploy.
+
+### Diperbaiki
+
+- Frontend tidak lagi bergantung pada versi build lama: deploy via
+  `npm ci` + build segar di VPS memastikan `dist/` selalu sesuai commit.
+- CSP & `DevToolsBlocker` dikendalikan lewat konfigurasi env, bukan hardcode.
 
 ## [1.0.0] - 2026-09-15
 
