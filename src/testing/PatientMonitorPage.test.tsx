@@ -51,12 +51,15 @@ vi.mock("../config/supabaseClient", () => ({
 }));
 
 import { PatientMonitorPage } from "../presentation/pages/patient/PatientMonitorPage";
+import { PreferencesProvider } from "../application/context/PreferencesContext";
 
 const renderMonitor = () =>
   render(
-    <MemoryRouter>
-      <PatientMonitorPage />
-    </MemoryRouter>,
+    <PreferencesProvider>
+      <MemoryRouter>
+        <PatientMonitorPage />
+      </MemoryRouter>
+    </PreferencesProvider>,
   );
 
 const dismissWarning = () => {
@@ -69,6 +72,7 @@ describe("PatientMonitorPage integration", () => {
     wsHarness.client = null;
     localStorage.setItem("user_id", "1");
     localStorage.setItem("synced_device_id", "ECG-TEST-01");
+    localStorage.removeItem("app_preferences");
   });
 
   it("menampilkan kontrol gain, speed, playback, heart rate BPM, dan klasifikasi AI", async () => {
@@ -157,7 +161,44 @@ describe("PatientMonitorPage integration", () => {
     fireEvent.click(screen.getByText("Kembali ke Live"));
     await waitFor(() => expect(screen.queryByText("Kembali ke Live")).not.toBeInTheDocument());
   });
+
+  it("menampilkan notifikasi kritis saat perekaman jika preferensi tidak diaktifkan", async () => {
+    renderMonitor();
+    dismissWarning();
+
+    await startRecordingWithCriticalFrame();
+
+    expect(screen.queryByText(/KRITIS:/)).toBeInTheDocument();
+  });
+
+  it("menyembunyikan notifikasi kritis saat perekaman jika preferensi diaktifkan", async () => {
+    localStorage.setItem(
+      "app_preferences",
+      JSON.stringify({ isLargeText: false, isHighContrast: false, hideRecordingNotifications: true, language: "id" }),
+    );
+
+    renderMonitor();
+    dismissWarning();
+
+    await startRecordingWithCriticalFrame();
+
+    expect(screen.queryByText(/KRITIS:/)).not.toBeInTheDocument();
+  });
 });
+
+async function startRecordingWithCriticalFrame() {
+  fireEvent.click(screen.getByText(/Mulai Perekaman/));
+  await waitFor(() => expect(wsHarness.client).toBeTruthy());
+
+  act(() => {
+    wsHarness.client.onMessage(makeLivePayload(makeQrsFrame(75), "AFIB"));
+  });
+
+  await waitFor(() => {
+    const hr = screen.getByTestId("heart-rate-value").textContent;
+    expect(Number(hr)).toBeGreaterThan(50);
+  });
+}
 
 function pathY(index: number): number {
   const d = document.querySelector('[data-testid="ecg-path-I"]')?.getAttribute("d") || "";

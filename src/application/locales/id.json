@@ -92,6 +92,8 @@
     "largeTextDesc": "Memperbesar ukuran huruf di seluruh aplikasi.",
     "highContrast": "Kontras Tinggi",
     "highContrastDesc": "Meningkatkan kejelasan warna teks.",
+    "hideRecordingNotifications": "Sembunyikan Notifikasi Saat Perekaman",
+    "hideRecordingNotificationsDesc": "Menyembunyikan pop-up peringatan aritmia selama sesi perekaman berlangsung.",
     "darkMode": "Tema Gelap (Dark Mode)",
     "darkModeDesc": "Meningkatkan kenyamanan mata di malam hari.",
     "languageMode": "Bahasa Aplikasi",

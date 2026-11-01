@@ -92,6 +92,8 @@
     "largeTextDesc": "放大整个应用程序中的字体。",
     "highContrast": "高对比度",
     "highContrastDesc": "提高文字颜色的清晰度。",
+    "hideRecordingNotifications": "录制时隐藏通知",
+    "hideRecordingNotificationsDesc": "在录制会话期间隐藏心律失常警报弹窗。",
     "darkMode": "深色模式",
     "darkModeDesc": "改善夜间眼部舒适度。",
     "languageMode": "应用语言",

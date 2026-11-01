@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { renderHook, act } from '@testing-library/react';
 import { FILTERS_ALL_OFF, FILTERS_CLINICAL_DEFAULT, parsePathPoint, mapMillivoltToCanvasY } from '../core/algorithms/ecgFrameProcessor';
 import { makeQrsFrame, makeLivePayload } from './ecgTestFixtures';
@@ -16,7 +16,7 @@ vi.mock('../data/network/websocketClient', () => ({
         constructor() {
             wsHarness.client = this;
         }
-        connect() { this.connected = true; }
+        connect() { this.connected = true; return Promise.resolve(); }
         disconnect() { this.connected = false; }
         isConnected() { return this.connected; }
         sendCommand(cmd: any) { this.lastCommand = cmd; }
@@ -44,6 +44,10 @@ import { useECGStream } from '../application/hooks/useECGStream';
 describe('useECGStream integration', () => {
     beforeEach(() => {
         wsHarness.client = null;
+    });
+
+    afterEach(() => {
+        vi.useRealTimers();
     });
 
     it('tidak menampilkan BPM sebelum seluruh frame terbaca, lalu mengisi heart rate dan klasifikasi AI', async () => {
@@ -80,13 +84,13 @@ describe('useECGStream integration', () => {
         expect(result.current.paths.I.length).toBe(2500);
     });
 
-    it('menyinkronkan kanvas dan BPM ketika filter berubah', () => {
+    it('menyinkronkan kanvas dan BPM ketika filter berubah', async () => {
         const { result, rerender } = renderHook(
             ({ config }) => useECGStream('ws://test', config),
             { initialProps: { config: FILTERS_ALL_OFF } }
         );
 
-        act(() => result.current.startStream());
+        await act(async () => { await result.current.startStream(); });
         const full = makeQrsFrame(75);
         act(() => {
             wsHarness.client.onMessage(makeLivePayload(full, 'AF'));
@@ -106,7 +110,7 @@ describe('useECGStream integration', () => {
 
     it('bisa meninjau frame sebelumnya lalu kembali ke streaming live', async () => {
         const { result } = renderHook(() => useECGStream('ws://test', FILTERS_ALL_OFF));
-        act(() => result.current.startStream());
+        await act(async () => { await result.current.startStream(); });
 
         const frameA = makeQrsFrame(75);
         act(() => {
@@ -141,9 +145,45 @@ describe('useECGStream integration', () => {
         expect(result.current.heartRate).toBe(liveHr);
     });
 
-    it('mengirim perintah get_segment saat navigasi timeline selama WS terhubung', () => {
+    it('menyambung ulang WebSocket secara otomatis saat koneksi putus di tengah perekaman', async () => {
+        vi.useFakeTimers();
         const { result } = renderHook(() => useECGStream('ws://test', FILTERS_ALL_OFF));
-        act(() => result.current.startStream());
+        await act(async () => { await result.current.startStream(); });
+
+        const client = wsHarness.client;
+        const connectSpy = vi.spyOn(client, 'connect');
+        client.connected = false;
+        act(() => client.onClose?.());
+
+        act(() => {
+            vi.advanceTimersByTime(1000);
+        });
+
+        expect(connectSpy).toHaveBeenCalledTimes(1);
+        expect(client.connected).toBe(true);
+    });
+
+    it('tidak menyambung ulang setelah perekaman dihentikan', async () => {
+        vi.useFakeTimers();
+        const { result } = renderHook(() => useECGStream('ws://test', FILTERS_ALL_OFF));
+        await act(async () => { await result.current.startStream(); });
+
+        const client = wsHarness.client;
+        const connectSpy = vi.spyOn(client, 'connect');
+        act(() => result.current.stopStream());
+        client.connected = false;
+        act(() => client.onClose?.());
+
+        act(() => {
+            vi.advanceTimersByTime(15000);
+        });
+
+        expect(connectSpy).not.toHaveBeenCalled();
+    });
+
+    it('mengirim perintah get_segment saat navigasi timeline selama WS terhubung', async () => {
+        const { result } = renderHook(() => useECGStream('ws://test', FILTERS_ALL_OFF));
+        await act(async () => { await result.current.startStream(); });
         act(() => {
             result.current.fetchSegment(0);
         });

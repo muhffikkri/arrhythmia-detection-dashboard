@@ -92,6 +92,8 @@
     "largeTextDesc": "تكبير حجم الخط في جميع أنحاء التطبيق.",
     "highContrast": "تباين عالي",
     "highContrastDesc": "زيادة وضوح لون النص.",
+    "hideRecordingNotifications": "إخفاء الإشعارات أثناء التسجيل",
+    "hideRecordingNotificationsDesc": "إخفاء منبثقات تنبيه اضطراب النظم أثناء جلسة التسجيل.",
     "darkMode": "الوضع الداكن",
     "darkModeDesc": "تحسين راحة العين في الليل.",
     "languageMode": "لغة التطبيق",

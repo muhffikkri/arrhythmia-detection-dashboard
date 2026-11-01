@@ -27,18 +27,43 @@ export class ECGWebSocketClient {
         }
     }
 
-    public connect(): void {
-        if (this.ws && (this.ws.readyState === WebSocket.OPEN || this.ws.readyState === WebSocket.CONNECTING)) {
-            return;
+    public connect(): Promise<void> {
+        if (this.ws?.readyState === WebSocket.OPEN) return Promise.resolve();
+        if (this.ws?.readyState === WebSocket.CONNECTING) {
+            return new Promise((resolve, reject) => {
+                const wait = window.setInterval(() => {
+                    if (this.ws?.readyState === WebSocket.OPEN) {
+                        window.clearInterval(wait);
+                        resolve();
+                    } else if (!this.ws || this.ws.readyState === WebSocket.CLOSED) {
+                        window.clearInterval(wait);
+                        reject(new Error("WebSocket gagal terhubung"));
+                    }
+                }, 25);
+            });
         }
 
         Logger.info("Network", `Mencoba terhubung ke: ${this.url}`);
         this.ws = new WebSocket(this.url);
 
-        this.ws.onopen = () => {
-            Logger.info("Network", "Terhubung ke Server Rust!");
-            if (this.onOpen) this.onOpen();
-        };
+        return new Promise((resolve, reject) => {
+            this.ws!.onopen = () => {
+                Logger.info("Network", "Terhubung ke Server Rust!");
+                this.attachHandlers();
+                if (this.onOpen) this.onOpen();
+                resolve();
+            };
+
+            this.ws!.onerror = (event: Event) => {
+                Logger.error("Network", "Kesalahan WebSocket!");
+                if (this.onError) this.onError(event);
+                reject(new Error("WebSocket gagal terhubung"));
+            };
+        });
+    }
+
+    private attachHandlers(): void {
+        if (!this.ws) return;
 
         this.ws.onmessage = async (event: MessageEvent) => {
             try {
@@ -54,23 +79,24 @@ export class ECGWebSocketClient {
                     }
                 }
 
+                Logger.info("Network", `Pesan WS diterima: type=${data.type}, device=${data.device_id || "-"}, session=${data.session_id || "-"}, samples=${data.data_payload?.raw?.ch1?.length || 0}`);
                 if (this.onMessage) this.onMessage(data);
             } catch (err) {
                 Logger.error("Network", "Gagal memparsing pesan:", err);
             }
         };
 
-        this.ws.onerror = (event: Event) => {
-            Logger.error("Network", "Kesalahan WebSocket!");
-            if (this.onError) this.onError(event);
-        };
-
-        this.ws.onclose = () => {
-            Logger.info("Network", "Koneksi ditutup.");
+        this.ws.onclose = (event: CloseEvent) => {
+            Logger.info("Network", `Koneksi ditutup (code=${event.code}, clean=${event.wasClean}).`);
             if (this.onClose) this.onClose();
             this.ws = null;
         };
     }
+
+    public bindHandlers(): void {
+        this.attachHandlers();
+    }
+
 
     public isConnected(): boolean {
         return this.ws !== null && this.ws.readyState === WebSocket.OPEN;

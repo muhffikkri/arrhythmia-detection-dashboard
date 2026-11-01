@@ -20,6 +20,7 @@ import {
 import type { ClinicalExplanation } from "../../core/clinical/ruleBasedEngine";
 import type { ECGPaths, RPeakMarker, TimelineEvent, ServerMessage, ECGDataPayload, DeviceSystem, DeviceNetwork, DevicePrediction, DeviceStressTest } from "../../core/types/ecgTypes";
 import { fetchWithAuth } from "../../config/api";
+import { Logger } from "../../core/utils/logger";
 
 export type { StreamFilterConfig };
 
@@ -63,7 +64,7 @@ export interface UseECGStreamReturn {
   heartRate: number | string;
   clinicalStatus: ClinicalExplanation | null;
   timeline: TimelineEvent[];
-  startStream: () => void;
+  startStream: () => Promise<void>;
   stopStream: () => void;
   fetchSummary: () => void;
   fetchSegment: (index: number) => void;
@@ -103,6 +104,11 @@ export const useECGStream = (endpoint: string, patientIdOrFilter: string | Strea
   const [rawClassification, setRawClassification] = useState<string | null>(null);
 
   const clientRef = useRef<ECGWebSocketClient | null>(null);
+  const isRecordingRef = useRef(isRecording);
+  isRecordingRef.current = isRecording;
+  const isMountedRef = useRef(true);
+  const reconnectTimerRef = useRef<number | null>(null);
+  const reconnectAttemptsRef = useRef(0);
   const filterConfigRef = useRef(filterConfig);
   const [isViewingHistory, setIsViewingHistory] = useState<boolean>(false);
   const isViewingHistoryRef = useRef<boolean>(false);
@@ -283,6 +289,26 @@ export const useECGStream = (endpoint: string, patientIdOrFilter: string | Strea
   const showHistoricalSegmentRef = useRef(showHistoricalSegment);
   showHistoricalSegmentRef.current = showHistoricalSegment;
 
+  const clearReconnectTimer = useCallback(() => {
+    if (reconnectTimerRef.current !== null) {
+      window.clearTimeout(reconnectTimerRef.current);
+      reconnectTimerRef.current = null;
+    }
+  }, []);
+
+  // Koneksi WS bisa terputus oleh proxy/refresh/redeploy. Selama masih merekam,
+  // sambung ulang otomatis agar monitor tidak diam tanpa data.
+  const scheduleReconnect = useCallback(() => {
+    if (!isMountedRef.current || !isRecordingRef.current || reconnectTimerRef.current !== null) return;
+    const delay = Math.min(1000 * 2 ** reconnectAttemptsRef.current, 10000);
+    reconnectAttemptsRef.current += 1;
+    Logger.warn("Network", `Koneksi live terputus. Menyambung ulang dalam ${delay}ms...`);
+    reconnectTimerRef.current = window.setTimeout(() => {
+      reconnectTimerRef.current = null;
+      if (isMountedRef.current && isRecordingRef.current) clientRef.current?.connect();
+    }, delay);
+  }, []);
+
   const initWebSocket = useCallback(() => {
     if (!clientRef.current) {
       clientRef.current = new ECGWebSocketClient(endpoint);
@@ -300,10 +326,11 @@ export const useECGStream = (endpoint: string, patientIdOrFilter: string | Strea
             setSessionId(msg.session_id);
             lastSessionIdRef.current = msg.session_id;
           }
+          Logger.info("ECG Stream", `Dispatch WS: type=${msg.type}, device=${msg.device_id || "-"}, session=${msg.session_id || "-"}, recording=${isRecordingRef.current}, history=${isViewingHistoryRef.current}`);
           if (msg.data_payload) {
             if (msg.type === "segment_data") {
               showHistoricalSegmentRef.current(msg.data_payload, msg.timestamp);
-            } else if (msg.type === "live_data" && !isViewingHistoryRef.current) {
+            } else if (msg.type === "live_data" && isRecordingRef.current && !isViewingHistoryRef.current) {
               processLiveChunkRef.current(msg.data_payload, msg.timestamp);
             }
           }
@@ -313,9 +340,13 @@ export const useECGStream = (endpoint: string, patientIdOrFilter: string | Strea
           if (status === "STOP" || status === "STOPPED") setIsRecording(false);
         }
       };
-      clientRef.current.onClose = () => undefined;
+      clientRef.current.onOpen = () => {
+        reconnectAttemptsRef.current = 0;
+        clearReconnectTimer();
+      };
+      clientRef.current.onClose = () => scheduleReconnect();
     }
-  }, [endpoint, processLiveChunk]);
+  }, [endpoint, processLiveChunk, clearReconnectTimer, scheduleReconnect]);
 
   useEffect(() => {
     if (isRecording) {
@@ -332,15 +363,22 @@ export const useECGStream = (endpoint: string, patientIdOrFilter: string | Strea
         clientRef.current?.connect();
       }
     } else {
+      clearReconnectTimer();
+      reconnectAttemptsRef.current = 0;
       clientRef.current?.disconnect();
       setViewingHistory(false);
       historicalRawRef.current = null;
     }
-  }, [isRecording, initWebSocket]);
+  }, [isRecording, initWebSocket, clearReconnectTimer]);
 
-  const startStream = () => {
-    if (isRecording) return;
-    setIsRecording(true);
+  const startStream = (): Promise<void> => {
+    if (isRecording) return Promise.resolve();
+    if (isMountedRef.current) {
+      isRecordingRef.current = true;
+      setIsRecording(true);
+    }
+    initWebSocket();
+    return clientRef.current?.connect() ?? Promise.resolve();
   };
 
   const stopStream = () => {
@@ -376,15 +414,18 @@ export const useECGStream = (endpoint: string, patientIdOrFilter: string | Strea
   };
 
   useEffect(() => {
+    isMountedRef.current = true;
     if (typeof Worker !== "undefined") {
       bpmWorkerRef.current = new Worker(new URL("../../workers/bpm.worker.ts", import.meta.url), { type: "module" });
     }
     return () => {
+      isMountedRef.current = false;
+      clearReconnectTimer();
       clientRef.current?.disconnect();
       bpmWorkerRef.current?.terminate();
       bpmWorkerRef.current = null;
     };
-  }, []);
+  }, [clearReconnectTimer]);
 
   return {
     isRecording,

@@ -5,6 +5,8 @@ interface PreferencesContextType {
   setIsLargeText: (val: boolean) => void;
   isHighContrast: boolean;
   setIsHighContrast: (val: boolean) => void;
+  hideRecordingNotifications: boolean;
+  setHideRecordingNotifications: (val: boolean) => void;
   language: string;
   setLanguage: (val: string) => void;
 }
@@ -20,19 +22,20 @@ const getInitialPreferences = () => {
       console.error("Failed to parse preferences");
     }
   }
-  return { isLargeText: false, isHighContrast: false, language: 'id' };
+  return { isLargeText: false, isHighContrast: false, hideRecordingNotifications: false, language: 'id' };
 };
 
 export const PreferencesProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const initialPrefs = getInitialPreferences();
   const [isLargeText, setIsLargeText] = useState(initialPrefs.isLargeText || false);
   const [isHighContrast, setIsHighContrast] = useState(initialPrefs.isHighContrast || false);
+  const [hideRecordingNotifications, setHideRecordingNotifications] = useState(initialPrefs.hideRecordingNotifications || false);
   const [language, setLanguage] = useState(initialPrefs.language || 'id');
 
   // Save to localStorage and apply side effects whenever state changes
   useEffect(() => {
     localStorage.setItem('app_preferences', JSON.stringify({
-      isLargeText, isHighContrast, language
+      isLargeText, isHighContrast, hideRecordingNotifications, language
     }));
 
     // Ensure dark mode is off since it's removed
@@ -49,12 +52,13 @@ export const PreferencesProvider: React.FC<{ children: React.ReactNode }> = ({ c
     } else {
       document.documentElement.classList.remove('high-contrast');
     }
-  }, [isLargeText, isHighContrast, language]);
+  }, [isLargeText, isHighContrast, hideRecordingNotifications, language]);
 
   return (
     <PreferencesContext.Provider value={{
       isLargeText, setIsLargeText,
       isHighContrast, setIsHighContrast,
+      hideRecordingNotifications, setHideRecordingNotifications,
       language, setLanguage
     }}>
       {children}

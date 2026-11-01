@@ -92,6 +92,8 @@
     "largeTextDesc": "Enlarge font size across the application.",
     "highContrast": "High Contrast",
     "highContrastDesc": "Increase text color clarity.",
+    "hideRecordingNotifications": "Hide Notifications While Recording",
+    "hideRecordingNotificationsDesc": "Hides arrhythmia alert pop-ups while a recording session is running.",
     "darkMode": "Dark Mode",
     "darkModeDesc": "Improve eye comfort at night.",
     "languageMode": "App Language",

@@ -92,6 +92,8 @@
     "largeTextDesc": "הגדל את גודל הגופן בכל האפליקציה.",
     "highContrast": "ניגודיות גבוהה",
     "highContrastDesc": "הגבר את בהירות צבע הטקסט.",
+    "hideRecordingNotifications": "הסתר התראות בזמן הקלטה",
+    "hideRecordingNotificationsDesc": "מסתיר חלוניות התראה על הפרעת קצב במהלך הקלטה.",
     "darkMode": "מצב כהה",
     "darkModeDesc": "שפר את נוחות העיניים בלילה.",
     "languageMode": "שפת האפליקציה",

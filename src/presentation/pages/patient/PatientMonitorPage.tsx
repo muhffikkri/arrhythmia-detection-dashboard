@@ -21,6 +21,7 @@ import { fetchWithAuth } from "../../../config/api";
 import { ActionModal } from "../../components/shared/ActionModal";
 import { ScreenCalibrationModal } from "../../components/shared/ScreenCalibrationModal";
 import { RulerIcon } from "../../components/shared/RulerIcon";
+import { usePreferences } from "../../../application/context/PreferencesContext";
 
 interface DeviceRecord {
   id: string;
@@ -28,6 +29,7 @@ interface DeviceRecord {
 }
 
 export const PatientMonitorPage: React.FC = () => {
+  const { hideRecordingNotifications } = usePreferences();
   const [showFilterPopup, setShowFilterPopup] = useState<boolean>(false);
   const [filterConfig, setFilterConfig] = useState({
     baselineBlocker: true,
@@ -259,8 +261,6 @@ export const PatientMonitorPage: React.FC = () => {
     const command = isRecording ? "STOP" : "START";
 
     // Keep the live connection open until STOP is accepted so the backend can flush the session.
-    if (!isRecording) startStream();
-
     setIsCommandLoading(true);
     try {
       let targetDeviceId = displayDeviceId;
@@ -283,14 +283,23 @@ export const PatientMonitorPage: React.FC = () => {
         throw new Error("Perangkat perekaman tidak ditemukan.");
       }
 
+      console.info("[TRACE UI 01] Command flow mulai", { command, targetDeviceId, patientId: selectedPatientId, isRecording });
+      if (command === "START") {
+        await startStream();
+        console.info("[TRACE UI 02] WebSocket siap sebelum START API", { targetDeviceId });
+      }
+
+      console.info("[TRACE UI 03] POST command dikirim", { command, targetDeviceId });
       const response = await fetchWithAuth(`/api/devices/${targetDeviceId}/command`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ command, patient_id: selectedPatientId }),
       });
       if (!response.ok) {
+        console.error("[TRACE UI 04] Command ditolak backend", { command, targetDeviceId, status: response.status });
         throw new Error(`Server menolak perintah (${response.status})`);
       }
+      console.info("[TRACE UI 04] Command diterima backend", { command, targetDeviceId, status: response.status });
 
       if (command === "STOP") stopStream();
 
@@ -359,7 +368,12 @@ export const PatientMonitorPage: React.FC = () => {
           </div>
         )}
 
-        <AlertPanel visible={showAlert} title={`KRITIS: ${alertTitle}`} onClose={() => setShowAlert(false)} />
+        {/* Preferensi pengguna: notifikasi bisa disembunyikan selama perekaman berlangsung */}
+        <AlertPanel
+          visible={showAlert && !(hideRecordingNotifications && isRecording)}
+          title={`KRITIS: ${alertTitle}`}
+          onClose={() => setShowAlert(false)}
+        />
 
         <main className="w-full max-w-container-max pt-8 pb-16 mx-auto px-margin-mobile md:px-margin-desktop flex flex-col gap-8 flex-1">
           <section className="w-full flex flex-col gap-5 flex-1">

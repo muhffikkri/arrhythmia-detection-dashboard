@@ -12,6 +12,7 @@ export const PatientSettingsPage: React.FC = () => {
     const {
         isLargeText, setIsLargeText,
         isHighContrast, setIsHighContrast,
+        hideRecordingNotifications, setHideRecordingNotifications,
         language, setLanguage
     } = usePreferences();
     const { t } = useTranslation();
@@ -88,6 +89,23 @@ export const PatientSettingsPage: React.FC = () => {
                                             type="checkbox"
                                             checked={isHighContrast}
                                             onChange={(e) => setIsHighContrast(e.target.checked)}
+                                        />
+                                        <span className="slider"></span>
+                                    </label>
+                                </div>
+
+                                {/* Row 3: Sembunyikan notifikasi saat perekaman */}
+                                <div className="p-6 flex items-center justify-between gap-4 hover:bg-clinical-surface transition-colors duration-300">
+                                    <div>
+                                        <h3 className="text-[15px] font-bold text-clinical-charcoal mb-0.5">{t('settings.hideRecordingNotifications')}</h3>
+                                        <p className="text-[13px] font-medium text-clinical-charcoal/60">{t('settings.hideRecordingNotificationsDesc')}</p>
+                                    </div>
+                                    <label className="toggle-switch scale-110">
+                                        <input
+                                            type="checkbox"
+                                            aria-label={t('settings.hideRecordingNotifications')}
+                                            checked={hideRecordingNotifications}
+                                            onChange={(e) => setHideRecordingNotifications(e.target.checked)}
                                         />
                                         <span className="slider"></span>
                                     </label>
