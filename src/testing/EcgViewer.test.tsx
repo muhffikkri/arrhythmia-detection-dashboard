@@ -49,6 +49,7 @@ describe('EcgViewer Component Integration', () => {
 
         // Check if canvas container is present
         expect(document.getElementById('ecg-scroll-container')).toBeInTheDocument();
+        expect(document.querySelector('[data-testid="calibration-pulse-I"]')?.getAttribute('d')).toBe('M 0 240 L 0 160 L 80 160 L 80 240');
 
         // Check for medical configuration selectors
         expect(screen.getByText('Gain')).toBeInTheDocument();

@@ -3,7 +3,6 @@ import { ECGCanvas } from "../canvas/ECGCanvas";
 import { useLazyEcgPaths } from "../../../application/hooks/useLazyEcgPaths";
 import { useTranslation } from "../../../application/hooks/useTranslation";
 import { type FilterStates, DEFAULT_FILTERS } from "../../../core/algorithms/ecgFilters";
-import { CALIBRATION_POINT_COUNT } from "../../../core/algorithms/ecgFrameProcessor";
 
 interface EcgViewerProps {
   segment: any;
@@ -152,7 +151,7 @@ export const EcgViewer: React.FC<EcgViewerProps> = ({ segment, speed = 25, timeO
   const slicedPaths = useMemo(() => {
     if (visibleCount >= samples.length) return paths;
     return {
-      I: paths.I.slice(0, CALIBRATION_POINT_COUNT + visibleCount),
+      I: paths.I.slice(0, visibleCount),
       II: paths.II.slice(0, visibleCount),
       III: paths.III.slice(0, visibleCount),
       aVR: paths.aVR.slice(0, visibleCount),
@@ -185,7 +184,7 @@ export const EcgViewer: React.FC<EcgViewerProps> = ({ segment, speed = 25, timeO
           paperSpeed={paperSpeed}
           gain={gain}
           pixelsPerMm={pixelsPerMm}
-          showCalibrationPulse={false}
+          showCalibrationPulse
           isAnomaly={segment?.isAnomaly || false}
           classResult={classResult}
           timeOffset={timeOffset}

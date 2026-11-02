@@ -51,30 +51,14 @@ export const useLazyEcgPaths = (
     };
     const filtered = applyConfiguredFiltersToFrame({ ch1: rawI, ch2: rawII, ch3: rawIII }, config);
 
-    const calPulseWidth = Number((0.4 * paperSpeed * 8).toFixed(2));
-    const calPulseRise = Number((0.1 * paperSpeed * 8).toFixed(2));
-    const calPulseFall = Number((0.3 * paperSpeed * 8).toFixed(2));
-    const calPulseHeight = Number((240 - 1.0 * (gain * 8)).toFixed(2));
-
-    const calPulsePath = [`0,240.00`, `${calPulseRise},240.00`, `${calPulseRise},${calPulseHeight}`, `${calPulseFall},${calPulseHeight}`, `${calPulseFall},240.00`, `${calPulseWidth},240.00`];
-
-    paths.I = [...calPulsePath];
-    paths.II = [...calPulsePath];
-    paths.III = [...calPulsePath];
-    paths.aVR = [...calPulsePath];
-    paths.aVL = [...calPulsePath];
-    paths.aVF = [...calPulsePath];
-    paths.V1 = [...calPulsePath];
-
-    const remainingWidth = 10 * paperSpeed * 8 - calPulseWidth;
-    const X_STEP = remainingWidth / samples.length;
+    const X_STEP = 2000 / samples.length;
 
     for (let j = 0; j < samples.length; j++) {
       const finalI = filtered.I[j];
       const finalII = filtered.II[j];
       const finalIII = filtered.III[j];
       const calculated = calculateEinthovenPoint(finalI, finalII);
-      const currentX = Number((calPulseWidth + j * X_STEP).toFixed(2));
+      const currentX = Number((j * X_STEP).toFixed(2));
       const yMult = gain * 8; // 1mV = gain * 8 px
 
       paths.I.push(`${currentX},${(240 - finalI * yMult).toFixed(2)}`);

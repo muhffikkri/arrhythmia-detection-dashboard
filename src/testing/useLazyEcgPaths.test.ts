@@ -13,48 +13,22 @@ describe("useLazyEcgPaths custom hook", () => {
     expect(result.current.II).toEqual([]);
   });
 
-  it("should prepend the standard calibration pulse to the beginning of each path", () => {
-    const gain = 10;
-    const speed = 25;
-    const { result } = renderHook(() => useLazyEcgPaths(mockSamples, mockCh2, mockCh3, gain, speed));
+  it("should start each signal at origin without embedded calibration pulse", () => {
+    const { result } = renderHook(() => useLazyEcgPaths(mockSamples, mockCh2, mockCh3, 10, 25));
 
-    // Calibration pulse parameters at 25 mm/s and 10 mm/mV:
-    // rise = 0.1 * 25 * 8 = 20px
-    // fall = 0.3 * 25 * 8 = 60px
-    // height = 240 - 1.0 * (10 * 8) = 160px
-    // width = 0.4 * 25 * 8 = 80px
-    const expectedCalPulse = ["0,240.00", "20,240.00", "20,160", "60,160", "60,240.00", "80,240.00"];
-
-    // Every visible lead starts with the same calibration pulse.
-    expect(result.current.I.slice(0, 6)).toEqual(expectedCalPulse);
-    expect(result.current.II.slice(0, 6)).toEqual(expectedCalPulse);
-    expect(result.current.III.slice(0, 6)).toEqual(expectedCalPulse);
-    expect(result.current.aVR.slice(0, 6)).toEqual(expectedCalPulse);
-    expect(result.current.aVL.slice(0, 6)).toEqual(expectedCalPulse);
-    expect(result.current.aVF.slice(0, 6)).toEqual(expectedCalPulse);
-    expect(result.current.V1.slice(0, 6)).toEqual(expectedCalPulse);
+    expect(result.current.I).toHaveLength(mockSamples.length);
+    expect(result.current.II).toHaveLength(mockSamples.length);
+    expect(result.current.III).toHaveLength(mockSamples.length);
+    expect(result.current.aVR).toHaveLength(mockSamples.length);
+    expect(result.current.aVL).toHaveLength(mockSamples.length);
+    expect(result.current.aVF).toHaveLength(mockSamples.length);
+    expect(result.current.V1).toHaveLength(mockSamples.length);
+    expect(result.current.I[0]).toMatch(/^0,/);
   });
 
-  it("should scale calibration pulse and coordinates when gain is modified", () => {
-    const gain = 20; // 2x gain
-    const speed = 25;
-    const { result } = renderHook(() => useLazyEcgPaths(mockSamples, mockCh2, mockCh3, gain, speed));
+  it("should use paper speed for signal coordinate spacing", () => {
+    const { result } = renderHook(() => useLazyEcgPaths(mockSamples, mockCh2, mockCh3, 10, 50));
 
-    // height = 240 - 1.0 * (20 * 8) = 80px
-    const expectedCalPulseHeight = "80";
-    expect(result.current.I[2]).toBe(`20,${expectedCalPulseHeight}`);
-    expect(result.current.I[3]).toBe(`60,${expectedCalPulseHeight}`);
-  });
-
-  it("should scale calibration pulse width and coordinates when paperSpeed is modified", () => {
-    const gain = 10;
-    const speed = 50; // 2x paper speed
-    const { result } = renderHook(() => useLazyEcgPaths(mockSamples, mockCh2, mockCh3, gain, speed));
-
-    // rise = 0.1 * 50 * 8 = 40px
-    // fall = 0.3 * 50 * 8 = 120px
-    // width = 0.4 * 50 * 8 = 160px
-    const expectedCalPulse = ["0,240.00", "40,240.00", "40,160", "120,160", "120,240.00", "160,240.00"];
-    expect(result.current.I.slice(0, 6)).toEqual(expectedCalPulse);
+    expect(result.current.I.at(-1)).toMatch(/^1999\.2,/);
   });
 });

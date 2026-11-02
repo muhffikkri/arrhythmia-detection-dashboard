@@ -32,10 +32,19 @@ describe("ECGCanvas unit", () => {
     rerender(<ECGCanvas paths={emptyPaths} rPeaks={[]} paperSpeed={50} />);
     expect(document.querySelector('[data-testid="ecg-svg"]')?.getAttribute("width")).toBe("4000");
     expect(document.querySelector('[data-testid="ecg-path-I"]')?.parentElement?.getAttribute("transform")).toContain("scale(2, 1)");
+    expect(document.querySelector('[data-testid="calibration-pulse-I"]')?.getAttribute("transform")).toContain("scale(1, 1)");
+    expect(document.querySelector('[data-testid="ecg-path-I"]')?.parentElement?.getAttribute("transform")).toContain("translate(80, 240)");
 
     rerender(<ECGCanvas paths={emptyPaths} rPeaks={[]} paperSpeed={12.5} />);
     expect(document.querySelector('[data-testid="ecg-svg"]')?.getAttribute("width")).toBe("2000");
     expect(document.querySelector('[data-testid="ecg-path-I"]')?.parentElement?.getAttribute("transform")).toContain("scale(0.5, 1)");
+  });
+
+  it("merender calibration pulse dua kotak besar dan memulai sinyal tepat setelahnya", () => {
+      render(<ECGCanvas paths={emptyPaths} rPeaks={[]} paperSpeed={25} />);
+
+      expect(document.querySelector('[data-testid="calibration-pulse-I"]')?.getAttribute("d")).toBe("M 0 240 L 0 160 L 80 160 L 80 240");
+    expect(document.querySelector('[data-testid="ecg-path-I"]')?.parentElement?.getAttribute("transform")).toContain("translate(80, 240)");
   });
 
   it("menerapkan gain melalui scale/zoom", () => {

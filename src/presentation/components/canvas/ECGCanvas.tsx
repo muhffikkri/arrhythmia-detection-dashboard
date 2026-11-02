@@ -93,21 +93,21 @@ export const ECGCanvas: React.FC<ECGCanvasProps> = ({ paths, rPeaks, isAnomaly =
     .padStart(2, "0");
   const boxIndex = (absoluteSecs / 0.04).toFixed(1);
 
-  // Reference pulse: 1 mV high and half a second of paper distance at 25 mm/s.
-  // This gives the calibration sheet's 12.5 mm at 25 mm/s and 25 mm at 50 mm/s.
-  const calibrationPulseWidth = 100;
+  // 1 mV = 10 mm = 2 large vertical grid boxes at the standard 10 mm/mV gain.
+  const calibrationPulseWidth = 80;
   const calibrationPulseHeight = 80;
+  const signalStartX = calibrationPulseWidth;
   const renderCalibrationPulse = (lead: string) => {
     return (
       <path
         data-testid={`calibration-pulse-${lead}`}
-        d={`M 0 240 L 5 240 L 5 ${240 - calibrationPulseHeight} L ${calibrationPulseWidth - 5} ${240 - calibrationPulseHeight} L ${calibrationPulseWidth - 5} 240 L ${calibrationPulseWidth} 240`}
+        d={`M 0 240 L 0 ${240 - calibrationPulseHeight} L ${calibrationPulseWidth} ${240 - calibrationPulseHeight} L ${calibrationPulseWidth} 240`}
         fill="none"
         stroke="#001F54"
         strokeWidth="1.5"
         strokeLinejoin="round"
         vectorEffect="non-scaling-stroke"
-        transform={`translate(0, 240) scale(${xScale}, ${yGain}) translate(0, -240)`}
+        transform={`translate(0, 240) scale(1, ${yGain}) translate(0, -240)`}
       />
     );
   };
@@ -121,19 +121,19 @@ export const ECGCanvas: React.FC<ECGCanvasProps> = ({ paths, rPeaks, isAnomaly =
       return (
         <g key={idx}>
           {/* Titik Lingkaran Puncak QRS */}
-          <circle cx={peak.x + 50} cy={yPos} r="2.5" fill="#3B82F6" />
+          <circle cx={peak.x + signalStartX} cy={yPos} r="2.5" fill="#3B82F6" />
 
           {/* Render teks metrik (Hanya diaktifkan pada Lead II) */}
           {showMetrics && peak.prevX !== undefined && peak.bpm !== undefined && peak.boxesText && (
             <>
-              <line x1={peak.prevX + 50} y1="12" x2={peak.x + 50} y2="12" stroke="#3B82F6" strokeWidth="1" strokeDasharray="3,3" opacity="0.6" />
-              <line x1={peak.prevX + 50} y1="8" x2={peak.prevX + 50} y2="16" stroke="#3B82F6" strokeWidth="1.5" opacity="0.6" />
-              <line x1={peak.x + 50} y1="8" x2={peak.x + 50} y2="16" stroke="#3B82F6" strokeWidth="1.5" opacity="0.6" />
+              <line x1={peak.prevX + signalStartX} y1="12" x2={peak.x + signalStartX} y2="12" stroke="#3B82F6" strokeWidth="1" strokeDasharray="3,3" opacity="0.6" />
+              <line x1={peak.prevX + signalStartX} y1="8" x2={peak.prevX + signalStartX} y2="16" stroke="#3B82F6" strokeWidth="1.5" opacity="0.6" />
+              <line x1={peak.x + signalStartX} y1="8" x2={peak.x + signalStartX} y2="16" stroke="#3B82F6" strokeWidth="1.5" opacity="0.6" />
 
-              <text x={peak.prevX + 50 + (peak.x - peak.prevX) / 2} y="22" fill="#1E3A8A" fontSize="9" fontFamily="sans-serif" fontWeight="bold" textAnchor="middle">
+              <text x={peak.prevX + signalStartX + (peak.x - peak.prevX) / 2} y="22" fill="#1E3A8A" fontSize="9" fontFamily="sans-serif" fontWeight="bold" textAnchor="middle">
                 {peak.bpm} BPM
               </text>
-              <text x={peak.prevX + 50 + (peak.x - peak.prevX) / 2} y="32" fill="#64748B" fontSize="8" fontFamily="sans-serif" textAnchor="middle">
+              <text x={peak.prevX + signalStartX + (peak.x - peak.prevX) / 2} y="32" fill="#64748B" fontSize="8" fontFamily="sans-serif" textAnchor="middle">
                 ({peak.boxesText})
               </text>
             </>
@@ -215,7 +215,7 @@ export const ECGCanvas: React.FC<ECGCanvasProps> = ({ paths, rPeaks, isAnomaly =
               {/* 1. Lead I */}
               <g transform={`translate(0, 0)`}>
                 {showCalibrationPulse && renderCalibrationPulse("I")}
-                <g transform={`translate(50, 240) scale(${xScale}, ${yGain}) translate(0, -240)`}>
+                <g transform={`translate(${signalStartX}, 240) scale(${xScale}, ${yGain}) translate(0, -240)`}>
                   <path data-testid="ecg-path-I" d={paths.I.length > 0 ? `M${paths.I.join(" L")}` : ""} fill="none" stroke="#001F54" strokeWidth="1.5" strokeLinejoin="round" vectorEffect="non-scaling-stroke" />
                 </g>
                 {renderMarkers("yI")}
@@ -224,7 +224,7 @@ export const ECGCanvas: React.FC<ECGCanvasProps> = ({ paths, rPeaks, isAnomaly =
               {/* 2. Lead II */}
               <g transform={`translate(0, 480)`}>
                 {showCalibrationPulse && renderCalibrationPulse("II")}
-                <g transform={`translate(50, 240) scale(${xScale}, ${yGain}) translate(0, -240)`}>
+                <g transform={`translate(${signalStartX}, 240) scale(${xScale}, ${yGain}) translate(0, -240)`}>
                   <path d={paths.II.length > 0 ? `M${paths.II.join(" L")}` : ""} fill="none" stroke={lead2Stroke} strokeWidth="1.5" strokeLinejoin="round" vectorEffect="non-scaling-stroke" />
                 </g>
                 {renderMarkers("yII", true)}
@@ -233,7 +233,7 @@ export const ECGCanvas: React.FC<ECGCanvasProps> = ({ paths, rPeaks, isAnomaly =
               {/* 3. Lead III */}
               <g transform={`translate(0, 960)`}>
                 {showCalibrationPulse && renderCalibrationPulse("III")}
-                <g transform={`translate(50, 240) scale(${xScale}, ${yGain}) translate(0, -240)`}>
+                <g transform={`translate(${signalStartX}, 240) scale(${xScale}, ${yGain}) translate(0, -240)`}>
                   <path d={paths.III.length > 0 ? `M${paths.III.join(" L")}` : ""} fill="none" stroke="#001F54" strokeWidth="1.5" strokeLinejoin="round" vectorEffect="non-scaling-stroke" />
                 </g>
                 {renderMarkers("yIII")}
@@ -242,7 +242,7 @@ export const ECGCanvas: React.FC<ECGCanvasProps> = ({ paths, rPeaks, isAnomaly =
               {/* 4. aVR (Pembalikan sinyal dilakukan dengan -yGain) */}
               <g transform={`translate(0, 1440)`}>
                 {showCalibrationPulse && renderCalibrationPulse("aVR")}
-                <g transform={`translate(50, 240) scale(${xScale}, ${-yGain}) translate(0, -240)`}>
+                <g transform={`translate(${signalStartX}, 240) scale(${xScale}, ${-yGain}) translate(0, -240)`}>
                   <path d={paths.aVR.length > 0 ? `M${paths.aVR.join(" L")}` : ""} fill="none" stroke="#001F54" strokeWidth="1.5" strokeLinejoin="round" vectorEffect="non-scaling-stroke" />
                 </g>
                 {renderMarkers("yaVR")}
@@ -251,7 +251,7 @@ export const ECGCanvas: React.FC<ECGCanvasProps> = ({ paths, rPeaks, isAnomaly =
               {/* 5. aVL */}
               <g transform={`translate(0, 1920)`}>
                 {showCalibrationPulse && renderCalibrationPulse("aVL")}
-                <g transform={`translate(50, 240) scale(${xScale}, ${yGain}) translate(0, -240)`}>
+                <g transform={`translate(${signalStartX}, 240) scale(${xScale}, ${yGain}) translate(0, -240)`}>
                   <path d={paths.aVL.length > 0 ? `M${paths.aVL.join(" L")}` : ""} fill="none" stroke="#001F54" strokeWidth="1.5" strokeLinejoin="round" vectorEffect="non-scaling-stroke" />
                 </g>
                 {renderMarkers("yaVL")}
@@ -260,7 +260,7 @@ export const ECGCanvas: React.FC<ECGCanvasProps> = ({ paths, rPeaks, isAnomaly =
               {/* 6. aVF */}
               <g transform={`translate(0, 2400)`}>
                 {showCalibrationPulse && renderCalibrationPulse("aVF")}
-                <g transform={`translate(50, 240) scale(${xScale}, ${yGain}) translate(0, -240)`}>
+                <g transform={`translate(${signalStartX}, 240) scale(${xScale}, ${yGain}) translate(0, -240)`}>
                   <path d={paths.aVF.length > 0 ? `M${paths.aVF.join(" L")}` : ""} fill="none" stroke="#001F54" strokeWidth="1.5" strokeLinejoin="round" vectorEffect="non-scaling-stroke" />
                 </g>
                 {renderMarkers("yaVF")}
